@@ -1,0 +1,10 @@
+fcst_models:
+  - "model_1"
+file_path: "/some/path"
+file_template: "fc{YYYY}{MM}{DD}{HH}+{LDT3}grib2"
+file_format: "grib"
+lead_times: seq(1, 48, 1)
+by_val: "6h"
+station_file: "/path/to/allsynop.list"
+interp_method: "nearest"
+out_path: "/some/path"

@@ -1,0 +1,81 @@
+verif:
+  project_name: "Eps_Ctrl_Example"
+  fcst_model:
+    - model_1
+    - model_2
+  lead_time: seq(0,24,3)
+  by_step: "6h"
+  fcst_type: "eps"                          # det or eps
+  domains:                                  # what domains to verify ("All" will use all stations available)
+    - "All"
+  members:                                  # What members to verify for each ensemble. Include a list if the members differ between fcst_model. Set to NULL to use all available members in an ensemble.
+    - c(0)
+  lags:                                     # How to lag the members for each ensemble. Include a list if the lags differ between fcst_model. Set to "0h" for no lagging.
+    - "0h"
+  num_ref_members: "Inf"                    # Number of reference members to use when computing fair scores for an ensemble (e.g. "Inf"). Not used for det runs.
+  fcst_path: "/path/to/FCTABLE"
+  obs_path: "/path/to/OBSTABLE"
+  verif_path: "/path/to/rds_output"
+pre:
+  fcst_model:
+    - model_1
+    - model_2
+  lead_time: seq(0,24,1)
+  vfld_path: "/path/to/vfld"
+  vfld_by: "6h"
+  vfld_template:                            # See harpIO::show_file_templates(). Include one for each model if they are different
+    - "vfld_eps"
+  vobs_path: "/path/to/vobs"
+  vobs_by: "1h"
+  custom_asl_path: "/path/to/allsynop.list" # Local Harmonie allsynop list (activated with use_custom_asl flag in vfld2sql.R)
+  members:                                  # Members to convert. Include a list of members for fcst_model if they are different
+    - seq(0,5)
+    - seq(0,17)
+  lags:                                     # Lags for each member. Include a list of lags for each fcst_model if they are different. For a given model, lags should be the same length as members. Set to NULL for no lags
+    - c(rep(0,3),rep(3,3))
+    - c(rep(0,3),rep(1,3),rep(2,3),rep(3,3),rep(4,3),rep(5,3))
+  params:                                   # Parameters to convert. Set to "- NULL" to convert all parameters in the vfld.
+    - T2m
+    - S10m
+    - Gmax
+    - Td2m
+    - RH2m
+    - Q2m
+    - Pmsl
+    - Pcp
+    - CCtot
+    - CClow
+    - Cbase
+    - vis
+    - T
+    - S
+    - D
+    - Q
+    - RH
+    - Td
+    - Z
+post:
+  plot_output: "/path/to/png_output"        # Can set to "default" to use verif_path/archive
+  create_png: TRUE
+  cmap: "trubetskoy"                        # A palette from RColorBrewer or trubetskoy (in pals). Defaults to Set2
+scorecards:
+  create_scrd: TRUE                         # Flag to run scorecard generation or not
+  ref_model: model_1
+  fcst_model: model_2
+  parameters:                               # Which parameters to include in the scorecard?
+    - T2m
+    - Td2m
+    - S10m
+    - Pmsl
+    - CCtot
+  scores:
+    - "bias"
+    - "rmse"
+    - "stde"
+  domains:                                  # Construct scorecards for these domains only (must be in verif$domains)
+    - "All"
+  pooled_by: fcst_dttm
+  numboot: 1000
+  parallel: FALSE
+  num_cores: 1 
+  plot_signif: TRUE                         # Plot the actual differnce between fcst_model and ref_model (and the confidence of that difference)
