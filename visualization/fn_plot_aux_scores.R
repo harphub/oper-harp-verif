@@ -135,6 +135,7 @@ fn_plot_aux_scores <- function(fcst_input,
   if (rolling_verif) {
     cycles_oi <- c("All","00","12")
   }
+  cycles_oi   <- base::intersect(cycles_oi,c("All",cycles))
   stations_oi <- unique(stations)
   fd_adjust   <- 1  # Adjust parameter in freq dist plotting
   

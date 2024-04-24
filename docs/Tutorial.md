@@ -278,12 +278,14 @@ source(here(verification/fn_station_selection.R))
 sid_lists <- fn_station_selction("all_domains")
 ```
 
-There are 18 SID lists currently available (names matching `*rmv*` can be ignored here):
+There are 34 SID lists currently available (names matching `*rmv*` can be ignored here):
 ``` r
 > names(sid_lists)
- [1] "DKlist"           "DKland"           "DKcoast"          "DKupdated"        "Greenland"        "NorthSea"         "mll_rmv_obstable" "mll_rmv_vfldlist"
- [9] "DINI"             "IE_EN"            "IS"               "NL"               "NL_OP"            "DK"               "IRL"              "SCD"             
-[17] "FR"               "NNS"              "DE"               "Alps"             "stations_to_rmv"
+ [1] "DKlist"             "DKland"             "DKcoast"            "DKupdated"          "Greenland"          "NorthSea"           "NNS"                "EstoniaSynop"       "LatviaSynop"     
+[10] "LithuaniaSynop"     "mll_rmv_obstable"   "mll_rmv_vfldlist"   "DINI"               "IE_EN"              "IS"                 "NL"                 "NL_OP"              "DK"              
+[19] "IRL"                "SCD"                "FR"                 "DE"                 "Alps"               "FranceSynop"        "GermanySynop"       "IrelandSynop"       "NorwaySynop"     
+[28] "SwedenSynop"        "FinlandSynop"       "IcelandSynop"       "GreenlandSynop"     "DenmarkSynop"       "NetherlandsSynop"   "SpainSynop"         "SwitzerlandSynop"   "UnitedKingdomSynop"
+[37] "stations_to_rmv"   
 > sid_lists$DKlist
 # A tibble: 38 × 1
      SID
@@ -321,7 +323,7 @@ These names correspond to the possible values for `verif:domains` (along with th
 ``` r
 fn_station_selction("all_domains",plot_domains = TRUE)
 ```
-This will produce pngs for some of the SID lists (i.e. those which contain SID lat and lon) in the `verification` directory of this repo. 
+This will produce pngs in the `verification` directory of this repo for each SID list.
 
 ## Add a specific SID list (as in monitor)
 
@@ -386,7 +388,7 @@ Generation of these lists requires three files:
 
 Paths to these files are specified by `sl_dir` and `sql_file`, respectively, in the script. These three files are requried as the script compares the SID lat/lon in the OBSTABLE against that in the `allsynop/temp.list` for consistency (and omits the SID if the position differs significantly). This is controlled by the `multlatlon_rmv` flag.
 
-To add a new SID list based on a lat/lon bounding box, the domain first needs to be added to the script with values for `slat, nlat` and `wlon, elon`. Then to generate the list, or indeed to update an existing SID list in `verification/sid_lists.rds`, you can run:
+To add a new SID list based on a lat/lon bounding box, the domain first needs to be added to the script with values for `slat, nlat` and `wlon, elon`. The new domain name also needs to be added to the variable `all_reserved_names`. Then to generate the list, or indeed to update an existing SID list in `verification/sid_lists.rds`, you can run:
 ``` r
 fn_station_selection("all_domains",
 		     generate_domains = TRUE,
@@ -396,9 +398,27 @@ fn_station_selection("all_domains",
                      sql_file = "/path/to/OBSTABLE")
 
 ```
-This process can take some time. The new SID lists will be saved to a temporary file for comparison with the existing `sid_lists.rds`, which can then be overwritten if everything looks fine. Note that as the OBSTABLE is used in the generation process, the SID lists will only contain stations which are appearing in your observation database. Therefore if new stations are added to your OBSTABLE at a later point, you may need to regenerate the SID lists in `sid_lists.rds`.
+This process can take some time. The new SID lists will be saved to a temporary file for comparison with the existing `sid_lists.rds`, which can then be overwritten if everything looks fine. Note that as the OBSTABLE is used in the generation process, the SID lists will only contain stations which are appearing in your observation database. Therefore if new stations are added to your OBSTABLE at a later point, you may need to regenerate the SID lists and update the file `sid_lists.rds`.
 
-Finally, be default `point_verif.R` does not run SID list generation based on bounding boxes and instead calls `fn_station_selection.R` which reads existing lists in `sid_lists.rds`. If you want to read from a different filename, say `tmp_sid_list.rds`, simply change the function call in `point_verif.R` to:
+## SID lists based on SID ranges
+
+An alternative to using a lat/lon bounding box is to use a country-specific WMO SID range. This is already done for multiple SID lists, e.g. "FranceSynop" and "GermanySynop" are listed in `all_reserved_names` and the SID ranges are defined in the subfunction `filter_stations` as:
+
+``` r
+if (grepl("France",domain,fixed = "TRUE")) {
+      SID_min <- 7001
+      SID_max <- 7998
+    } else if (grepl("Germany",domain,fixed = "TRUE")) {
+      SID_min <- 10001
+      SID_max <- 10998
+```
+
+A new SID list based on a SID range can be added by:
+- Include "NewList" in `all_reserved_names` by adding it to the vector concatenated with "Synop" e.g. `paste0(c("France","Germany","Ireland","Norway","NewList"`.
+- Add SID_min/max corresponding to "NewList" to `filter_stations` as per the samples given.
+- Regenerate `sid_lists.rds` (see the example for lat/lon bounding boxes above).
+
+Finally, by default `point_verif.R` does not run SID list generation based on bounding boxes or SID ranges and instead calls `fn_station_selection.R` which reads existing lists in `sid_lists.rds`. If you want to read from a different filename, say `tmp_sid_list.rds`, simply change the function call in `point_verif.R` to:
 ``` r
 # Get domains from station_selection
 cs_list <- fn_station_selection(base::setdiff(domains_to_run,"All"),

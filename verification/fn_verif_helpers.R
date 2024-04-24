@@ -129,6 +129,17 @@ get_latlon <- function(df,
     lat_v <- unique(fc_tmp$lat[fc_tmp$SID == sid_i])
     lon_v <- unique(fc_tmp$lon[fc_tmp$SID == sid_i]) 
     
+    # NAs can sometimes occur at random leadtimes for Pcp - vfld2sql processing?
+    lat_v <- lat_v[!is.na(lat_v)]
+    lon_v <- lon_v[!is.na(lon_v)]
+    
+    if ((length(lat_v) == 0) || (length(lon_v) == 0)) {
+      cat("Warning: Station",sid_i,
+          "has no associated lat/lon value. Assigning NA\n")
+      lat_v <- NA
+      lon_v <- NA
+    }
+    
     if ((length(lat_v) > 1) || (length(lon_v) > 1)) {
       
       cat("Warning: Why multiple lat/lons for SID=",sid_i,
@@ -136,18 +147,9 @@ get_latlon <- function(df,
       cat("Lat:",paste0(lat_v,collapse = ","),
           "and Lon:",paste0(lon_v,collapse = ","),"\n")
       
-      lat_v <- lat_v[!is.na(lat_v)]
-      lon_v <- lon_v[!is.na(lon_v)]
-      
-      if ((length(lat_v) >= 1) & (length(lon_v) >= 1)) {
-        lat_v <- lat_v[1]
-        lon_v <- lon_v[1]
-      } else {
-        cat("Warning: Station",sid_i,
-            "has no associated lat/lon value. Assigning NA\n")
-        lat_v <- NA
-        lon_v <- NA
-      }
+      lat_v <- lat_v[1]
+      lon_v <- lon_v[1]
+     
     }
     
     lat_sids <- c(lat_sids,lat_v)
