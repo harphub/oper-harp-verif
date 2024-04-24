@@ -75,7 +75,7 @@ Quite often a hotfix may be applied to the ``develop`` branch of a specific harp
 remotes::install_github("harphub/harpPoint@develop")
 ```
 
-The following packages are used by the point verifiation scripts:
+The following packages are used by the point verifiation scripts: 
 - harp
 - here
 - argparse

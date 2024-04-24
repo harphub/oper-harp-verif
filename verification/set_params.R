@@ -66,7 +66,7 @@ params <- list(
     Pmsl = list(
       thresholds = NULL,
       obsmin_val = 90000/100,
-      obsmax_val = 107000/100,
+      obsmax_val = 106000/100,
       error_sd   = 6
     ),
     S10m = list(
