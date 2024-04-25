@@ -189,35 +189,52 @@ fn_station_selection <- function(domain_choice,
   # Use Harmonie's synop.list and temp.list for SID, lat, and lon
   # This is due to the fact that the lat/lon for some stations are missing in
   # the vobs files (a known issue at METIE, bufr2vobs related)
+  #
+  # Note that allsynop/alltemp.list are required for generating domains. 
+  # If these files are not found, then abort if generate_domains=TRUE.
+  # If generate_domains=FALSE, use harp's default station list for "allstations".
+  # This "allstations" is then only used for plotting SID lists which are not
+  # found in "domain_file".
   allsynop    <- file.path(sl_dir,"allsynop.list") 
   alltemp     <- file.path(sl_dir,"alltemp.list")
-  # Include additional columns at the end and extract first three columns (SID, lat, lon) (V1,V2,V3)
-  synop       <- read.table(allsynop,
-                            header    = FALSE,
-                            sep       = "",
-                            fill      = TRUE,
-                            col.names = paste0("V",seq_len(20))) %>%
-                 dplyr::select(V1,V2,V3,V4)
-  temp        <- read.table(alltemp,
-                            header    = FALSE,
-                            sep       = "",
-                            fill      = TRUE,
-                            col.names = paste0("V",seq_len(20))) %>%
-                 dplyr::select(V1,V2,V3)
-  # Find temp IDS which are not in synop 
-  # Need to also mutate lat and lon in the temp.list
-  temp_extra  <- temp[!(temp$V1 %in% synop$V1),] 
-  temp_extra  <- temp_extra %>% dplyr::mutate(V2 = V2/1000, 
-                                              V3 = ifelse(V3 > 180000,
-                                                          ((V3/1000) - 360),
-                                                          V3/1000),
-                                              V4 = NA)
-  allstations <- dplyr::bind_rows(synop,temp_extra)
-  
-  # This contains all possible stations in Harmonie vflds
-  colnames(allstations) <- c("SID","lat","lon","elev")
-  allstations           <- tibble::as_tibble(allstations) %>% 
-                           dplyr::arrange(SID) 
+  if ((file.exists(allsynop)) & (file.exists(alltemp))) {
+    # Include additional columns at the end and extract first three columns (SID, lat, lon) (V1,V2,V3)
+    synop       <- read.table(allsynop,
+                              header    = FALSE,
+                              sep       = "",
+                              fill      = TRUE,
+                              col.names = paste0("V",seq_len(20))) %>%
+                   dplyr::select(V1,V2,V3,V4)
+    temp        <- read.table(alltemp,
+                              header    = FALSE,
+                              sep       = "",
+                              fill      = TRUE,
+                              col.names = paste0("V",seq_len(20))) %>%
+                   dplyr::select(V1,V2,V3)
+    # Find temp IDS which are not in synop 
+    # Need to also mutate lat and lon in the temp.list
+    temp_extra  <- temp[!(temp$V1 %in% synop$V1),] 
+    temp_extra  <- temp_extra %>% dplyr::mutate(V2 = V2/1000, 
+                                                V3 = ifelse(V3 > 180000,
+                                                            ((V3/1000) - 360),
+                                                            V3/1000),
+                                                V4 = NA)
+    allstations <- dplyr::bind_rows(synop,temp_extra)
+    
+    # This contains all possible stations in Harmonie vflds
+    colnames(allstations) <- c("SID","lat","lon","elev")
+    allstations           <- tibble::as_tibble(allstations) %>% 
+                             dplyr::arrange(SID) 
+  } else {
+    if (generate_domains) {
+      stop("Did not find allsynop/temp.list with domain generation turned on")
+    } else {
+      if (plot_domains) {
+        cat("Using default harp station list for plotting in fn_station_selection\n")
+      }
+      allstations <- harpCore::station_list
+    }
+  }
   
   # Modify the elevation column for plotting purposes
   allstations$elevmap                           <- NA
@@ -534,8 +551,12 @@ fn_station_selection <- function(domain_choice,
   } else {
     
     # Read stationlist from an existing file
-    cat("Read existing SID lists in",fname_domains,"\n")
-    all_gen_domains <- readRDS(file = here::here("verification",fname_domains))
+    if (file.exists(here::here("verification",fname_domains))) {
+      cat("Read existing SID lists in",fname_domains,"\n")
+      all_gen_domains <- readRDS(file = here::here("verification",fname_domains))
+    } else {
+      stop("Cannot find verification/",fname_domains)
+    }
     
   }
   
