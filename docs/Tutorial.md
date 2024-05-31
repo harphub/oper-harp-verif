@@ -40,7 +40,7 @@ or a specific branch or a single repository:
 ``` r
 install_github("harphub/harpPoint@develop")
 ```
-In order to install a development version from Andrew's fork, use: `install_github("andrew-met/harp")` instead. Note that harp installation can take some time, and you will be asked about updating dependencies.
+All development versions are in the "develop" branch for each of the harp packages. Note that harp installation can take some time, and you will be asked about updating dependencies.
 
 ## PAT issue
 Occasionally the harp installation can fail with a message like:
