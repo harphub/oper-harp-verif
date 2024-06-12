@@ -296,13 +296,17 @@ if (rolling_verif) {
   
 }
 
-# Checks for the scorecard generation only flag
+# Checks for the scorecard generation
 if ((rolling_verif) & (gen_sc_only)) {
   stop("Cannot use rolling_verif and gen_sc_only options together!")
 }
 if (gen_sc_only) {
   cat("Only generating scorecard data and plotting\n")
   create_scrd <- TRUE
+}
+if (length(params) == 1) {
+  cat("Only one input parameter, switching off scorecard generation\n")
+  create_scrd <- FALSE
 }
 
 # png_projname is prefixed to the default png name

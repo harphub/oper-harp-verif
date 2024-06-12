@@ -31,40 +31,65 @@ source(here::here("verification/fn_verif_helpers.R"))
 # READ COMMAND LINE ARGUMENTS
 #================================================#
 
-parser <- argparse::ArgumentParser()
-parser$add_argument("-start_date",
-                    type    = "character",
-                    default = "None",
-                    help    = "First date to process in YYYYMMDDHH format")
-parser$add_argument("-end_date",
-                    type    = "character",
-                    default = "None",
-                    help    = "Final date to process in YYYYMMDDHH format")
-parser$add_argument("-config_file",
-                    type    = "character",
-                    default = "None",
-                    help    = "Config file to use")
-parser$add_argument("-param",
-                    type    = "character",
-                    default = "None",
-                    help    = "What parameter to extract")
-parser$add_argument("-deaccum",
-                    type    = "logical",
-                    default = FALSE,
-                    help    = "Deaccumulate over the last hour?")
-parser$add_argument("-convert_sl",
-                    type    = "logical",
-                    default = FALSE,
-                    help    = "Flag to convert the input stationlist to a
-                               suitable format for harp")
-
-args           <- parser$parse_args()
-start_date     <- args$start_date
-end_date       <- args$end_date
-config_file    <- args$config_file
-param          <- args$param
-deaccum        <- args$deaccum
-convert_sl     <- args$convert_sl
+if (!interactive()) {
+  parser <- argparse::ArgumentParser()
+  parser$add_argument("-start_date",
+                      type    = "character",
+                      default = "None",
+                      help    = "First date to process in YYYYMMDDHH format")
+  parser$add_argument("-end_date",
+                      type    = "character",
+                      default = "None",
+                      help    = "Final date to process in YYYYMMDDHH format")
+  parser$add_argument("-config_file",
+                      type    = "character",
+                      default = "None",
+                      help    = "Config file to use")
+  parser$add_argument("-param",
+                      type    = "character",
+                      default = "None",
+                      help    = "What parameter to extract")
+  parser$add_argument("-deaccum",
+                      type    = "logical",
+                      default = FALSE,
+                      help    = "Deaccumulate over the last hour?")
+  parser$add_argument("-convert_sl",
+                      type    = "logical",
+                      default = FALSE,
+                      help    = "Flag to convert the input stationlist to a
+                                 suitable format for harp")
+  parser$add_argument("-ups_radius",
+                      type    = "integer",
+                      default = 0,
+                      help    = "If > 0, upscale over 2*r+1 box")
+  parser$add_argument("-ups_method",
+                      type    = "character",
+                      default = "Mean",
+                      help    = "How to upscale over the boc i.e. mean, 
+                                 median, or max")
+  
+  args           <- parser$parse_args()
+  start_date     <- args$start_date
+  end_date       <- args$end_date
+  config_file    <- args$config_file
+  param          <- args$param
+  deaccum        <- args$deaccum
+  convert_sl     <- args$convert_sl
+  convert_sl     <- args$convert_sl
+  ups_radius     <- args$ups_radius
+  ups_method     <- args$ups_method
+  
+} else {
+  
+  # Source options from here instead of CLI
+  cat("Assuming we are in debug mode!\n")
+  if (file.exists(here::here("pre_processing/source_extract_options.R"))) {
+    source(here::here("pre_processing/source_extract_options.R"))
+  } else {
+    stop("Create a file to source in extract options\n")
+  }
+  
+}
 
 #================================================#
 # READ OPTIONS FROM THE CONFIG FILE
@@ -111,7 +136,7 @@ if (file_format == "grib") {
 
 if (!convert_sl) {
   cat("Using station list",station_file,"\n")
-  stations <- station_file
+  stations <- readRDS(station_file)
 } else {
   if (is.null(station_file)) {
     cat("No station file is in the config file and convert_sl is switched on\n")
@@ -120,6 +145,38 @@ if (!convert_sl) {
   } else {
     cat("Assuming",station_file,"is a Harmonie allsynop list\n")
     stations <- conv_allsynop(station_file)
+  }
+}
+
+# Filter to just DINI domain if file exists
+if (file.exists(here::here("pre_processing/DINI_domain_extent.rds"))) {
+  cat("Filter stations file to DINI domain only\n")
+  DINI_domain <- readRDS(here::here("pre_processing/DINI_domain_extent.rds"))
+  stations    <- stations %>% filter(
+    dplyr::between(lat,DINI_domain$latlim[1],DINI_domain$latlim[2]),
+    dplyr::between(lon,DINI_domain$lonlim[1],DINI_domain$lonlim[2]),
+  )
+}
+
+# Check that stations is compatible with upscaling flags
+if (ups_radius > 0) {
+  if (ups_radius %% 1 == 0) {
+    box_size = 2*ups_radius + 1
+    if (ups_method %in% c("mean","median","max")) {
+      cat("Request to upscale over",box_size,"x",box_size,"box using",ups_method,"method\n")
+      if (("i" %in% names(stations)) & ("j" %in% names(stations))) {
+        cat("Nearest point index is in stations file, continue\n")
+        if (file_format != "grib") {
+          stop("TODO: Upscaling only implemented for grib currently\n")
+        }
+      } else {
+        stop("For upscaling, nearest point index for each station is required!\n")
+      }
+    } else {
+      stop("Upscale method should be mean, median, or max!\n")
+    }
+  } else {
+    stop("Upscaling radius should be a natural number!\n")
   }
 }
 
@@ -138,27 +195,94 @@ read_det_grib_data <- function(dtg,
                                file_format,
                                file_template){
   
-  df  <- harpIO::read_forecast(
-    dttm                = harpCore::seq_dttm(start_dttm = dtg,
-                                             end_dttm   = dtg),
-    fcst_model          = fcst_model,
-    parameter           = harpIO::as_harp_parameter(param),
-    lead_time           = lt,
-    transformation      = "interpolate",
-    transformation_opts = harpIO::interpolate_opts(
-      stations          = stations,
-      method            = interp_method,
-      correct_t2m       = TRUE
-    ),
-    file_path           = file_path,
-    file_format         = file_format,
-    file_template       = file_template,
-    return_data         = TRUE
-  ) %>% harpCore::bind()
+  # Different methods depending on upscaling
+  if (ups_radius > 0) {
+    
+    # Loop over all stations (slow for a long file!)
+    df <- NULL
+    for (cs in seq(1,nrow(stations))) {
+      
+      # Subgrid centered on nearest gridpoint to the station
+      dfc  <- harpIO::read_forecast(
+        dttm                = harpCore::seq_dttm(start_dttm = dtg,
+                                                 end_dttm   = dtg),
+        fcst_model          = fcst_model,
+        parameter           = harpIO::as_harp_parameter(param),
+        lead_time           = lt,
+        transformation      = "subgrid",
+        transformation_opts = harpIO::subgrid_opts(
+          stations$i[cs] - ups_radius,
+          stations$i[cs] + ups_radius,
+          stations$j[cs] - ups_radius,
+          stations$j[cs] + ups_radius
+        ),
+        file_path           = file_path,
+        file_format         = file_format,
+        file_template       = file_template,
+        return_data         = TRUE
+      )
+      if (nrow(dfc) != 1) {
+        cat("Something went wrong during the upscaling, return NULL!\n")
+        df <- NULL
+        return(df)
+      }
+      
+      # Rename to "forecast"
+      r_c_name <- names(dfc)[grepl(fcst_model,names(dfc),fixed = TRUE)]
+      dfc <- dfc %>% dplyr::mutate(forecast = get(r_c_name)) %>% 
+        dplyr::select(-all_of(r_c_name))
+      # Then upscale
+      dfc$forecast <- get(ups_method)(dfc$forecast[[1]])
+      # Add in SID, lat, lon info
+      dfc$SID <- stations$SID[cs]
+      dfc$lat <- stations$lat[cs]
+      dfc$lon <- stations$lon[cs]
+      # Bind to total
+      df <- bind_rows(df,dfc)
+      
+    }
+    
+    # Reorder
+    df <- df %>% select("fcst_model",
+                        fcst_dttm,
+                        lead_time,
+                        parameter,
+                        valid_dttm,
+                        step_range,
+                        level_type,
+                        level,
+                        units,
+                        SID,
+                        lat,
+                        lon,
+                        fcst_cycle,
+                        forecast)
+    
+  } else {
   
-  r_c_name <- names(df)[grepl(fcst_model,names(df),fixed = TRUE)]
-  df <- df %>% dplyr::mutate(forecast = get(r_c_name)) %>% 
-    dplyr::select(-all_of(r_c_name))
+    df  <- harpIO::read_forecast(
+      dttm                = harpCore::seq_dttm(start_dttm = dtg,
+                                               end_dttm   = dtg),
+      fcst_model          = fcst_model,
+      parameter           = harpIO::as_harp_parameter(param),
+      lead_time           = lt,
+      transformation      = "interpolate",
+      transformation_opts = harpIO::interpolate_opts(
+        stations          = stations,
+        method            = interp_method,
+        correct_t2m       = TRUE
+      ),
+      file_path           = file_path,
+      file_format         = file_format,
+      file_template       = file_template,
+      return_data         = TRUE
+    ) %>% harpCore::bind()
+    
+    r_c_name <- names(df)[grepl(fcst_model,names(df),fixed = TRUE)]
+    df <- df %>% dplyr::mutate(forecast = get(r_c_name)) %>% 
+      dplyr::select(-all_of(r_c_name))
+  
+  }
   
   if (nrow(df) == 0) {
     df <- NULL
@@ -351,10 +475,19 @@ for (fcst_model in fcst_models) {
     if (deaccum) {
       t_str <- "1hr"
     } else {
-      t_str <- "acc"
+      if (param %in% c("grad")) {
+        t_str <- "acc"
+      } else {
+        t_str <- "ins"
+      }
     }
     
-    out_name <- paste0(paste(param,t_str,fcst_model,dtg,sep = "_"),".rds")
+    if (ups_radius > 0) {
+      out_name <- paste0(paste(param,t_str,paste0(ups_method,ups_radius),
+                               fcst_model,dtg,sep = "_"),".rds")
+    } else {
+      out_name <- paste0(paste(param,t_str,fcst_model,dtg,sep = "_"),".rds")
+    }
     if (dir.exists(out_path)) {
       out_path_full <- file.path(out_path,fcst_model,YYYY,MM)
       if (!dir.exists(out_path_full)) {
