@@ -7,8 +7,8 @@ This should install fairly easily on the atos supercomputer at ECMWF.
 To install packages required by this repo, you can use:
 ``` r
 pkg_list <- c("here","argparse","yaml","dplyr","tidyr",
-              "purr","forcats","stringr","RColorBrewer","grid"
-              "gridExtra","pracma","RSQlite","scales","pals"
+              "purr","forcats","stringr","RColorBrewer","grid",
+              "gridExtra","pracma","RSQlite","scales","pals",
               "shiny","shinyWidgets","lubridate")
 for (pkg in pkg_list) {
   install.packages(pkg)

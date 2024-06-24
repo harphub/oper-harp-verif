@@ -106,6 +106,7 @@ by_val        <- CONFIG$by_val
 station_file  <- CONFIG$station_file
 interp_method <- CONFIG$interp_method
 out_path      <- CONFIG$out_path
+correct_T2m   <- CONFIG$correct_T2m
 
 # Check file format
 if (file_format == "grib") {
@@ -114,6 +115,12 @@ if (file_format == "grib") {
   read_fn <- "read_det_icm_data"
 } else {
   stop("File format ",file_format," not considered, exiting!")
+}
+
+# Check correct_T2m
+if (is.null(correct_T2m)) {
+  cat("No correct_T2m found in config, assumed TRUE\m")
+  correct_T2m <- TRUE
 }
 
 #=====================================================#
@@ -228,7 +235,11 @@ read_det_grib_data <- function(dtg,
       }
       
       # Rename to "forecast"
-      r_c_name <- names(dfc)[grepl(fcst_model,names(dfc),fixed = TRUE)]
+      if ("fcst" %in% names(dfc)) {
+        r_c_name <- "fcst"
+      } else {
+        r_c_name <- names(dfc)[grepl(fcst_model,names(dfc),fixed = TRUE)]
+      }
       dfc <- dfc %>% dplyr::mutate(forecast = get(r_c_name)) %>% 
         dplyr::select(-all_of(r_c_name))
       # Then upscale
@@ -270,7 +281,7 @@ read_det_grib_data <- function(dtg,
       transformation_opts = harpIO::interpolate_opts(
         stations          = stations,
         method            = interp_method,
-        correct_t2m       = TRUE
+        correct_t2m       = correct_T2m
       ),
       file_path           = file_path,
       file_format         = file_format,
@@ -278,7 +289,11 @@ read_det_grib_data <- function(dtg,
       return_data         = TRUE
     ) %>% harpCore::bind()
     
-    r_c_name <- names(df)[grepl(fcst_model,names(df),fixed = TRUE)]
+    if ("fcst" %in% names(df)) {
+      r_c_name <- "fcst"
+    } else {
+      r_c_name <- names(df)[grepl(fcst_model,names(df),fixed = TRUE)]
+    }
     df <- df %>% dplyr::mutate(forecast = get(r_c_name)) %>% 
       dplyr::select(-all_of(r_c_name))
   
@@ -341,7 +356,7 @@ read_det_icm_data <- function(dtg,
     transformation_opts = harpIO::interpolate_opts(
       stations          = stations,
       method            = interp_method,
-      correct_t2m       = TRUE
+      correct_t2m       = correct_T2m
     )
   ) 
   
