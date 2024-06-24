@@ -119,7 +119,7 @@ if (file_format == "grib") {
 
 # Check correct_T2m
 if (is.null(correct_T2m)) {
-  cat("No correct_T2m found in config, assumed TRUE\m")
+  cat("No correct_T2m found in config, assumed TRUE\n")
   correct_T2m <- TRUE
 }
 
