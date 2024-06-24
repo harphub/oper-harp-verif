@@ -54,11 +54,13 @@ fn_station_selection <- function(domain_choice,
                             26503,26446,26335,26346,26447,26339,26318,26313,
                             26435,26403,26238,26406,26314,26229,26326)
   } else if (param == "Pmsl") {
-    stations_param_rmv <- c(1304,1411,10004)
+    stations_param_rmv <- c(1304,1411,10004,4160,4166)
   } else if (param == "Gmax") {
     stations_param_rmv <- c(2488,6730,11819,13461)
   } else if (param == "Td2m") {
-    stations_param_rmv <- c(2325,6032,6068,6183)
+    stations_param_rmv <- c(2325,6032,6068,6183,4976)
+  } else if (param == "RH2m") {
+    stations_param_rmv <- c(4976)
   } else {
     stations_param_rmv <- NULL
   }

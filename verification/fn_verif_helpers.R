@@ -622,10 +622,17 @@ fcst_qc <- function(fcst,
                                         names = FALSE)
     min_num_stations <- max(min_num_stations,num_days)
     
-    cat("Only using stations which have >=",min_num_stations,"reports\n")
-    
     sids_filter      <- station_count$SID[station_count$n >= min_num_stations]
+    sids_removed     <- station_count$SID[station_count$n < min_num_stations]
     fcst             <- harpPoint::filter_list(fcst,SID %in% sids_filter)
+
+    if (length(sids_removed) > 0) {
+      cat("Only using stations which have >=",min_num_stations,"reports\n")
+      cat("This has removed the following SIDS:\n")
+      print(sids_removed)
+    } else {
+      cat("No 'infrequent' stations removed\n")
+    }
   }
   
   
