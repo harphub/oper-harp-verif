@@ -4,7 +4,10 @@
 In order to use the harp libraries it is recommended
 to use a local environment created with the `renv` library.
 The local environment can be created using the `renv.lock` included
-here, or created from scratch using the instructions below
+here, or created from scratch using the instructions below.
+Remember to replace `{path_to_oper-harp_repository}` by the local
+path where this repository was cloned.
+
 
 ### Using `renv.lock` to recreate environment
 
@@ -93,3 +96,13 @@ renv::snapshot()
 Some of the tests included here use the local python3 module and a local python environment
 #### TODO Ask Fabrizio: provided venv file for recreating python environment that includes sat-data processing libraries
 
+
+### Installing the modified libraries `harpSpatial` and `harpIO`
+
+In order to install the modified libraries `harpSpatial` and `harpIO` follow these instructions
+
+```bash
+R
+install.packages("{path_to_oper-harp_repository}/ACCORD_VS_202406/harpSpatial_branch_DMI_GeoSphere.tar.gz", repos=NULL, type="source")
+install.packages("{path_to_oper-harp_repository}/ACCORD_VS_202406/harpIO_branch_DMI_GeoSphere.tar.gz", repos=NULL, type="source")
+```
