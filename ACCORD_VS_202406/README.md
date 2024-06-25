@@ -20,21 +20,25 @@ Grib files output of the DEODE workflow running HARMONIE cy46h1 (total presipita
 
 **Content of the repository**
 
-**- installHarp**
-  renv.lock
-  ./renv/cellar/harpSpatial_0.0.1.9009.tar.gz
-  ./renv/cellar/harpIO_0.2.2.tar.gz
+**installHarp**
+  
+    renv.lock
+    ./renv/cellar/harpSpatial_0.0.1.9009.tar.gz
+    ./renv/cellar/harpIO_0.2.2.tar.gz
+  
   Note: pull request will be done for harpIO & harpSpatial, but for now the changes are saved here:
-  harpIO:
-     - changes to read HDF files
-  harpSpatial:
-     - fc_param_defs input to read_grid()
-     - prm$basename input to read_grid() 
-     - prm$basename to force IR and WV satellite channels as the same parameter
-     - return fields from verify_spatial()
-     - adding scores in verify_spatial() (like RMSE, corr coef, percentage FSS) 
+  
+    harpIO:
+    chages to read_hdf5()
      
-**- scripts**
+    harpSpatial:
+    fc_param_defs input to read_grid()
+    prm$basename input to read_grid()      
+    prm$basename to force IR and WV satellite channels as the same parameter     
+    return fields from verify_spatial()     
+    adding scores in verify_spatial() (like RMSE, corr coef, percentage FSS) 
+    
+**scripts**
    
 ### Installation instructions
 
