@@ -22,7 +22,7 @@ Grib files output of the DEODE workflow running HARMONIE cy46h1 (total presipita
 
 ### Installation instructions
 
-Development where done on ATOS
+Development was done on ATOS
 
 Refer to the [installation instructions](INSTALLATION.md) for details of how to install different libraries.
 
