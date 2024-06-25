@@ -41,7 +41,6 @@ to a local R installation and not the standard `$HOME/x86_64-pc-linux-gnu-librar
 [Previously saved workspace restored]
 
 ```
-```
 
 To update `renv.lock` after installation use:
 ```
