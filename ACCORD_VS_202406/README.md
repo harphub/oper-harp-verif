@@ -48,14 +48,13 @@ Refer to the [installation instructions](INSTALLATION.md) for details of how to 
 
 # R install on ATOS using info from repositoy
 
-1) load the following modules: R/4.3.3   ecmwf-toolbox/2024.04.0.0   proj/9.3.1
+1) load the following modules: R/4.3.3 ecmwf-toolbox/2024.04.0.0 proj/9.3.1 hdf5/1.14.3
 2) cd where renv.lock is in the repository (cd installHarp)
-7)  start R
-8)  if you do not have renv: install.packages("renv")
-9)  quit and restar R
-10)  intall env: renv::restore()
-11)  if you want to see the packages: renv::status() 
-12)  
+3) start R
+4) if you do not have renv: a) install.packages("renv") b) quit and restar R
+5) intall env: renv::restore()
+6) if you want to see the packages: renv::status() 
+ 
 
 Additional dependencies when using reticulate to interface with python (more info in reading_functions.py):
 
