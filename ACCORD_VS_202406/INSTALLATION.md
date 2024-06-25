@@ -43,6 +43,36 @@ install_github("harphub/Rgrib2")
 
 ```
 
+In order to install the `hdf5r` and `ncdf4` libraries needed to read hdf5 and netcdf
+files, follow these steps
+
+#### for netcdf
+```bash
+module load netcdf
+R
+install.packages("ncdf4")
+```
+
+#### for hdf5r
+When working in atos, follow the following two extra steps.
+If working any other machine, this step is not needed.
+
+For the `hdf5r` library, R is does not add the correct link flags for setting rpath
+when building the library. In order to avoid this issue, first create a file
+` ~/.R/Makevars` with this line
+```
+PKG_LIBS = $(HDF5_LIB)
+
+```
+Then install `hdf5r` in R:
+```bash
+module load hdf5
+R
+install.packages("hdf5r")
+```
+When this is done, remove the `Makevars` file, as this might interfere with the 
+installation of other packages.
+
 After starting R in this location you should see a message like this, pointing
 to a local R installation and not the standard `$HOME/x86_64-pc-linux-gnu-library`:
 
