@@ -100,9 +100,12 @@ Some of the tests included here use the local python3 module and a local python 
 ### Installing the modified libraries `harpSpatial` and `harpIO`
 
 In order to install the modified libraries `harpSpatial` and `harpIO` follow these instructions
+after installing the original harp libraries.
 
 ```bash
 R
+remove.packages("harpSpatial")  
+remove.packages("harpIO")
 install.packages("{path_to_oper-harp_repository}/ACCORD_VS_202406/harpSpatial_branch_DMI_GeoSphere.tar.gz", repos=NULL, type="source")
 install.packages("{path_to_oper-harp_repository}/ACCORD_VS_202406/harpIO_branch_DMI_GeoSphere.tar.gz", repos=NULL, type="source")
 ```
