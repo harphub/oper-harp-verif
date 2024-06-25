@@ -21,5 +21,14 @@ Grib files output of the DEODE workflow running HARMONIE cy46h1 (total presipita
 **Content of the repository**
 
 ### Installation instructions
+
+Development was done on ATOS (shared using accord group)
+
 Refer to the [installation instructions](INSTALLATION.md) for details of how to install different libraries.
+
+Additional dependencies when using reticulate to interface with python (more info in reading_functions.py):
+
+- python metview for reading the grib file
+- satpy for reading and regridding MSG data (you might use /perm/miag/venvs/satpy/bin/python3 'rx' permissions for accord group)
+
 
