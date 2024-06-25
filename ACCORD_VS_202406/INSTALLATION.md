@@ -7,10 +7,19 @@ The local environment can be created using the `renv.lock` included
 here, or created from scratch using the instructions below
 
 ### Using `renv.lock` to recreate environment
-#### TODO (does not always work smoothly, hence including steps below)
+
+Use the provided `renv.lock` found in this directory.
+
+```bash
+mkdir harp_local_installation
+cd harp_local_installation
+cp {path_to_oper-harp_repository}/ACCORD_VS_202406/renv.lock .
+...
+
+```
 
 ### Create renv from scratch
-```
+```bash
 module load R/4.2.2 # all tests done with this version of R
 module load ecmwf-toolbox #this one is necessary to install Rgrib2 dependencies
 R
@@ -22,7 +31,7 @@ Exit R (ctrl-D or exit)
 Once the renv environment is initiated, enter R again and install
 the following libraries
 
-```
+```bash
 R
 renv::install("remotes")
 library(remotes)
