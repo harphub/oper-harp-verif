@@ -4,7 +4,7 @@ Polly Schmederer (Geosphere), Carlos Peralta (DMI) and Fabrizio Baordo (DMI)
 
 **Topics of VS**
 
-Generalizing spatial verifications: improving R scripting; use of reticulate package to interface R with Python; testing 'panelification' tool.
+Generalizing spatial verifications: improving R scripting; use of reticulate package to interface R with Python; testing 'pannelfication' tool
 
 **Data used for spatial verification**
 
@@ -20,15 +20,44 @@ Grib files output of the DEODE workflow running HARMONIE cy46h1 (total presipita
 
 **Content of the repository**
 
+**installHarp**
+  
+    renv.lock
+    ./renv/cellar/harpSpatial_0.0.1.9009.tar.gz
+    ./renv/cellar/harpIO_0.2.2.tar.gz
+  
+  Note: pull request will be done for harpIO & harpSpatial, but for now the changes are saved here:
+  
+    harpIO:
+    chages to read_hdf5()
+     
+    harpSpatial:
+    fc_param_defs input to read_grid()
+    prm$basename input to read_grid()      
+    prm$basename to force IR and WV satellite channels as the same parameter     
+    return fields from verify_spatial()     
+    adding scores in verify_spatial() (like RMSE, corr coef, percentage FSS) 
+    
+**scripts**
+   
 ### Installation instructions
 
 Development was done on ATOS (shared using accord group)
 
 Refer to the [installation instructions](INSTALLATION.md) for details of how to install different libraries.
 
+# R install on ATOS using info from repositoy
+
+1) load the following modules: R/4.3.3 ecmwf-toolbox/2024.04.0.0 proj/9.3.1 hdf5/1.14.3
+2) cd where renv.lock is in the repository (cd installHarp)
+3) start R
+4) if you do not have renv: a) install.packages("renv") b) quit and restar R
+5) intall env: renv::restore()
+6) if you want to see the packages: renv::status() 
+ 
+
 Additional dependencies when using reticulate to interface with python (more info in reading_functions.py):
 
 - python metview for reading the grib file
 - satpy for reading and regridding MSG data (you might use /perm/miag/venvs/satpy/bin/python3 'rx' permissions for accord group)
-
 
