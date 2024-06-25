@@ -19,3 +19,7 @@ NWP:
 Grib files output of the DEODE workflow running HARMONIE cy46h1 (total presipitation and FULL POS simulated radiances channels WV_062 & IR_108)
 
 **Content of the repository**
+
+### Installation instructions
+Refer to the [installation instructions](INSTALLATION.md) for details of how to install different libraries.
+
