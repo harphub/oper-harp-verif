@@ -22,6 +22,7 @@ cp {path_to_oper-harp_repository}/ACCORD_VS_202406/renv.lock .
 ```bash
 module load R/4.2.2 # all tests done with this version of R
 module load ecmwf-toolbox #this one is necessary to install Rgrib2 dependencies
+module load proj
 R
 library(renv)
 renv::init()
