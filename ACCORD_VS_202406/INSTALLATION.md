@@ -1,4 +1,38 @@
 # Installation instructions to use the R and python libraries
+Instructions below are focused on using the scripts
+in the ECMWF atos machine.
+Since the installation makes heavy use of github, it is
+a good idea to create a personal token in github. 
+
+## Creating a personal token in github
+
+Occasionally the harp installation can fail with a message like:
+``` r
+Downloading GitHub repo andrew-MET/harp@master
+Error: HTTP error 403.
+ API rate limit exceeded for 130.226.71.190. (But here's the good news: Authenticated requests get a hi
+gher rate limit. Check out the documentation for more details.)
+```
+or:
+``` r
+Error: Failed to install 'unknown package' from GitHub:
+```
+If this happens, you need to create a personal token. Follow the instructions [here](https://happygitwithr.com/https-pat.html#get-a-pat) to get yourself a token.
+Once you do that, follow these instructions
+``` r
+gitcreds::gitcreds_set()
+<Enter token here>
+```
+Then use:
+``` r
+usethis::edit_r_environ()
+```
+This will open an editor to edit the file `.Renviron`, where you can write GITHUB_PAT=thetokenabove.
+
+The system will ask you to restart R to take effect. Then try to install harp again.
+
+#### Keep the personal token in your `.Renviron` for later use. The system will detect it an use it every time you use `install_github`
+
 
 ## Steps followed to install R locally using renv in atos
 In order to use the harp libraries it is recommended
@@ -26,6 +60,9 @@ cp {path_to_oper-harp_repository}/ACCORD_VS_202406/renv.lock .
 module load R/4.2.2 # all tests done with this version of R
 module load ecmwf-toolbox #this one is necessary to install Rgrib2 dependencies
 module load proj
+```
+
+```r
 R
 library(renv)
 renv::init()
@@ -35,7 +72,7 @@ Exit R (ctrl-D or exit)
 Once the renv environment is initiated, enter R again and install
 the following libraries
 
-```bash
+```r
 R
 renv::install("remotes")
 library(remotes)
