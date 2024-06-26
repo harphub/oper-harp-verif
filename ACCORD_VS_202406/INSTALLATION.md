@@ -17,8 +17,15 @@ or:
 ``` r
 Error: Failed to install 'unknown package' from GitHub:
 ```
-If this happens, you need to create a personal token. Follow the instructions [here](https://happygitwithr.com/https-pat.html#get-a-pat) to get yourself a token.
-Once you do that, follow these instructions
+
+If this happens, if you already have a personal token, this must be added to the file '.Renviron' in your home.
+
+touch ~/.Renviron and edit to add GITHUB_PAT=thetokenabove
+
+If you do not have a token, follow the instructions [here](https://happygitwithr.com/https-pat.html#get-a-pat) 
+
+Note that to add the token to .Renviron, you can also follow these instructions:
+
 ``` r
 gitcreds::gitcreds_set()
 <Enter token here>
@@ -31,31 +38,18 @@ This will open an editor to edit the file `.Renviron`, where you can write GITHU
 
 The system will ask you to restart R to take effect. Then try to install harp again.
 
-#### Keep the personal token in your `.Renviron` for later use. The system will detect it an use it every time you use `install_github`
+Keep the personal token in your `.Renviron` for later use. The system will detect it an use it every time you use `install_github`
 
 
-## Steps followed to install R locally using renv in atos
+## Steps followed to install HARP in atos
+
 In order to use the harp libraries it is recommended
 to use a local environment created with the `renv` library.
-The local environment can be created using the `renv.lock` included
-here, or created from scratch using the instructions below.
+The local environment can be created from scratch using the instructions below.
 Remember to replace `{path_to_oper-harp_repository}` by the local
 path where this repository was cloned.
 
-
-### Using `renv.lock` to recreate environment
-
-Use the provided `renv.lock` found in this directory.
-
-```bash
-mkdir harp_local_installation
-cd harp_local_installation
-cp {path_to_oper-harp_repository}/ACCORD_VS_202406/renv.lock .
-...
-
-```
-
-### Create renv from scratch
+**Create renv from scratch**
 ```bash
 module load R/4.2.2 # all tests done with this version of R
 module load ecmwf-toolbox #this one is necessary to install Rgrib2 dependencies
