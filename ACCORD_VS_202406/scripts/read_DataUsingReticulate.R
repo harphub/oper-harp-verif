@@ -103,3 +103,77 @@ return (data)
 }
 
 
+#' read native nc grid in netcd file
+#' @param file_name file_name with data
+#' @param parameter of interest
+#' @param format_opts list(python_function, python_version, 
+#' invert_data, origin)
+#' @return geofield
+read_nc_reticulate <- function(file_name,
+                                parameter,
+                                format_opts = list(),
+                                ...
+                                ) {
+
+        require(harp)
+        require(reticulate)
+        require(meteogrid)
+
+        message("parameter read by nc function, ", parameter, class(parameter))
+
+        reticulate::use_python(format_opts$python_version)
+        reticulate::source_python(format_opts$python_function)
+
+        # the function being called here comes from the file: reading_functions.py
+        returnList <- get_data_nc_file(file_name,
+                                parameter)
+       data_array <- returnList[[1]]
+        projS <- returnList[[4]]
+        dttm <-returnList[[5]]
+        dttm <- as.POSIXct(dttm, format="%Y-%m-%dT%H:%M:%S")
+        time_str   <- as.character(dttm, format="%Y-%m-%d %H:%M:%S")
+        #print(dttm)
+        #print("Creating geodomain")
+        gf_domain <- structure(list(
+                                 projection=list(proj=projS$proj),
+                                 nx=projS$nx,
+                                 ny=projS$ny,
+                                 dx=projS$dx,
+                                 dy=projS$dy,
+                                 SW=c(projS$SW_lon, projS$SW_lat),
+                                 NE=c(projS$NE_lon, projS$NE_lat)),
+                            class="geodomain")
+     #print(gf_domain)
+     #print("Creating geofield")
+     #print(class(data_array))
+     #print(dim(t(data_array)))
+     #reformat array to match meteogrid expectations as done above
+     data_array <- t(data_array)
+     data_array <- data_array[, ncol(data_array):1]
+
+     #print(dim(data_array))
+     data_gf <- meteogrid::as.geofield(data_array,
+                       domain = gf_domain,
+                       info = list(
+                                   origin = format_opts$origin,
+                                   name   = parameter,
+                                   TIME   = time_str  ## not working
+                                   ))
+     print("Creating tibble from nc file")
+     #to fix: fcdate to be given as input
+     fcdate <- as.POSIXct(dttm, format="%Y-%m-%dT%H:%M:%S")
+
+     data <- tibble::tibble(
+               valid_dttm = dttm,
+               parameter = parameter,
+               lead_time = lead_time,
+               fcdate = fcdate,
+               gridded_data = list(data_gf)
+               )
+    #print(data)
+    data <- as_harp_df(data)
+
+
+    return (data)
+}
+

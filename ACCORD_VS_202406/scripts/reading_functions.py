@@ -432,3 +432,25 @@ def sat_model_to_same_grid (msgFile, strChannel, grbFile, messNun, areaId):
     print(' --> Content of returned list: {0}'.format(listContent))
     print('****** Python Interface End ******')
     return returnList
+
+
+
+def get_data_nc_file(ncFile,parameter):
+    """
+    Read the data from an nc file using xarray
+    and return the it in the right format
+    """
+    import pandas as pd
+    import numpy as np
+    ds = xr.open_dataset(ncFile)
+    time = pd.to_datetime(ds["time"].values[0],unit="s")
+    returnList=[]
+    returnList.append(np.asmatrix(ds[parameter].values))
+    returnList.append(ds["lat"].values)
+    returnList.append(ds["lon"].values)
+    returnList.append(ds.attrs)
+    returnList.append(time)
+
+
+    return returnList
+
