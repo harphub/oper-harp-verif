@@ -129,7 +129,7 @@ fc_accumulation   = "0h"
 #####################
 #### ADDITIONAL #####
 #####################
-source(paste0(here(),"/read_deode_exps.R"))
+source(paste0(here(),"/ACCORD_VS_202406/scripts/read_deode_exps.R"))
 
 deode_grb_2500    <- read_param_with_grbmessg("/perm/aut4452/ACCORD_VS/deode_exps/2023122000/harmonie_DK2500g_SP_ATOSDT_00bd/surface_gc_300x300_2500m+0036h00m00s.grb", 1)
 

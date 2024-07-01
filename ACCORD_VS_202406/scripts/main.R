@@ -15,12 +15,12 @@ def_param <- "tp"
 #def_param <- "sat"
 
 definition_file <- switch(def_param,
-			  "tp" = paste0(here(),"/definitions_tp_data.R"),
-			  "sat" = paste0(here(),"/definitions_sat_data.R"))
+			  "tp" = paste0(here(),"/ACCORD_VS_202406/configs/definitions_tp_data.R"),
+			  "sat" = paste0(here(),"/ACCORD_VS_202406/configs/definitions_sat_data.R"))
 
 definition_file_plt <- switch(def_param,
-			      "tp" = paste0(here(),"/definitions_tp_plotting.R"),
-			      "sat" = paste0(here(),"/definitions_sat_plotting.R"))
+			      "tp" = paste0(here(),"/ACCORD_VS_202406/configs/definitions_tp_plotting.R"),
+			      "sat" = paste0(here(),"/ACCORD_VS_202406/configs/definitions_sat_plotting.R"))
 
 
 init_time <- switch(def_param,
