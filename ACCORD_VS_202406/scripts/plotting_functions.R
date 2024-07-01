@@ -296,7 +296,7 @@ main_plotting <- function(verif_data, verif_fields, ob_name, param, plt_definiti
         domain <- verif_fields[[ob_name]]$obfield[[ob_name]][[1]] %>% get_domain()
         verif_subdomain <- verif_fields$verif_domain
 
-        source(paste0(here(),"/utils.R"))
+        source(paste0(here(),"/ACCORD_VS_202406/scripts/utils.R"))
 
         # ## obfield
         obpanel  <- plot_panel_ob(field = verif_fields[[ob_name]]$obfield,
@@ -347,7 +347,7 @@ main_plotting <- function(verif_data, verif_fields, ob_name, param, plt_definiti
 
         # ## save plot to png
         if (plot_path == "") {
-                plot_path <- paste0(here::here(), "/PLOTS/")
+                plot_path <- paste0(here::here(), "/ACCORD_VS_202406/PLOTS/")
         }
         if (plot_name == "") {
                 plot_name <- paste(veri_time, parameter, sep="_")

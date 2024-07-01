@@ -109,14 +109,20 @@ for (model in models){
 verif_fields[[ob_name]]   <- ob_tmp
 verif_fields$verif_domain <- verif_domain
 
+message("verif_data: ")
+print(verif_data)
+message("verif_fields: ")
+print(verif_fields)
+
+
 ########################
 ### RANK THE MODELS ####
 ########################
 
 #source("/perm/aut4452/ACCORD_VS/R/harp_local_installation/panel_tool_scripts/utils.R")
 #source("/perm/aut4452/ACCORD_VS/R/harp_local_installation/panel_tool_scripts/ranking.R")
-source(paste0(here(), "/utils.R"))
-source(paste0(here(), "/ranking.R"))
+source(paste0(here(), "/ACCORD_VS_202406/scripts/utils.R"))
+source(paste0(here(), "/ACCORD_VS_202406/scripts/ranking.R"))
 
 verif_data <- main_ranking(verif_data)
 
@@ -125,7 +131,7 @@ verif_data <- main_ranking(verif_data)
 ########################
 
 #source("/perm/aut4452/ACCORD_VS/R/harp_local_installation/panel_tool_scripts/plotting_functions.R")
-source(paste0(here(), "/plotting_functions.R"))
+source(paste0(here(), "/ACCORD_VS_202406/scripts/plotting_functions.R"))
 
 plot_name <- paste0("panel_", param, "_", format(verif_date, "%Y%m%d%H%M+"), lead_time, "_", model, ".png")
 
