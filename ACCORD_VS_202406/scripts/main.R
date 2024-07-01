@@ -23,10 +23,7 @@ definition_file_plt <- switch(def_param,
 			      "sat" = paste0(here(),"/ACCORD_VS_202406/configs/definitions_sat_plotting.R"))
 
 
-init_time <- switch(def_param,
-		    "tp" = 2024010200,
-		    "sat"= 2024010200
-		    )
+init_time <- 2024010200
 
 lead_time <- switch (def_param,
 		     "tp" = 24,

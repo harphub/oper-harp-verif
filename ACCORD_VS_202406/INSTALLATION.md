@@ -84,6 +84,7 @@ the following libraries
 Start R session
 
 install.packages("remotes")
+library(remotes)
 install_github("harphub/harp")
 install_github("pollyaschm/harpIO", "invert-hdf5-data")
 install_github("pollyaschm/harpSpatial", "ACCORD_VS_202406")
@@ -95,7 +96,7 @@ When installing install_github("pollyaschm/harpSpatial", "ACCORD_VS_202406"), do
 Changes for harpIO/harpSpatial
 
 harpIO:
-chages to read_hdf5()
+changes to read_hdf5()
   
 harpSpatial:
 fc_param_defs input to read_grid()

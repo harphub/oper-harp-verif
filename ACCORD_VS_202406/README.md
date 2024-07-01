@@ -1,10 +1,10 @@
 # Developments done during Polly Schmederer's ACCORD VS at DMI (June 2024)
 
-Polly Schmederer (Geosphere), Carlos Peralta (DMI) and Fabrizio Baordo (DMI)
+Polly Schmederer (GeoSphere), Carlos Peralta (DMI) and Fabrizio Baordo (DMI)
 
 **Topics of VS**
 
-Generalizing spatial verifications: improving R scripting; use of reticulate package to interface R with Python; testing 'pannelfication' tool
+Generalizing spatial verifications: improving R scripting; use of reticulate package to interface R with Python; testing 'panelification' tool
 
 **Data used for spatial verification**
 
