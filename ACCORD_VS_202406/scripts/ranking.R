@@ -4,7 +4,16 @@
 #' @param  score as character for which to do the ranking
 #' @return verif_data with additional ranking entry
 score_ranking <- function(verif_data, score) {
+	message("ranking score: ", score)
+        
         tmp <- lapply(lapply(verif_data, '[[', score), '[[', score)
+
+	if (length(unlist(tmp)) != length(names(tmp))){
+	   null_counts <- length(names(tmp)) - length(unlist(tmp))
+	   print(tmp)
+	   warning("ERROR: ", null_counts, " of the models contain(s) NULL for score ", score)
+	}
+
         if (score == "bias"){
                 tmp = abs(as.numeric(tmp))   # TODO: error message if NULL in entry ; bias:  lowest absolut is best
                 ranking <- rank_min(tmp)
@@ -31,8 +40,15 @@ score_ranking <- function(verif_data, score) {
 #' @param  score as character for which to do the ranking
 #' @return verif_data with additional ranking entry
 fss_ranking <- function(verif_data, score){
+	message("ranking score: ", score)
         fss_fobs <- 0.5  # TODO: replace fss_fobs <- 0.5 by actual fobs
         tmp <- lapply(lapply(verif_data, '[[', score), '[[', 'fss')
+
+        if (length(unlist(tmp)) != length(names(tmp))){
+           null_counts <- length(names(tmp)) - length(unlist(tmp))
+           print(tmp)
+           warning("ERROR: ", null_counts, " of the models contain(s) NULL for score ", score)
+        }
 
         command <- "mapply(rank_min"
         for (mod in names(verif_data)) {command <- paste0(command, ", tmp$", mod)}
@@ -92,7 +108,7 @@ sum_inverted_fss_ranks <- function(data_model){
 #' @return verif_data with additional ranking information
 main_ranking <- function(verif_data){
    # ## score ranking
-   
+
    scores_nofss <- scores[ !scores %in% c("FSS", "FSSp")]
    for (score in scores_nofss){
            verif_data <- score_ranking(verif_data, score)

@@ -291,10 +291,21 @@ set_plot_size <- function(fcst_models) {
 #' main plotting function which calls the subfunctions
 main_plotting <- function(verif_data, verif_fields, ob_name, param, plt_definitions, plot_path="", plot_name="panel.png"){
         source(plt_definitions)
+        
+
 
 	fcst_models <- names(verif_data)
-        domain <- verif_fields[[ob_name]]$obfield[[ob_name]][[1]] %>% get_domain()
+        if (!is_null(verif_fields[[ob_name]]$obfield[[ob_name]][[1]])){
+	   domain <- verif_fields[[ob_name]]$obfield[[ob_name]][[1]] %>% get_domain()
+	} else {
+	   warning("ERROR: geolist in verif_fields[[", ob_name, "]] is empty!")
+	}
+
+	if (!is_null(verif_fields$verif_domain)){
         verif_subdomain <- verif_fields$verif_domain
+	} else {
+           warning("ERROR: verif_fields$verif_domain is empty!")
+	}
 
         source(paste0(here(),"/ACCORD_VS_202406/scripts/utils.R"))
 
