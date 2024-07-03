@@ -44,8 +44,9 @@ fss_ranking <- function(verif_data, score){
         fss_fobs <- 0.5  # TODO: replace fss_fobs <- 0.5 by actual fobs
         tmp <- lapply(lapply(verif_data, '[[', score), '[[', 'fss')
 
-        if (length(unlist(tmp)) != length(names(tmp))){
-           null_counts <- length(names(tmp)) - length(unlist(tmp))
+	numeric_entries <- sum(unname(unlist(lapply(tmp, is.numeric))))
+        if (numeric_entries != length(names(tmp))){
+           null_counts <- length(names(tmp)) - numeric_entries
            print(tmp)
            warning("ERROR: ", null_counts, " of the models contain(s) NULL for score ", score)
         }
