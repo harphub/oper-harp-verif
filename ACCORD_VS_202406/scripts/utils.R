@@ -25,8 +25,17 @@ text_for_plot_avg_rank <- function(data_tbl){
 #' @return string for plotting
 text_for_plot_title <- function(data_tbl){
         tmp <- data_tbl$FSS
+	if (class(tmp$fcdate[[1]]) == "numeric"){
+		fcdate <- format(as.POSIXct(tmp$fcdate, 
+					      origin = "1970-01-01",
+					      tz="UTC"),
+				   format="%Y/%m/%d %H:%M")
+	} else {
+		fcdate <- tmp$fcdate
+	}
         string <- paste(tmp$model %>% unique(),
-                        tmp$fcdate %>% unique(),
+			" ",
+                        paste0(fcdate %>% unique(), " + ", tmp$leadtime/3600 %>% unique(), "h"),
                         " (",
                         data_tbl$rank_avg_fss_rank,
                         ")"

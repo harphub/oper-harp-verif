@@ -2,3 +2,4 @@ renv*
 .Rprofile
 *.pdf
 *.png
+*.swp

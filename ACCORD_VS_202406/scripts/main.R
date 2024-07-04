@@ -11,8 +11,8 @@ library(here)
 ######################################################
 
 ### tp ####
-def_param <- "tp"
-#def_param <- "sat"
+# def_param <- "tp"
+def_param <- "sat"
 
 definition_file <- switch(def_param,
 			  "tp" = paste0(here(),"/ACCORD_VS_202406/configs/definitions_tp_data.R"),

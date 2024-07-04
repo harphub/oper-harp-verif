@@ -27,8 +27,7 @@ prm_units      	 = "K"
 
 require(reticulate)
 
-# source("/perm/miag/ACCORD_VS/scripts/read_DataUsingReticulate.R")
-source(paste0(here(),"/read_DataUsingReticulate.R"))
+source(paste0(here(),"/ACCORD_VS_202406/scripts/read_DataUsingReticulate.R"))
 
 # python_function = "/perm/miag/ACCORD_VS/scripts/reading_functions.py"
 # python_version = "/perm/miag/venvs/satpy/bin/python3"
@@ -42,7 +41,6 @@ grb_file_path <- "/perm/miag/ACCORD_VS/deode_exps"
 
 grb_file        <- switch(
                                   model,
-                                  # "DK2500m_atos" = paste0(init_time, "/harmonie_DK2500g_SP_ATOSDT_00bd/surface_gc_300x300_2500m+00{LDT}h00m00s.grb"),
                                   "DK2500m_atos" = paste0(init_time, "/harmonie_DK2500g_SP_jan_ATOSDT_00bd/surface_gc_300x300_2500m+00{LDT}h00m00s.grb"),
                                   "DK2500m_hres" = paste0(init_time, "/harmonie_DK2500g_SP_HRES_jan/surface_gc_300x300_2500m+00{LDT}h00m00s.grb"),
                                   "DK500m_atos"  = paste0(init_time, "/harmonie_DK500g_jan_ATOSDT_00bd/surface_gc_1500x1500_500m+00{LDT}h00m00s.grb"),

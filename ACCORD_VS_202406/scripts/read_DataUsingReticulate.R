@@ -15,7 +15,7 @@ read_msg_reticulate <- function(file_name,
 	require(reticulate)
 	require(meteogrid)
 
-	message("parameter, ", parameter, class(parameter))
+	message("parameter: ", parameter, ", class: ", class(parameter))
 
 	if (class(parameter) == "harp_parameter"){
 		parameter <- parameter$fullname
@@ -29,8 +29,10 @@ read_msg_reticulate <- function(file_name,
 	message("parameter ", parameter)
 	message("file_4regridding ", format_opts$file_4regridding_grb)
 	message("grib_message ", format_opts$grib_message)
-	message("strAreaId ", format_opts$strAreaId)
+	message("strAreaId ")
+	print(format_opts$strAreaId)
 	message(") ################")
+	message("##### R --> python ##### reticulate ###")
 
 	regridded_data <- sat_model_to_same_grid(file_name,
 						 parameter,
@@ -38,8 +40,9 @@ read_msg_reticulate <- function(file_name,
 						 format_opts$grib_message,
 						 format_opts$strAreaId)
 
+	message ("##### python --> R #####")
 	projS <- regridded_data[[5]]
-	dttm <- regridded_data[[6]]
+	dttm  <- regridded_data[[6]]
 
 	gf_domain <- structure(list(
 				 projection=list(proj=projS$proj),
