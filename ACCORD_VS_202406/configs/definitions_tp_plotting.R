@@ -23,6 +23,6 @@ ll_fss_box   <- c(0.0, 0.24, 0.56, 0.95)
 
 # ## basic scores # 
 # ## c(x0, x1, y0, y1) in decimals
-# ll_score_box <- c(0.0, 0.24, 0.31, 0.51) # below fss box
-ll_score_box <- c(0.25, 0.47, 0.75, 0.95)  # right to fss box
+ll_score_box <- c(0.0, 0.24, 0.31, 0.51) # below fss box
+# ll_score_box <- c(0.25, 0.47, 0.75, 0.95)  # right to fss box
 
