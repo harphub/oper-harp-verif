@@ -90,10 +90,10 @@ read_msg_reticulate <- function(file_name,
 
 
 data <- tibble::tibble(
-	       valid_dttm = dttm,
-	       parameter = parameter,
-	       lead_time = lead_time,
-	       fcdate = fcdate,
+	       valid_dttm   = dttm,
+	       parameter    = parameter,
+	       lead_time    = lead_time,
+	       fcdate       = fcdate,
 	       gridded_data = list(data_gf)
 	       # units = "K",
 	       )

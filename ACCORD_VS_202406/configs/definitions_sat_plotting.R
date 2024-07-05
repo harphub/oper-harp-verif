@@ -17,7 +17,7 @@
 #                  "#d59de5", "#9c04c6", "#23052b")
 library(RColorBrewer)
 
-breaks = seq(210, 280, 10)
+breaks    = seq(210, 280, 10)
 palette   = brewer.pal(length(breaks)-1, "Greys")
 
 
