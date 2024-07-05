@@ -19,9 +19,8 @@ ob_file_path     = paste0(here(), "/ACCORD_VS_202406/sample_data/radar")
 
 ob_file_template = switch(
 			  pcp_accum_period,
-		      	  "1h"	= "kavrrad_1h/{YYYY}{MM}{DD}{HH}00.kavrRAD.01.h5",
-	    		  "3h"	= "kavrrad_3h/{YYYY}{MM}{DD}{HH}00.kavrRAD.03.h5",
-    			  "6h"	= "kavrrad_6h/{YYYY}{MM}{DD}{HH}00.kavrRAD.06.h5"
+		      	  "1h"	= "/{YYYY}{MM}{DD}{HH}00.kavrRAD.01.h5",
+	    		  "3h"	= "/{YYYY}{MM}{DD}{HH}00.kavrRAD.03.h5",
 			  )
 
 ob_file_opts   <- list(data_path="/dataset1/data1/data",

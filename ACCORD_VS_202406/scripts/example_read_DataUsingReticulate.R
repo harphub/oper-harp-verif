@@ -17,14 +17,17 @@ msgFile    <- paste0(here(), "/ACCORD_VS_202406/sample_data/seviri/MSG3-SEVI-MSG
 
 strChannel <-"IR_108" # "WV_062"
 
-areaId <- c(53, 6, 59, 17, 2.5, 'laea')
-ICmod <- "hres"
+model      <- "DK2500m_hres"
 
 init_time  <- 2024010200
 lead_time  <- 23
 ############################
-
-experiment <- paste0(strAreaId, "_", ICmod)
+areaId <- switch(model,
+                 "DK2500m_hres" = c(53, 6, 59, 17, 2.5, 'laea'),
+                 "DK2500m_atos" = c(53, 6, 59, 17, 2.5, 'laea'),
+                 "DK500m_hres"  = c(53, 6, 59, 17, 0.5, 'laea'),
+                 "DK500m_atos"  = c(53, 6, 59, 17, 0.5, 'laea'),
+                 )
 
 messnum <- switch(strChannel,
 		  "WV_062" = 23,
@@ -119,11 +122,28 @@ library(RColorBrewer)
 veri_date <- format(as.POSIXct(as.character(init_time), format="%Y%m%d%H") +
 		    lead_time * 60 * 60, "%Y%m%d %H UTC")
 
+info    <- attributes(mod_via_read_grid)$info
 plot_ob <- plot_field(
            mod_via_read_grid,
-           palette = brewer.pal(8, "Greys"),
-           # palette = brewer.pal(length(thresholds)+1, "Greys"),
+           #palette = brewer.pal(8, "Greys"),
+           breaks = seq(210, 280, 10),
+	   palette =  brewer.pal(7, "Greys"),
            #breaks  = thresholds,
-           title   = as.character(paste(info$origin , info$name, "\n", info$TIME)),
-)
+           title   = paste(info$origin,
+					info$name, "\n",
+					info$TIME)
+	   )
+
+
+info    <- attributes(sat_via_read_grid)$info
+plot_ob <- plot_field(
+           sat_via_read_grid,
+           palette = brewer.pal(7, "Greys"),
+           # palette = brewer.pal(length(thresholds)+1, "Greys"),
+           breaks  = seq(210, 280, 10),
+           title   = paste(info$origin,
+					info$name, "\n",
+					info$TIME)
+	   )
+
 

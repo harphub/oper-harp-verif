@@ -95,7 +95,6 @@ data <- tibble::tibble(
 	       lead_time    = lead_time,
 	       fcdate       = fcdate,
 	       gridded_data = list(data_gf)
-	       # units = "K",
 	       )
 print(data)
 data <- as_harp_df(data)

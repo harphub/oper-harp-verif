@@ -1,15 +1,5 @@
-# # harpSpatial master - locally modified - DO NOT USE. Master is currently outdated.
-# install.packages("/perm/aut4452/ACCORD_VS/R/harp_local_installation/harpSpatial_branch_DMI_GeoSphere.tar.gz", repos=NULL, type="source")
-
-# Those two below are loaded.
-# # harpIO - locally modified
-# install.packages("/perm/aut4452/ACCORD_VS/R/harp_local_installation/harpIO_branch_DMI_GeoSphere.tar.gz", repos=NULL, type="source")
-
-# # harpSpatial development - locally modified
-# install.packages("/perm/aut4452/ACCORD_VS/R/harp_local_installation/harpSpatial_branch_DMI_GeoSphere_dev.tar.gz", repos=NULL, type="source")
-
-# # harpSpatial development - locally modified returns fields
-# install.packages("/perm/aut4452/ACCORD_VS/R/harp_local_installation/harpSpatial_return_fields.tar.gz", repos=NULL, type="source")
+# ## harpIO
+# install_github("pollyaschm/harpIO", "invert-hdf5-data")
 
 library(harp)
 library(Rgrib2)
@@ -20,19 +10,22 @@ fc_file_path 		<- paste0(here(), "/ACCORD_VS_202406/sample_data/deode")
 init_time		<- 2024010200
 model     		<- "dk2500_atos" # dk2500_atos, dk2500hres, dk500_atos, dk500_hres
 
-init_time		<- 2023122000 # 20231220, 20240120
-experiment		<- "dk2500_atos" # dk2500_atos, dk2500hres, dk500_atos, dk500_hres
+fc_file_template <- switch(
+                          model,
+                          "DK2500m_atos" = paste0(init_time, "/harmonie_DK2500g_SP_ATOSDT_00bd/surface_gc_300x300_2500m+00{LDT}h00m00s.grb"),
+                          "DK2500m_hres" = paste0(init_time, "/harmonie_DK2500g_SP_HRES/surface_gc_300x300_2500m+00{LDT}h00m00s.grb"),
+                          "DK500m_atos"  = paste0(init_time, "/harmonie_DK500g_SP_ATOSDT_00bd/surface_gc_1500x1500_500m+00{LDT}h00m00s.grb"),
+                          "DK500m_hres"  = paste0(init_time, "/harmonie_DK500g_SP_HRES/surface_gc_1500x1500_500m+00{LDT}h00m00s.grb"))
 
 ob_file_path		<- paste0(here(), "/ACCORD_VS_202406/sample_data/radar")
 pcp_accum_period		<- "1h"  # "1h", "3h", "6h"
 param			<- paste0("Accpcp", pcp_accum_period)
 
-ob_file_template		<- switch(
-				      pcp_accum_period,
-				      "1h"	= "kavrrad_1h/{YYYY}{MM}{DD}{HH}00.kavrRAD.01.h5",
-				      "3h"	= "kavrrad_3h/{YYYY}{MM}{DD}{HH}00.kavrRAD.03.h5",
-				      "6h"	= "kavrrad_6h/{YYYY}{MM}{DD}{HH}00.kavrRAD.06.h5"
-				      )
+ob_file_template	<- switch(
+			      pcp_accum_period,
+			      "1h"	= "kavrrad_1h/{YYYY}{MM}{DD}{HH}00.kavrRAD.01.h5",
+			      "3h"	= "kavrrad_3h/{YYYY}{MM}{DD}{HH}00.kavrRAD.03.h5",
+			      )
 
 # #resolution
 # model: 2500m, 500m
@@ -44,7 +37,7 @@ deode_grb_2500 <- read_param_with_grbmessg(paste0(here(), "/ACCORD_VS_202406/sam
 deode_grb_500  <- read_param_with_grbmessg(paste0(here(), "/ACCORD_VS_202406(sample_data/deode/2024010200/harmonie_DK500g_SP_ATOSDT_00bd/surface_gc_1500x1500_500m+0024h00m00s.grb"), 1)
 
 verif_domain_2500 <- get_domain(deode_grb_2500)
-verif_domain_500 <- get_domain(deode_grb_500)
+verif_domain_500  <- get_domain(deode_grb_500)
 
  
 my_param_defs <- modify_param_def(
@@ -69,27 +62,6 @@ ob_format_opts <- list(data_path="/dataset1/data1/data",
 
 lead_time <- 35 # seq(31, 31)
 veri_date <- format(as.POSIXct(as.character(init_time), format="%Y%m%d%H") + lead_time * 60 * 60, "%Y%m%d %H UTC")
-
-# # harpSpatial master
-# verif3h <- verify_spatial(
-#   start_date        = init_time,
-#   end_date          = init_time,
-#   det_model         = experiment,
-#   parameter         = "pcp", ##prm$basename, #"AccPcp3h",
-#   lead_time         = lead_time,
-#   fc_file_path      = fc_file_path,
-#   fc_file_template  = fc_file_template,
-#   fc_file_format = "grib",
-#   fc_param_defs     = my_param_defs,
-#   ob_file_path      = ob_file_path,
-#   ob_file_template  = ob_file_template,
-#   ob_accumulation   = ob_accum_period,
-#   verif_domain      = verif_domain_500,
-#   return_data = TRUE,
-#   sqlite_path = NULL, # sqlite_path,
-#   sqlite_file = NULL, # sqlite_file,
-#   thresholds = c(0.1, 1, 5, 10, 15, 20, 30, 40)
-# )
 
 # harpSpatial development
 verif <- verify_spatial(
@@ -148,9 +120,3 @@ plot_fc <- plot_field(
 				       init_time, "+", lead_time, "h"))
            )
 
-
-
-
-# remove.packages("harpSpatial")
-
-# source(paste0("/home/aut4452/ACCORD_VS/scripts/config/config_", experiment))

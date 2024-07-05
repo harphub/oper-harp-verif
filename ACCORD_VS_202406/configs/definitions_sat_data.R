@@ -4,11 +4,11 @@
 ### DEFINE MODELS, DATE, LEAD_TIMES
 ######################################################
 
-init_time  <- 2024010200
+# init_time  <- 2024010200
 
-models <- c("DK2500m_atos", "DK2500m_hres", "DK500m_atos", "DK500m_hres")
+# models <- c("DK2500m_atos", "DK2500m_hres", "DK500m_atos", "DK500m_hres")
 
-lead_time  <- 23
+# lead_time  <- 23
 
 
 ######################
@@ -55,7 +55,7 @@ areaId <- switch(model,
                  "DK2500m_hres" = c(53, 6, 59, 17, 2.5, 'laea'),
                  "DK2500m_atos" = c(53, 6, 59, 17, 2.5, 'laea'),
                  "DK500m_hres"  = c(53, 6, 59, 17, 0.5, 'laea'),
-                 "DK500m_atos"  = c(53, 6, 59, 17, 0.5, 'laea'),
+                 "DK500m_atos"  = c(53, 6, 59, 17, 0.5, 'laea')
                  )
 
 messnum <- switch(param,
