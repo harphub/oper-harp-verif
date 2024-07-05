@@ -56,13 +56,13 @@ read_msg_reticulate <- function(file_name,
 
 	dttm <- as.POSIXct(dttm, format="%Y-%m-%dT%H:%M:%S")
 	fcdate <- dttm - lead_time * 60 * 60
-	t_str <- paste0(as.character(fcdate, format="%Y-%m-%d %H:%M:%S"), " + ", lead_time, "h")
+	t_str <- paste0(format(fcdate, format="%Y-%m-%d %H:%M:%S"), " + ", lead_time, "h")
 
         # select either obs or forecast via index
 	if (format_opts$is_obs){
 		data_index <- 1  # sat
 		lead_time  <- 0
-		time_str   <- as.character(dttm, format="%Y-%m-%d %H:%M:%S")
+		time_str   <- format(dttm, format="%Y-%m-%d %H:%M:%S")
 	} else {
 		data_index <- 2  # mod
 		time_str   <- t_str
