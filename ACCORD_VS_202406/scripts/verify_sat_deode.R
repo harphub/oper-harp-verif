@@ -7,22 +7,19 @@
 
 library(harp)
 library(Rgrib2)
+library(here)
 
-source("/perm/miag/ACCORD_VS/scripts/read_DataUsingReticulate.R")
-# source("/perm/aut4452/ACCORD_VS/R/harp_local_installation/read_DataUsingReticulate.R")
+source(paste0(here(), "/ACCORD_VS_202406/scripts/read_DataUsingReticulate.R"))
 
 ############################
 
-# python_function = "/perm/miag/ACCORD_VS/scripts/reading_functions.py"
-# python_version = "/perm/miag/venvs/satpy/bin/python3"
-
-python_function = "/perm/aut4452/ACCORD_VS/R/harp_local_installation/reading_functions.py"
-python_version = "/perm/aut4452/venvs/satpy/bin/python3"
+python_function = paste0(here(), "/ACCORD_VS_202406/scripts/reading_functions.py")
+python_version = "/perm/aut4452/venvs/satpy/bin/python3" # TODO: replace this path
 
 ############################
 # define:
 #
-msgFile <- "/perm/miag/ACCORD_VS/MSG/20240102/MSG3-SEVI-MSG15-0100-NA-20240102225743.579000000Z-NA.nat"
+msgFile <- paste0(here(), "/ACCORD_VS_202406/sample_data/seviri/MSG3-SEVI-MSG15-0100-NA-20240102225743.579000000Z-NA.nat")
 
 param <-"IR_108" # "WV_062"
 
@@ -49,15 +46,14 @@ str_addition <- switch(
                        "20231220" = ""
                        )
 
-file_template <- msgFile
-fc_file_path <- "/perm/miag/ACCORD_VS/deode_exps"
+fc_file_path  <- paste0(here(), "/ACCORD_VS_202406/sample_data/deode")
 
-fc_file_template        <- switch(
-                                  experiment,
-                                  "DK2500m_atos" = paste0(init_time, "/harmonie_DK2500g_SP", str_addition, "_ATOSDT_00bd/surface_gc_300x300_2500m+00{LDT}h00m00s.grb"),
-                                  "DK2500m_hres" = paste0(init_time, "/harmonie_DK2500g_SP", str_addition, "_HRES/surface_gc_300x300_2500m+00{LDT}h00m00s.grb"),
-                                  "DK500m_atos"  = paste0(init_time, "/harmonie_DK500g_SP", str_addition, "_ATOSDT_00bd/surface_gc_1500x1500_500m+00{LDT}h00m00s.grb"),
-                                  "DK500m_hres"  = paste0(init_time, "/harmonie_DK500g_SP", str_addition, "_HRES/surface_gc_1500x1500_500m+00{LDT}h00m00s.grb"))
+grb_file_template        <- switch(
+                                  model,
+                                  "DK2500m_atos" = paste0(init_time, "/harmonie_DK2500g_SP_ATOSDT_00bd/surface_gc_300x300_2500m+00{LDT}h00m00s.grb"),
+                                  "DK2500m_hres" = paste0(init_time, "/harmonie_DK2500g_SP_HRES/surface_gc_300x300_2500m+00{LDT}h00m00s.grb"),
+                                  "DK500m_atos"  = paste0(init_time, "/harmonie_DK500g_SP_ATOSDT_00bd/surface_gc_1500x1500_500m+00{LDT}h00m00s.grb"),
+                                  "DK500m_hres"  = paste0(init_time, "/harmonie_DK500g_SP_HRES/surface_gc_1500x1500_500m+00{LDT}h00m00s.grb"))
 
 
 file_4regridding_grb <- generate_filenames(file_path = fc_file_path,

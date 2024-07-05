@@ -1,21 +1,19 @@
 require(harp)
 require(reticulate)
 require(meteogrid)
+require(here)
 
-source("/perm/aut4452/ACCORD_VS/R/harp_local_installation/read_DataUsingReticulate.R")
+source(paste0(here(), "/ACCORD_VS_202406/scripts/read_DataUsingReticulate.R"))
 
 ############################
 
-# python_function = "/perm/miag/ACCORD_VS/scripts/reading_functions.py"
-# python_version = "/perm/miag/venvs/satpy/bin/python3"
-
-python_function = "/perm/aut4452/ACCORD_VS/R/harp_local_installation/reading_functions.py"
-python_version = "/perm/aut4452/venvs/satpy/bin/python3"
+python_function = paste0(here(), "/ACCORD_VS_202406/scripts/reading_functions.py")
+python_version  = "/perm/aut4452/venvs/satpy/bin/python3" # TODO: replace this path
 
 ############################
 # define:
 #
-msgFile <- "/perm/miag/ACCORD_VS/MSG/20240102/MSG3-SEVI-MSG15-0100-NA-20240102225743.579000000Z-NA.nat"
+msgFile    <- paste0(here(), "/ACCORD_VS_202406/sample_data/seviri/MSG3-SEVI-MSG15-0100-NA-20240102225743.579000000Z-NA.nat")
 
 strChannel <-"IR_108" # "WV_062"
 
@@ -32,25 +30,21 @@ messnum <- switch(strChannel,
 		  "WV_062" = 23,
 		  "IR_108" = 24)
 
-str_addition <- switch(
-		       as.character(init_time),
-		       "2024010200" = "_jan",
-		       "20231220" = ""
-		       )
-
 fc_file_template        <- switch(
-                                  experiment,
-                                  "DK2500m_atos" = paste0(init_time, "/harmonie_DK2500g_SP", str_addition, "_ATOSDT_00bd/surface_gc_300x300_2500m+00{LDT}h00m00s.grb"),
-                                  "DK2500m_hres" = paste0(init_time, "/harmonie_DK2500g_SP", str_addition, "_HRES/surface_gc_300x300_2500m+00{LDT}h00m00s.grb"),
-                                  "DK500m_atos"  = paste0(init_time, "/harmonie_DK500g_SP", str_addition, "_ATOSDT_00bd/surface_gc_1500x1500_500m+00{LDT}h00m00s.grb"),
-                                  "DK500m_hres"  = paste0(init_time, "/harmonie_DK500g_SP", str_addition, "_HRES/surface_gc_1500x1500_500m+00{LDT}h00m00s.grb"))
+                                  model,
+                                  "DK2500m_atos" = paste0(init_time, "/harmonie_DK2500g_SP_jan_ATOSDT_00bd/surface_gc_300x300_2500m+00{LDT}h00m00s.grb"),
+                                  "DK2500m_hres" = paste0(init_time, "/harmonie_DK2500g_SP_HRES_jan/surface_gc_300x300_2500m+00{LDT}h00m00s.grb"),
+                                  "DK500m_atos"  = paste0(init_time, "/harmonie_DK500g_jan_ATOSDT_00bd/surface_gc_1500x1500_500m+00{LDT}h00m00s.grb"),
+                                  "DK500m_hres"  = paste0(init_time, "/harmonie_DK500g_SP_HRES_jan24/surface_gc_1500x1500_500m+00{LDT}h00m00s.grb"))
 
+fc_file_path <- paste0(here(), "/ACCORD_VS_202406/sample_data/deode")
 
-file_4regridding_grb <- generate_filenames(file_path = "/perm/miag/ACCORD_VS/deode_exps",
-		   file_date = 2024010223,
-		   file_template = fc_file_template,
-		   lead_time = lead_time
-		   )
+file_4regridding_grb <- generate_filenames(
+	                  file_path     = fc_file_path,
+		          file_date     = init_time,
+		          file_template = fc_file_template,
+		          lead_time     = lead_time
+			  )
 
 file.exists(file_4regridding_grb)
 

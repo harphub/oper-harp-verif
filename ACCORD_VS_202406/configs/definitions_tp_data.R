@@ -16,7 +16,7 @@ prm_units      	 = "mm"
 ### OBSERVATIONS ####
 #####################
 
-ob_file_path     = "/perm/miag/ACCORD_VS/radar"
+ob_file_path     = paste0(here(), "/ACCORD_VS_202406/sample_data/radar")
 
 ob_file_template = switch(
 			  pcp_accum_period,
@@ -45,15 +45,14 @@ verif_date       = as.POSIXct(as.character(init_time), format="%Y%m%d%H") + lead
 ###### MODEL ########
 #####################
 
-fc_file_path 	 = "/perm/miag/ACCORD_VS/deode_exps"
+fc_file_path 	 = paste0(here(), "/ACCORD_VS_202406/sample_data/deode")
 
 fc_file_template <- switch(
                                   model,
-                                  # "DK2500m_atos" = paste0(init_time, "/harmonie_DK2500g_SP_ATOSDT_00bd/surface_gc_300x300_2500m+00{LDT}h00m00s.grb"),
-                                  "DK2500m_atos" = paste0(init_time, "/harmonie_DK2500g_SP_jan_ATOSDT_00bd/surface_gc_300x300_2500m+00{LDT}h00m00s.grb"),
-                                  "DK2500m_hres" = paste0(init_time, "/harmonie_DK2500g_SP_HRES_jan/surface_gc_300x300_2500m+00{LDT}h00m00s.grb"),
-                                  "DK500m_atos"  = paste0(init_time, "/harmonie_DK500g_jan_ATOSDT_00bd/surface_gc_1500x1500_500m+00{LDT}h00m00s.grb"),
-                                  "DK500m_hres"  = paste0(init_time, "/harmonie_DK500g_SP_HRES_jan24/surface_gc_1500x1500_500m+00{LDT}h00m00s.grb"))
+                                  "DK2500m_atos" = paste0(init_time, "/harmonie_DK2500g_SP_ATOSDT_00bd/surface_gc_300x300_2500m+00{LDT}h00m00s.grb"),
+                                  "DK2500m_hres" = paste0(init_time, "/harmonie_DK2500g_SP_HRES/surface_gc_300x300_2500m+00{LDT}h00m00s.grb"),
+                                  "DK500m_atos"  = paste0(init_time, "/harmonie_DK500g_SP_ATOSDT_00bd/surface_gc_1500x1500_500m+00{LDT}h00m00s.grb"),
+                                  "DK500m_hres"  = paste0(init_time, "/harmonie_DK500g_SP_HRES/surface_gc_1500x1500_500m+00{LDT}h00m00s.grb"))
 
 
 fc_param_defs     = modify_param_def(
@@ -83,9 +82,9 @@ fc_accumulation   = NULL
 
 source(paste0(here(),"/ACCORD_VS_202406/scripts/read_deode_exps.R"))
 
-deode_grb_2500    <- read_param_with_grbmessg("/perm/aut4452/ACCORD_VS/deode_exps/2023122000/harmonie_DK2500g_SP_ATOSDT_00bd/surface_gc_300x300_2500m+0036h00m00s.grb", 1)
+deode_grb_2500    <- read_param_with_grbmessg(paste0(here(), "/ACCORD_VS_202406/sample_data/deode/2024010200/harmonie_DK2500g_SP_ATOSDT_00bd/surface_gc_300x300_2500m+0024h00m00s.grb"), 1)
 
-deode_grb_500     <- read_param_with_grbmessg("/perm/aut4452/ACCORD_VS/deode_exps/2023122000/harmonie_DK500g_SP_ATOSDT_00bd/surface_gc_1500x1500_500m+0033h00m00s.grb", 1)
+deode_grb_500     <- read_param_with_grbmessg(paste0(here(), "/ACCORD_VS_202406/sample_data/deode/2024010200/harmonie_DK500g_SP_ATOSDT_00bd/surface_gc_1500x1500_500m+0024h00m00s.grb"), 1)
 
 verif_domain_2500 <- get_domain(deode_grb_2500)
 verif_domain_500  <- get_domain(deode_grb_500)

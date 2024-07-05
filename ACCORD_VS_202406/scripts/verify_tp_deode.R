@@ -15,20 +15,15 @@ library(harp)
 library(Rgrib2)
 library(hdf5r)
 
+fc_file_path 		<- paste0(here(), "/ACCORD_VS_202406/sample_data/deode")
 
-fc_file_path 		<- "/perm/miag/ACCORD_VS/deode_exps"
+init_time		<- 2024010200
+model     		<- "dk2500_atos" # dk2500_atos, dk2500hres, dk500_atos, dk500_hres
 
 init_time		<- 2023122000 # 20231220, 20240120
 experiment		<- "dk2500_atos" # dk2500_atos, dk2500hres, dk500_atos, dk500_hres
 
-fc_file_template	<- switch(
-				  experiment,
-				  "dk2500_atos" = paste0(init_time, "/harmonie_DK2500g_SP_ATOSDT_00bd/surface_gc_300x300_2500m+00{LDT}h00m00s.grb"),
-				  "dk2500_hres" = paste0(init_time, "/harmonie_DK2500g_SP_HRES/surface_gc_300x300_2500m+00{LDT}h00m00s.grb"),
-				  "dk500_atos"  = paste0(init_time, "/harmonie_DK500g_SP_ATOSDT_00bd/surface_gc_1500x1500_500m+00{LDT}h00m00s.grb"),
-				  "dk500_hres"  = paste0(init_time, "/harmonie_DK500g_SP_HRES_00bd/surface_gc_1500x1500_500m+00{LDT}h00m00s.grb"))
-
-ob_file_path		<- "/perm/miag/ACCORD_VS/radar"
+ob_file_path		<- paste0(here(), "/ACCORD_VS_202406/sample_data/radar")
 pcp_accum_period		<- "1h"  # "1h", "3h", "6h"
 param			<- paste0("Accpcp", pcp_accum_period)
 
@@ -42,11 +37,11 @@ ob_file_template		<- switch(
 # #resolution
 # model: 2500m, 500m
 # radar: 500m 
-source("/perm/aut4452/ACCORD_VS/R/harp_local_installation/read_deode_exps.R")
+source(paste0(here(), "/ACCORD_VS_202406/scripts/read_deode_exps.R"))
 
-deode_grb_2500 <- read_param_with_grbmessg("/etc/ecmwf/nfs/dh2_perm_b/aut4452/ACCORD_VS/deode_exps/2023122000/harmonie_DK2500g_SP_ATOSDT_00bd/surface_gc_300x300_2500m+0036h00m00s.grb", 1)
+deode_grb_2500 <- read_param_with_grbmessg(paste0(here(), "/ACCORD_VS_202406/sample_data/deode/2024010200/harmonie_DK2500g_SP_ATOSDT_00bd/surface_gc_300x300_2500m+0024h00m00s.grb"), 1)
 
-deode_grb_500 <- read_param_with_grbmessg("/etc/ecmwf/nfs/dh2_perm_b/aut4452/ACCORD_VS/deode_exps/2023122000/harmonie_DK500g_SP_ATOSDT_00bd/surface_gc_1500x1500_500m+0033h00m00s.grb", 1)
+deode_grb_500  <- read_param_with_grbmessg(paste0(here(), "/ACCORD_VS_202406(sample_data/deode/2024010200/harmonie_DK500g_SP_ATOSDT_00bd/surface_gc_1500x1500_500m+0024h00m00s.grb"), 1)
 
 verif_domain_2500 <- get_domain(deode_grb_2500)
 verif_domain_500 <- get_domain(deode_grb_500)
