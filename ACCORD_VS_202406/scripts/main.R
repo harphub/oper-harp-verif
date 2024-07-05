@@ -44,9 +44,10 @@ for (model in models){
 
   source(definition_file)
 
-  message("obs_file_opts: ", ob_file_opts)
+  message("ob_file_opts: ")
+  print(ob_file_opts)
   message("ob_file_template: ", ob_file_template)
-  message("verifying: ", model)
+  message("model:  ", model)
   message("fcdate: ", init_time)
 
   verif <- verify_spatial(

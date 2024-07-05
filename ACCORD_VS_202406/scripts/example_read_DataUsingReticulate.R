@@ -49,70 +49,75 @@ file_4regridding_grb <- generate_filenames(
 file.exists(file_4regridding_grb)
 
 ob_reticulate_opts <- list(
-			    python_function = python_function, 
-			    python_version = python_version,
+			    python_function      = python_function, 
+			    python_version       = python_version,
 			    file_4regridding_grb = file_4regridding_grb,
-			    grib_message = messnum,
-			    strAreaId = areaId,
-			    invert_data = TRUE,
-                            is_obs = TRUE,
-			    origin = "Meteosat-10"
+			    grib_message         = messnum,
+			    strAreaId            = areaId,
+			    invert_data          = TRUE,
+                            is_obs               = TRUE,
+			    origin               = "Meteosat-10"
 			    )
 
 fc_reticulate_opts <- list(
-			    python_function = python_function,
-			    python_version = python_version,
+			    python_function      = python_function,
+			    python_version       = python_version,
 			    file_4regridding_grb = file_4regridding_grb,
-			    grib_message = messnum,
-			    strAreaId = areaId,
-			    invert_data = TRUE,
-                            is_obs = FALSE,
-			    origin = experiment
+			    grib_message         = messnum,
+			    strAreaId            = areaId,
+			    invert_data          = TRUE,
+                            is_obs               = FALSE,
+			    origin               = model
 			    )
 ##################
 #  call the function like this: 
 ##################
-mod <- read_msg_reticulate(file_name = msgFile,
-		    parameter = strChannel,
-                    date_times = init_time,
+mod <- read_msg_reticulate(
+	            file_name   = msgFile,
+		    parameter   = strChannel,
+                    date_times  = init_time,
 		    is_forecast = TRUE,
-                    lead_time = lead_time,
+                    lead_time   = lead_time,
 		    format_opts = fc_reticulate_opts
 		    )
 
-sat <- read_msg_reticulate(file_name = msgFile,
-		    parameter = strChannel,
-                    date_times = init_time,
+sat <- read_msg_reticulate(
+	            file_name   = msgFile,
+		    parameter   = strChannel,
+                    date_times  = init_time,
 		    is_forecast = FALSE, 
-                    lead_time = lead_time,
+                    lead_time   = lead_time,
 		    format_opts = ob_reticulate_opts
 		    )
 
-mod_via_read_grid <- read_grid(msgFile,
-	  strChannel,
-          ddtm = init_time,
-          lead_time = lead_time,
-	  file_format = "msg_reticulate",
-	  file_format_opts = fc_reticulate_opts,
-	  show_progress = TRUE
-	  )
+# or via read_grid() :
+mod_via_read_grid <- read_grid(
+			       msgFile,
+			       strChannel,
+			       ddtm             = init_time,
+			       lead_time        = lead_time,
+			       file_format      = "msg_reticulate",
+			       file_format_opts = fc_reticulate_opts,
+			       show_progress    = TRUE
+			       )
 
-mod_via_read_grid <- read_grid(msgFile,
-	  strChannel,
-          ddtm = init_time,
-          lead_time = lead_time,
-	  file_format = "msg_reticulate",
-	  file_format_opts = ob_reticulate_opts,
-	  show_progress = TRUE
-	  )
+sat_via_read_grid <- read_grid(
+			       msgFile,
+			       strChannel,
+			       ddtm             = init_time,
+			       lead_time        = lead_time,
+			       file_format      = "msg_reticulate",
+			       file_format_opts = ob_reticulate_opts,
+			       show_progress    = TRUE
+			       )
 
 #####################
 # quick plot
 
 library(RColorBrewer)
 
-veri_date <- format(as.POSIXct(as.character(init_time), format="%Y%m%d%H") + lead_time * 60 * 60, "%Y%m%d %H UTC")
-info <- attributes(mod_via_read_grid)$info
+veri_date <- format(as.POSIXct(as.character(init_time), format="%Y%m%d%H") +
+		    lead_time * 60 * 60, "%Y%m%d %H UTC")
 
 plot_ob <- plot_field(
            mod_via_read_grid,

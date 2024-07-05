@@ -86,7 +86,7 @@ read_msg_reticulate <- function(file_name,
 				   ))
 
 	message("valid_dttm, ", dttm)
-	message("lead_time, ", lead_time)
+	message("lead_time, ",  lead_time)
 
 
 data <- tibble::tibble(

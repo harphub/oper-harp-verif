@@ -9,8 +9,7 @@ pcp_accum_period = "3h"  # "1h", "3h", "6h"
 
 param		 = paste0("Accpcp", pcp_accum_period)
 
-# prm_units      	 = "kg m**-2"
-prm_units      	 = "mm"
+prm_units      	 = "mm"  # "kg m**-2"
 
 #####################
 ### OBSERVATIONS ####
