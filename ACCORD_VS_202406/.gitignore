@@ -3,3 +3,5 @@ renv*
 *.pdf
 *.png
 *.swp
+*.grb
+*.nat
