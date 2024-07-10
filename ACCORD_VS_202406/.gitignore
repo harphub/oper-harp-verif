@@ -5,3 +5,4 @@ renv*
 *.swp
 *.grb
 *.nat
+*.sqlite
