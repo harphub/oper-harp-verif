@@ -29,7 +29,7 @@ ob_reticulate_opts <- list(
 fc_file_opts <- grib_opts(param_find = list(bin_snow = use_grib_shortName("fscov")))
 
 #here I source the function below
-source(paste0(here(), "/ACCORD_VS_202406/scripts/read_DataUsingReticulate.R"))
+source(paste0(here(), "/ACCORD_VS_202406/scripts/reading_functions.R"))
 #this is a test
 check_data <- read_nc_reticulate(file_name = ncFile,
                     parameter = "bin_snow",

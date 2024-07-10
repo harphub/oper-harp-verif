@@ -27,7 +27,7 @@ prm_units      	 = "K"
 
 require(reticulate)
 
-source(paste0(here(),"/ACCORD_VS_202406/scripts/read_DataUsingReticulate.R"))
+source(paste0(here(),"/ACCORD_VS_202406/scripts/reading_functions.R"))
 
 python_function = paste0(here(),"/ACCORD_VS_202406/scripts/reading_functions.py")  
 
@@ -123,7 +123,7 @@ fc_accumulation   = "0h"
 #####################
 #### ADDITIONAL #####
 #####################
-source(paste0(here(),"/ACCORD_VS_202406/scripts/read_deode_exps.R"))
+source(paste0(here(),"/ACCORD_VS_202406/scripts/reading_functions.R"))
 
 deode_grb_2500    <- read_param_with_grbmessg(paste0(here(), "/ACCORD_VS_202406/sample_data/deode/2024010200/harmonie_DK2500g_SP_ATOSDT_00bd/surface_gc_300x300_2500m+0024h00m00s.grb"), 1)
 
