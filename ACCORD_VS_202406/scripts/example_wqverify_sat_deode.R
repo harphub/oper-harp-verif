@@ -15,13 +15,11 @@ python_version = "/perm/aut4452/venvs/satpy/bin/python3" # TODO: replace this pa
 ############################
 # define:
 #
-msgFile <- paste0(here(), "/ACCORD_VS_202406/sample_data/seviri/MSG3-SEVI-MSG15-0100-NA-20240102225743.579000000Z-NA.nat")
+msgFile    <- paste0(here(), "/ACCORD_VS_202406/sample_data/seviri/MSG3-SEVI-MSG15-0100-NA-20240102225743.579000000Z-NA.nat")
 
-param <-"IR_108" # "WV_062"
+param      <-"IR_108" # "WV_062"
 
-areaId <- c(53, 6, 59, 17, 2.5, 'laea')
-
-model <- "DK2500m_hres"
+model <- "DK2500m_hres" # "DK2500m_hres", "DK2500m_atos", "DK500m_hres", "DK500m_atos"
 
 init_time  <- 2024010200
 lead_time  <- 23
@@ -41,12 +39,12 @@ thresholds    <- switch(param,
                      "WV_062" = c(220, 240, 260 ),   # TODO: set meaningful thresholds for WV 6.2
                      "IR_108" = c(273, 260, 250, 240, 230))
 
-fc_file_template <- msgFile
-ob_file_template <- msgFile
+fc_file_template  <- msgFile
+ob_file_template  <- msgFile
 
-fc_file_path  <- paste0(here(), "/ACCORD_VS_202406/sample_data/deode")
+fc_file_path      <- paste0(here(), "/ACCORD_VS_202406/sample_data/deode")
 
-grb_file_template        <- switch(
+grb_file_template <- switch(
                                   model,
                                   "DK2500m_atos" = paste0(init_time, "/harmonie_DK2500g_SP_ATOSDT_00bd/surface_gc_300x300_2500m+00{LDT}h00m00s.grb"),
                                   "DK2500m_hres" = paste0(init_time, "/harmonie_DK2500g_SP_HRES/surface_gc_300x300_2500m+00{LDT}h00m00s.grb"),
@@ -84,15 +82,6 @@ fc_reticulate_opts <- list(
                             origin               = model
                             )
 
-mod_via_read_grid <- read_grid(msgFile,
-          param,
-          ddtm = init_time,
-          lead_time = lead_time,
-          file_format = "msg_reticulate",
-          file_format_opts = ob_reticulate_opts,
-          show_progress = TRUE
-          )
-
 
 verif <- verify_spatial(
   dttm		    = init_time, 
@@ -121,14 +110,47 @@ verif <- verify_spatial(
   return_fields     = TRUE
 )
 
-message("Results from verify_spatial: ")
+message("
+Results from verify_spatial: ")
 print(verif)
 
+####################
 # quick plot
+####################
+
+verif_date <- as.POSIXct(as.character(init_time), format="%Y%m%d%H") + lead_time * 60 * 60
+
+### FSS ###
+
+ggplot(
+       verif$FSS,
+       aes(factor(scale), factor(threshold),
+         fill = fss
+         )) +
+geom_tile(width=2) +
+scale_fill_gradient2(
+                   midpoint = 0.5,
+                   low = scales::muted("blue"),
+                   high= scales::muted("green")
+                   ) +
+labs(
+     x = "window sizes",
+     y = "threshold",
+     title = paste("Model: ", model, ", Param: ", param),
+     subtitle = paste0("Period: ", format(verif_date, format="%Y-%m-%d %H:%M"),
+                     " + ", lead_time)
+     )
+ggsave(paste0("PLOTS/FSS_", param, "_", format(verif_date, format="%Y%m%d%H%M+"), lead_time, "_", model, ".png"))
+message("Saved FSS plot to:
+", paste0("./PLOTS/FSS_", param, "_", format(verif_date, format="%Y%m%d%H%M+"), lead_time, "_", model, ".png"))
+
+
+### radiances fields ###
+
+message("
+To test plotting the actual fields, run this script manually in an R session.")
 
 library(RColorBrewer)
-
-veri_date <- format(as.POSIXct(as.character(init_time), format="%Y%m%d%H") + lead_time * 60 * 60, "%Y%m%d %H UTC")
 
 ob_info <- attributes(verif$obfield)$info
 plot_ob <- plot_field(

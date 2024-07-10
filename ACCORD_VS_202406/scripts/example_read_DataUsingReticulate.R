@@ -35,10 +35,10 @@ messnum <- switch(strChannel,
 
 fc_file_template        <- switch(
                                   model,
-                                  "DK2500m_atos" = paste0(init_time, "/harmonie_DK2500g_SP_jan_ATOSDT_00bd/surface_gc_300x300_2500m+00{LDT}h00m00s.grb"),
-                                  "DK2500m_hres" = paste0(init_time, "/harmonie_DK2500g_SP_HRES_jan/surface_gc_300x300_2500m+00{LDT}h00m00s.grb"),
-                                  "DK500m_atos"  = paste0(init_time, "/harmonie_DK500g_jan_ATOSDT_00bd/surface_gc_1500x1500_500m+00{LDT}h00m00s.grb"),
-                                  "DK500m_hres"  = paste0(init_time, "/harmonie_DK500g_SP_HRES_jan24/surface_gc_1500x1500_500m+00{LDT}h00m00s.grb"))
+                                  "DK2500m_atos" = paste0(init_time, "/harmonie_DK2500g_SP_ATOSDT_00bd/surface_gc_300x300_2500m+00{LDT}h00m00s.grb"),
+                                  "DK2500m_hres" = paste0(init_time, "/harmonie_DK2500g_SP_HRES/surface_gc_300x300_2500m+00{LDT}h00m00s.grb"),
+                                  "DK500m_atos"  = paste0(init_time, "/harmonie_DK500g_ATOSDT_00bd/surface_gc_1500x1500_500m+00{LDT}h00m00s.grb"),
+                                  "DK500m_hres"  = paste0(init_time, "/harmonie_DK500g_SP_HRES/surface_gc_1500x1500_500m+00{LDT}h00m00s.grb"))
 
 fc_file_path <- paste0(here(), "/ACCORD_VS_202406/sample_data/deode")
 
@@ -84,6 +84,7 @@ mod <- read_msg_reticulate(
 		    format_opts = fc_reticulate_opts
 		    )
 
+
 sat <- read_msg_reticulate(
 	            file_name   = msgFile,
 		    parameter   = strChannel,
@@ -114,8 +115,33 @@ sat_via_read_grid <- read_grid(
 			       show_progress    = TRUE
 			       )
 
+
+message("
+mod <- read_msg_reticulate(...)")
+message("mod:")
+print(mod)
+
+message("
+sat <- read_msg_reticulate(...)")
+message("sat:")
+print(sat)
+
+message("
+mod_via_read_grid <- read_grid(..., file_format = \"msg_reticulate\")")
+message("mod_via_read_grid:")
+print(mod_via_read_grid)
+
+message("
+sat_via_read_grid <- read_grid(..., file_format = \"msg_reticulate\")")
+message("sat_via_read_grid:")
+print(sat_via_read_grid)
+
+
 #####################
 # quick plot
+#####################
+message("
+To have a qick look at the precipitation fields, the script needs to be executed manually in an R session, as the pop-up doesn't work.")
 
 library(RColorBrewer)
 
@@ -145,5 +171,4 @@ plot_ob <- plot_field(
 					info$name, "\n",
 					info$TIME)
 	   )
-
 
