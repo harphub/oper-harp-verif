@@ -440,6 +440,7 @@ def get_data_nc_file(ncFile,parameter):
     Read the data from an nc file using xarray
     and return the it in the right format
     """
+    import xarray as xr
     import pandas as pd
     import numpy as np
     ds = xr.open_dataset(ncFile)

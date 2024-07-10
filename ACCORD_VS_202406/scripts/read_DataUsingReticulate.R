@@ -133,7 +133,7 @@ read_nc_reticulate <- function(file_name,
         projS <- returnList[[4]]
         dttm <-returnList[[5]]
         dttm <- as.POSIXct(dttm, format="%Y-%m-%dT%H:%M:%S")
-        time_str   <- as.character(dttm, format="%Y-%m-%d %H:%M:%S")
+        time_str   <- format(dttm, format="%Y-%m-%d %H:%M:%S")
         #print(dttm)
         #print("Creating geodomain")
         gf_domain <- structure(list(
