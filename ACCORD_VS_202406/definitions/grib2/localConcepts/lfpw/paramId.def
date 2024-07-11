@@ -1,0 +1,25 @@
+#rain flux
+'08565' = {
+         discipline = 0 ;
+         parameterCategory = 1 ;
+         parameterNumber = 65 ;
+         centre = 85;
+        }
+
+#Graupel (snow pellets) precipitation
+'08575' = {
+         discipline = 0 ;
+         parameterCategory = 1 ;
+         parameterNumber = 75 ;
+         centre = 85;
+        }
+
+#total snow precipitation
+'08566' = {
+         discipline = 0 ;
+         parameterCategory = 1 ;
+         parameterNumber = 66 ;
+         centre = 85;
+        }
+
+
