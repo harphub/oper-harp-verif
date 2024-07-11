@@ -170,7 +170,10 @@ renv::settings$snapshot.type("all")
 renv::snapshot()
 ```
 
-Additional dependencies when using reticulate to interface with python (more info in reading_functions.py).
+## Additional dependencies 
+
+### When using reticulate to interface with python
+(More info in reading_functions.py)
 
 We use:
 
@@ -190,12 +193,15 @@ pip install satpy
 
 or you might source /perm/miag/venvs/satpy/bin/python3 ('rx' permissions for accord group)
 
-Note on parameters which are not identified in the grib files: 
+### Note on "non standard" grib parameters
 
 ```
-When reading grib files which containing unknown parameters, add ECCODE DEFINITION_PATH in your .bashrc:
+When reading grib files which contain unknown parameters, as the precipitation parameters of DEODE:
 
-export ECCODES_DEFINITION_PATH=<path_to_definitions>/definitions:ECCODES_DEFINITION_PATH
+* Modify the ECCODE grib definitions accordingly (see definitions/).
+
+* Add ECCODE DEFINITION_PATH to your .bashrc:
+  export ECCODES_DEFINITION_PATH=<path_to_definitions>/definitions:ECCODES_DEFINITION_PATH
 ```
 
 
