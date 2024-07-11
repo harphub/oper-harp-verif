@@ -20,7 +20,41 @@ NWP:
 
 **Content of the repository**
 
-**TBD**
+* reading_functions
+  
+  **using reticulate**
+  * nat files (seviri data in their native format)
+  * nc  files (regridded snow data)
+    
+  **using harp**
+  * grib files (using grib message for simulated satellite channels defined in file as "unknown";
+                adding rain, snow, graupel to total precipitation)
+
+* examples
+
+  **read data using reticulate**
+  
+  -> example_read_DataUsingReticulate.R 
+  
+  **spatial verification**
+  
+  examples on how verify_spatial can be used used:
+  * total precipitation (example_verify_tp_deode.R)
+  * satellite channels  (example_sat_deode.R)
+  * snow cover          (example_snow_cover.R)
+    
+* panelification scripts
+  * panel_main.R
+    
+    script that
+    * uses panel_configs/
+      
+      (for definitions on reading model and observations, score definitions, plottings schemes)
+    * calls panel_ranking_functions.R,
+            panel_utils.R and
+            panel_plotting_functions.R
+    * Plots are saved in PLOTS/
+   
      
 ### Installation instructions
 
