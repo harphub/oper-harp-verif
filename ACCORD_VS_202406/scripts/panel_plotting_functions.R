@@ -357,7 +357,7 @@ main_plotting <- function(verif_data, verif_fields, ob_name, param, plt_definiti
            warning("ERROR: verif_fields$verif_domain is empty!")
 	}
 
-        source(paste0(here(),"/ACCORD_VS_202406/scripts/utils.R"))
+        source(paste0(here(),"/ACCORD_VS_202406/scripts/panel_utils.R"))
 
         # ## obfield
         obpanel  <- plot_panel_ob(ob_field = verif_fields[[ob_name]]$obfield,

@@ -15,12 +15,12 @@ library(here)
 def_param <- "sat"
 
 definition_file <- switch(def_param,
-			  "tp" = paste0(here(),"/ACCORD_VS_202406/configs/definitions_tp_data.R"),
-			  "sat" = paste0(here(),"/ACCORD_VS_202406/configs/definitions_sat_data.R"))
+			  "tp" = paste0(here(),"/ACCORD_VS_202406/panel_configs/definitions_tp_data.R"),
+			  "sat" = paste0(here(),"/ACCORD_VS_202406/panel_configs/definitions_sat_data.R"))
 
 definition_file_plt <- switch(def_param,
-			      "tp" = paste0(here(),"/ACCORD_VS_202406/configs/definitions_tp_plotting.R"),
-			      "sat" = paste0(here(),"/ACCORD_VS_202406/configs/definitions_sat_plotting.R"))
+			      "tp" = paste0(here(),"/ACCORD_VS_202406/panel_configs/definitions_tp_plotting.R"),
+			      "sat" = paste0(here(),"/ACCORD_VS_202406/panel_configs/definitions_sat_plotting.R"))
 
 
 init_time <- 2024010200
@@ -117,10 +117,8 @@ print(verif_fields)
 ### RANK THE MODELS ####
 ########################
 
-#source("/perm/aut4452/ACCORD_VS/R/harp_local_installation/panel_tool_scripts/utils.R")
-#source("/perm/aut4452/ACCORD_VS/R/harp_local_installation/panel_tool_scripts/ranking.R")
-source(paste0(here(), "/ACCORD_VS_202406/scripts/utils.R"))
-source(paste0(here(), "/ACCORD_VS_202406/scripts/ranking.R"))
+source(paste0(here(), "/ACCORD_VS_202406/scripts/panel_utils.R"))
+source(paste0(here(), "/ACCORD_VS_202406/scripts/panel_ranking_functions.R"))
 
 verif_data <- main_ranking(verif_data)
 
@@ -128,8 +126,7 @@ verif_data <- main_ranking(verif_data)
 ####### PLOTTING #######
 ########################
 
-#source("/perm/aut4452/ACCORD_VS/R/harp_local_installation/panel_tool_scripts/plotting_functions.R")
-source(paste0(here(), "/ACCORD_VS_202406/scripts/plotting_functions.R"))
+source(paste0(here(), "/ACCORD_VS_202406/scripts/panel_plotting_functions.R"))
 
 plot_name <- paste0("panel_", param, "_", format(verif_date, "%Y%m%d%H%M+"), lead_time, "_", model, ".png")
 
