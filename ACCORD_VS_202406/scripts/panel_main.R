@@ -137,41 +137,41 @@ main_plotting(verif_data      = verif_data,
 	      plt_definitions = definition_file_plt,
 	      plot_name       = plot_name)
 
-
-
-# source("/perm/aut4452/ACCORD_VS/R/harp_local_installation/panel_tool_scripts/definitions_tp_plotting.R")
-# 
-# model <- DK500m_hres
-# plot_field(verif_fieldsi[[model]]$fcfield[[model]][[1]], 
-# 	   palette = palette,
-# 	   breaks = breaks)
-# plot_field(verif_fields$radar_composite$obfield$radar_composite[[1]], 
-# 	   palette = palette,
-# 	   breaks = breaks)
-
-
-# ## quick plot FSS
+# # Quick plot FSS only 
 # for (model in models){
-# verif <- verif_data[[model]]
-# ggplot(
-#        verif$FSS, 
-#        aes(factor(scale), factor(threshold),
-# 	   fill = fss
-# 	   )) + 
-# geom_tile(width=2) +
-# scale_fill_gradient2(
-#  		     midpoint = 0.5,
-#   		     low = scales::muted("blue"),
-#  		     high= scales::muted("green")
-#  		     ) +
-# labs(
-#      x = "window sizes",
-#      y = "threshold",
-#      title = paste("Model: ", model, ", Param: ", param),
-#      subtitle = paste0("Period: ", format(verif_date, "%Y-%m-%d %H:%M"), 
-# 		       " + ", lead_time)
-#      ) 
-# ggsave(paste0("PLOTS/FSS_", format(verif_date, "%Y%m%d%H%M+"), lead_time, "_", model, ".png"))
-# 
+#   verif    <- verif_data[[model]]
+#   title    <- paste("Model: ", model, ", Param: ", param)
+#   subtitle <- paste0("Period: ", format(verif_date, "%Y-%m-%d %H:%M"), 
+#                        " + ", lead_time)
+#   plt_name <- paste0("./PLOTS/FSS_", param, "_", format(verif_date, "%Y%m%d%H%M+"), lead_time, "_", model, ".png")
+#   quick_plot_FSS(verif, title, subtitle, plt_name)
 # }
+
+# # Quick plot fields only
+# title    <- paste(ob_name, ", Param: ", param)
+# subtitle <- paste0("Period: ", format(verif_date, "%Y-%m-%d %H:%M"))
+# plt_name <- paste0("./PLOTS/field_", param, "_", format(verif_date, "%Y%m%d%H%M"), "_", ob_name, ".png")
 # 
+# plot_panel_field(verif_fields[[ob_name]]$obfield,
+# 		 ob_name,
+# 		 title    = title,
+# 		 subtitle = subtitle,
+# 		 breaks   = breaks,
+# 		 palette  = palette,
+# 		 plt_name = plt_name)
+# 
+# for (model in models){
+# 	title    <- paste("Model: ", model, ", Param: ", param)
+# 	subtitle <- paste0("Period: ", format(verif_date, "%Y-%m-%d %H:%M"),
+#                        " + ", lead_time)
+# 	plt_name <- paste0("./PLOTS/field_", param, "_",
+# 			   format(init_time, format="%Y%m%d%H%M+"),
+# 			   lead_time, "_", model, ".png")
+# 	plot_panel_field(verif_fields[[model]]$fcfield,
+# 			 model,
+# 			 title    = title,
+# 			 subtitle = subtitle,
+# 			 breaks   = breaks,
+# 			 palette  = palette,
+# 			 plt_name = plt_name)
+# }

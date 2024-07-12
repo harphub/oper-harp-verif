@@ -171,7 +171,10 @@ plot_panel_field <- function(data,
 			     limits      = c(min(breaks), max(breaks)),
 			     NAcolour    = "white",
 			     with_legend = TRUE,
-			     only_legend = FALSE
+			     only_legend = FALSE,
+			     title       = FALSE,
+			     subtitle    = FALSE,
+			     plt_name    = FALSE
 			     ){
         
 	require(ggpubr)
@@ -211,9 +214,22 @@ plot_panel_field <- function(data,
 		p <- p + theme(legend.position = "none")
         }
 
+	if (is.character(title)){
+		p <- p + labs(title = title)
+	}
+
+	if (is.character(subtitle)){
+		p <- p + labs(subtitle = subtitle)
+	}
+
         if (only_legend) {
 		p <- as_ggplot(get_legend(p))
         }
+
+	if (is.character(plt_name)){
+		ggsave(plt_name)
+		message("Saved plot to: ", plt_name)
+	}
 
 	return(as.ggplot(p))
 
@@ -341,6 +357,16 @@ set_plot_size <- function(fcst_models) {
 
 
 #' main plotting function which calls the subfunctions
+#'
+#' @param verif_data list of all model containing the result of verify_spatial
+#' and the additional output from the ranking
+#' @param verif_fields list of all model and observations fields
+#' @param ob_name name of the observations 
+#' @param param parameter
+#' @param plt_definitions file to source the plotting definitions
+#' @param plt_path path where the plot should be saved. By default ./PLOTS
+#' @param plot_name name how the plot should be saved. By default panel.png
+#' @return saves panelification plot
 main_plotting <- function(verif_data, verif_fields, ob_name, param, plt_definitions, plot_path="", plot_name="panel.png"){
         source(plt_definitions)
         
@@ -417,7 +443,8 @@ main_plotting <- function(verif_data, verif_fields, ob_name, param, plt_definiti
                 plot_path <- paste0(here::here(), "/ACCORD_VS_202406/PLOTS/")
         }
         if (plot_name == "") {
-                plot_name <- paste(veri_time, parameter, sep="_")
+		veri_time <- as.POSIXct(verif_data[[1]][[1]]$fcdate) + verif_data[[1]][[1]]$leadtime
+		plot_name <- paste("panel", param, format(veri_time, format="%Y%m%d%H%M"), sep="_")
         }
         ggsave(paste0(plot_path, plot_name), plot = plt,
                width  = as.numeric(plot_window_all["width"])+10,
@@ -429,3 +456,31 @@ main_plotting <- function(verif_data, verif_fields, ob_name, param, plt_definiti
 }
 
 
+
+#' Quick plotting option for FSS
+#'
+#' @param verif containing the output of verify_spatial
+#' @param plot_name name how the plot should be saved. By default panel.png
+#' @return saves FSS plot
+quick_plot_FSS <- function(verif, title, subtitle, plt_name){
+	ggplot(
+        verif$FSS,
+        aes(factor(scale), factor(threshold),
+	    fill = fss
+	    )) +
+        geom_tile(width=2) +
+        scale_fill_gradient2(
+			     midpoint = 0.5,
+			     low = scales::muted("blue"),
+			     high= scales::muted("green")
+			     ) +
+        labs(
+	     x = "window sizes",
+	     y = "threshold",
+	     title = title,
+	     subtitle = subtitle
+	     )
+	
+	ggsave(plot_name)
+	message("Saved plot to: ", plt_name)
+}
