@@ -174,7 +174,8 @@ plot_panel_field <- function(data,
 			     only_legend = FALSE,
 			     title       = FALSE,
 			     subtitle    = FALSE,
-			     plt_name    = FALSE
+			     plot_name   = FALSE,
+			     plot_path   = ""
 			     ){
         
 	require(ggpubr)
@@ -226,9 +227,13 @@ plot_panel_field <- function(data,
 		p <- as_ggplot(get_legend(p))
         }
 
-	if (is.character(plt_name)){
-		ggsave(plt_name)
-		message("Saved plot to: ", plt_name)
+	if (is.character(plot_name)){
+                if (plot_path == "") {
+                        plot_path <- paste0(here::here(), "/ACCORD_VS_202406/PLOTS/")
+                }
+
+	        	ggsave(paste0(plot_path, plot_name))
+	        	message("Saved plot to: ", paste0(plot_path, plot_name))
 	}
 
 	return(as.ggplot(p))
@@ -462,7 +467,7 @@ main_plotting <- function(verif_data, verif_fields, ob_name, param, plt_definiti
 #' @param verif containing the output of verify_spatial
 #' @param plot_name name how the plot should be saved. By default panel.png
 #' @return saves FSS plot
-quick_plot_FSS <- function(verif, title, subtitle, plt_name){
+quick_plot_FSS <- function(verif, title, subtitle, plot_name="", plot_path=""){
 	ggplot(
         verif$FSS,
         aes(factor(scale), factor(threshold),
@@ -480,7 +485,15 @@ quick_plot_FSS <- function(verif, title, subtitle, plt_name){
 	     title = title,
 	     subtitle = subtitle
 	     )
+
+        if (plot_name == "") {
+                plot_name <- "FSS.png"
+        }
 	
-	ggsave(plot_name)
-	message("Saved plot to: ", plt_name)
+        if (plot_path == "") {
+                plot_path <- paste0(here::here(), "/ACCORD_VS_202406/PLOTS/")
+        }
+	
+	ggsave(paste0(plot_path, plot_name))
+	message("Saved plot to: ", paste0(plot_path, plot_name))
 }

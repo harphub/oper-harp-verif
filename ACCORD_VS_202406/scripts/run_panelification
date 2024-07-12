@@ -1,0 +1,11 @@
+module load R
+module load ecmwf-toolbox
+
+# Run precipition verification case
+Rscript ./scripts/panel_main.R prec_verif
+
+# Run satellite verifiation case
+# Rscript ./scripts/panel_main.R sat_verif
+
+# If one would like to specify another config file, add the file as argument
+# Rscript ./scripts/panel_main.R prec_verif panel_configs/panelification.yml

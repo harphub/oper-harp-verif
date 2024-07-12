@@ -5,31 +5,44 @@ library(tidyverse)
 library(dplyr)
 library(ggpubr)
 library(here)
+library(yaml)
 
-######################################################
-### DEFINE MODELS, DATE, LEAD_TIMES
-######################################################
+####################
+### LOAD CONFIGS ###
+####################
 
-### tp ####
-# def_param <- "tp"
-def_param <- "sat"
+args <- commandArgs(trailingOnly=TRUE)
 
-definition_file <- switch(def_param,
-			  "tp" = paste0(here(),"/ACCORD_VS_202406/panel_configs/definitions_tp_data.R"),
-			  "sat" = paste0(here(),"/ACCORD_VS_202406/panel_configs/definitions_sat_data.R"))
+if (length(args) == 0){
+	run_case <- NULL 
+	yaml_file <- "./panel_configs/panelification.yml"
+} else if (length(args) == 1){
+	run_case  <- args[[1]]
+	yaml_file <- "./panel_configs/panelification.yml"  
+} else {
+	run_case  <- args[[1]]
+	yaml_file <- args[[2]]
+}
 
-definition_file_plt <- switch(def_param,
-			      "tp" = paste0(here(),"/ACCORD_VS_202406/panel_configs/definitions_tp_plotting.R"),
-			      "sat" = paste0(here(),"/ACCORD_VS_202406/panel_configs/definitions_sat_plotting.R"))
+configs   <- yaml.load_file(yaml_file)
+message("Use configs from file: ", yaml_file)
 
+if (is.null(run_case)){
+	cfg <- configs$verify_case[[1]]  
+	message("No specific verify_case was provided.
+		Running default which is the first entry of verify_case in config file.")
+} else {
+	cfg <- configs$verify_case[[run_case]]
+	message("Run verification for: ", run_case)
+}
 
-init_time <- 2024010200
+def_param <- cfg$def_param 
+init_time <- cfg$init_time
+lead_time <- cfg$lead_time 
 
-lead_time <- switch (def_param,
-		     "tp" = 24,
-		     "sat"= 23)
+models <- configs$models
 
-models <- c("DK2500m_atos", "DK2500m_hres", "DK500m_atos", "DK500m_hres")
+definition_file_plt <- file.path(here(), "ACCORD_VS_202406/panel_configs", configs$plt_config[[def_param]])
 
 #######################################################
 ### READ ALL DATA into verif_data and verif_fields ####
@@ -42,7 +55,8 @@ names(verif_fields) <- models
 
 for (model in models){
 
-  source(definition_file)
+  definition_file <- configs[[model]][[def_param]]$definition_file
+  source(file.path(here(), "ACCORD_VS_202406/panel_configs", definition_file))
 
   message("ob_file_opts: ")
   print(ob_file_opts)
@@ -137,41 +151,51 @@ main_plotting(verif_data      = verif_data,
 	      plt_definitions = definition_file_plt,
 	      plot_name       = plot_name)
 
-# # Quick plot FSS only 
-# for (model in models){
-#   verif    <- verif_data[[model]]
-#   title    <- paste("Model: ", model, ", Param: ", param)
-#   subtitle <- paste0("Period: ", format(verif_date, "%Y-%m-%d %H:%M"), 
-#                        " + ", lead_time)
-#   plt_name <- paste0("./PLOTS/FSS_", param, "_", format(verif_date, "%Y%m%d%H%M+"), lead_time, "_", model, ".png")
-#   quick_plot_FSS(verif, title, subtitle, plt_name)
-# }
+# Quick plot FSS only 
+if (configs$save_additional_plt$FSS){
+  for (model in models){
+    verif    <- verif_data[[model]]
+    title    <- paste("Model: ", model, ", Param: ", param)
+    subtitle <- paste0("Period: ", format(init_time, "%Y-%m-%d %H:%M"), 
+                         " + ", lead_time)
+    plot_name <- paste0("FSS_", param, "_", format(init_time, "%Y%m%d%H%M"), "+", lead_time, "_", model, ".png")
+    quick_plot_FSS(verif,
+		   title     = title,
+		   subtitle  = subtitle,
+		   plot_name  = plot_name)
+  }
+}
 
-# # Quick plot fields only
-# title    <- paste(ob_name, ", Param: ", param)
-# subtitle <- paste0("Period: ", format(verif_date, "%Y-%m-%d %H:%M"))
-# plt_name <- paste0("./PLOTS/field_", param, "_", format(verif_date, "%Y%m%d%H%M"), "_", ob_name, ".png")
-# 
-# plot_panel_field(verif_fields[[ob_name]]$obfield,
-# 		 ob_name,
-# 		 title    = title,
-# 		 subtitle = subtitle,
-# 		 breaks   = breaks,
-# 		 palette  = palette,
-# 		 plt_name = plt_name)
-# 
-# for (model in models){
-# 	title    <- paste("Model: ", model, ", Param: ", param)
-# 	subtitle <- paste0("Period: ", format(verif_date, "%Y-%m-%d %H:%M"),
-#                        " + ", lead_time)
-# 	plt_name <- paste0("./PLOTS/field_", param, "_",
-# 			   format(init_time, format="%Y%m%d%H%M+"),
-# 			   lead_time, "_", model, ".png")
-# 	plot_panel_field(verif_fields[[model]]$fcfield,
-# 			 model,
-# 			 title    = title,
-# 			 subtitle = subtitle,
-# 			 breaks   = breaks,
-# 			 palette  = palette,
-# 			 plt_name = plt_name)
-# }
+
+# Quick plot fields only
+if (configs$save_additional_plt$fields){
+  source(definition_file_plt)
+  title    <- paste(ob_name, ", Param: ", param)
+  subtitle <- paste0("Period: ", format(verif_date, "%Y-%m-%d %H:%M"))
+  plot_name <- paste0("field_", param, "_", format(verif_date, "%Y%m%d%H%M"), "_", ob_name, ".png")
+  
+  plot_panel_field(verif_fields[[ob_name]]$obfield,
+  		 ob_name,
+  		 title    = title,
+  		 subtitle = subtitle,
+  		 breaks   = breaks,
+  		 palette  = palette,
+  		 plot_name = plot_name)
+  
+  for (model in models){
+  	title    <- paste("Model: ", model, ", Param: ", param)
+  	subtitle <- paste0("Period: ", format(init_time, "%Y-%m-%d %H:%M"),
+                         " + ", lead_time)
+  	plot_name <- paste0("field_", param, "_",
+  			   format(init_time, format="%Y%m%d%H%M"), "+", 
+  			   lead_time, "_", model, ".png")
+  	plot_panel_field(verif_fields[[model]]$fcfield,
+  			 model,
+  			 title    = title,
+  			 subtitle = subtitle,
+  			 breaks   = breaks,
+  			 palette  = palette,
+  			 plot_name = plot_name)
+  }
+}
+message("Finished. ")
