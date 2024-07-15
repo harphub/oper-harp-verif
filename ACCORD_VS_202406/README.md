@@ -4,7 +4,7 @@ Polly Schmederer (GeoSphere), Carlos Peralta (DMI) and Fabrizio Baordo (DMI)
 
 **Topics of VS**
 
-Generalizing spatial verifications: improving R scripting; use of reticulate package to interface R with Python; testing 'panelification' tool
+Generalising spatial verifications: improving R scripting; use of reticulate package to interface R with Python; testing 'panelification' tool
 
 **Data used for spatial verification**
 
@@ -25,16 +25,16 @@ NWP:
   **using reticulate**
   
   - ``reading_functions.R``: Contains reading R functions.
-    - read_msg_reticulate() reads and regrids satellite (.nat) and model data (.grib)
-    - read_nc_reticulte() reads regridded snow data in nc format
-  - ``reading_functions.py``: Contains the python functions that are called by R to read / regrid the data
-    - sat_model_to_same_grid() reads/ regrids satellite data
-    - get_data_nc_file() reads snow data
+    - read_msg_reticulate() calls python function that reads/ regrids the data and converts the returned data into a harp data frame.
+    - read_nc_reticulte() calls python function that reads snow data and converts the returned data into a harp data frame.
+  - ``reading_functions.py``: Contains the python functions that are called by R to read / regrid satellite observations (.nat) and model data (.grib).
+    - sat_model_to_same_grid() reads/ regrids satellite data.
+    - get_data_nc_file() reads regridded snow data in nc format.
     
-  **using harp**
+  **using R/harp**
   - ``reading_functions.R``:  Contains reading R functions.
     - read_param_with_grbmessg() uses grib message to read simulated satellite channels as they are defined in the file as "unknown".
-    - read_deode_tp() adds "tirf", "tgrp" and "tsnowp" to "tp" (total precipitation)
+    - read_deode_tp() adds "tirf", "tgrp" and "tsnowp" to "tp" (total precipitation).
     
 * panelification
   
@@ -49,10 +49,10 @@ NWP:
   - ``panelification.yml``: Sets the configs for which the panel tool shall be run.
     E.g. date, parameter, models, lead_time and which config files shall be used for the reading of model/obs reading and their verification.
     Switch that allows to plot FSS and fields separately.
-  - ``definitions_tp_data.``: Collects the information needed to read and verify total precipitation of the DEODE experiments against DMI's radar composite
-  - ``definitions_satp_data.``: Collects the information needed to read and verify simulated satellite channels from DEIDE experiments agains seviri data 
-  - ``definitions_tp_plotting.``: Defines colour scheme and breaks for precipitaion fields
-  - ``definitions_sat_data.``: Defines colour scheme and breaks for infraged fields
+  - ``definitions_tp_data.``: Collects the information needed to read and verify total precipitation of the DEODE experiments against DMI's radar composite.
+  - ``definitions_sat_data.``: Collects the information needed to read and verify simulated satellite channels from DEODE experiments agains seviri data.
+  - ``definitions_tp_plotting.``: Defines colour scheme and breaks for precipitaion fields.
+  - ``definitions_sat_data.``: Defines colour scheme and breaks for infrared fields.
   
   Plots are saved in ./PLOTS/
       
