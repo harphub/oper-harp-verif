@@ -4,7 +4,7 @@ Polly Schmederer (GeoSphere), Carlos Peralta (DMI) and Fabrizio Baordo (DMI)
 
 **Topics of VS**
 
-Generalising spatial verifications: improving R scripting; use of reticulate package to interface R with Python; testing 'panelification' tool
+Generalising spatial verifications: improving R scripting; use of reticulate package to interface R with Python; applying 'panelification' tool; giving examples
 
 **Data used for spatial verification**
 
@@ -20,7 +20,7 @@ NWP:
 
 **Content of the repository**
 
-* reading_functions
+* **reading_functions**
   
   **using reticulate**
   
@@ -36,7 +36,7 @@ NWP:
     - read_param_with_grbmessg() uses grib message to read simulated satellite channels as they are defined in the file as "unknown".
     - read_deode_tp() adds "tirf", "tgrp" and "tsnowp" to "tp" (total precipitation).
     
-* panelification
+* **panelification**
   
   **scripts**
   - ``run_panelification``: Run the panelification scripts with set input parameters.
@@ -56,7 +56,7 @@ NWP:
   
   Plots are saved in ./PLOTS/
       
-* examples
+* **examples**
 
   **read data using reticulate**
   
@@ -69,7 +69,27 @@ NWP:
   - ``example_verify_tp_deode.R``: An example file for verifying total precipitation of DEODE experiments.
   - ``example_verify_sat_deode.R``: An example file for verifying simulated brightness temperatures against seviri data.
   - ``example_verify_snow_deode.R``: An example file for verifying regridded snow data.
-   
+
+**How to...**
+
+**... run the panelification**
+- Run panel script by using ``./run_panelification`` to see whether the scripts and installation works for you.
+- Check ``./run_panelification`` to see how to call the panelification main function ``panel_main()``.
+- To
+  - run _different dates_ or _lead_times_ (for which the mod/obs data is available),
+  - decide _which models_ should be displayed or
+  - switch separate _plotting of FSS and fields_ ON or OFF
+    
+  change the settings accordingly in ``panel_configs/panelification.yml``.
+
+**... add other models**
+
+To add another model (panel) to panelification, a file with their definitions on how to read/verify must be added, which will then be added to the panelification.yml.
+1. Know how to read the model that should be added. (An example on how the data may be read can be found in ``example_read_DataUsingReticulate.R``).
+2. Run verify_spatial, to see how the configurations must be passed to this function (see the examples ``example_verify_tp_deode.R``, ``example_verify_sat_deode.R`` or ``example_verify_snow_deode.R``).
+3. Copy a definitions_* file (``definitions_<new>.R``) and change all parameters as needed, to read/verify the data correctly.
+4. Specify the new file in panel_configs/panelification.yml for model and parameter ``### Define which config files to use ###; ### READING of the models/obs``.
+5. If a new parameter was added, also add a definition file for this parameter in ``panel_configs/panelification.yml`` ``### PLOTTING of the fields``.
      
 ### Installation instructions
 

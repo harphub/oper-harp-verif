@@ -57,18 +57,31 @@ fss_ranking <- function(verif_data, score){
         ranking <- eval(parse(text=command))
         ranking <- ranking + 2  # 'normal' score ranking only starts at 3
 
-        for (i in 1:length(verif_data)){
+        if (length(verif_data) == 1){
                 # ranking number 0: score == NA
-                ranking[i,] <- replace(ranking[i,],
-                                       which(is.na(as.numeric(unlist(tmp[i])))), 0)
+                ranking <- replace(ranking,
+                                       which(is.na(as.numeric(unlist(tmp[1])))), 0)
                 # ranking number 1: FSS < fss_fobs
-                ranking[i,] <- replace(ranking[i,],
-                                       which(as.numeric(unlist(tmp[i])) < fss_fobs), 1)
+                ranking <- replace(ranking,
+                                       which(as.numeric(unlist(tmp[1])) < fss_fobs), 1)
                 # ranking number 2: perfect score
-                ranking[i,] <- replace(ranking[i,],
-                                       which(as.numeric(unlist(tmp[i])) == 1), 2)
-                verif_data[[i]][[score]][["ranking"]] <- ranking[i,]
-        }
+                ranking <- replace(ranking,
+                                       which(as.numeric(unlist(tmp[1])) == 1), 2)
+                verif_data[[1]][[score]][["ranking"]] <- ranking
+        } else {
+              for (i in 1:length(verif_data)){
+                      # ranking number 0: score == NA
+                      ranking[i,] <- replace(ranking[i,],
+                                             which(is.na(as.numeric(unlist(tmp[i])))), 0)
+                      # ranking number 1: FSS < fss_fobs
+                      ranking[i,] <- replace(ranking[i,],
+                                             which(as.numeric(unlist(tmp[i])) < fss_fobs), 1)
+                      # ranking number 2: perfect score
+                      ranking[i,] <- replace(ranking[i,],
+                                             which(as.numeric(unlist(tmp[i])) == 1), 2)
+                      verif_data[[i]][[score]][["ranking"]] <- ranking[i,]
+      	      } 
+   	}
         return(verif_data)
 }
 
