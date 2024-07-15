@@ -4,7 +4,7 @@ Polly Schmederer (GeoSphere), Carlos Peralta (DMI) and Fabrizio Baordo (DMI)
 
 **Topics of VS**
 
-Generalising spatial verifications: improving R scripting; use of reticulate package to interface R with Python; testing 'panelification' tool
+Generalising spatial verifications: improving R scripting; use of reticulate package to interface R with Python; applying 'panelification' tool; giving examples
 
 **Data used for spatial verification**
 
@@ -72,7 +72,7 @@ NWP:
 
 **How to...**
 
-**... run the panelification as above**
+**... run the panelification**
 - Run panel script by using ``./run_panelification`` to see whether the scripts and installation works for you.
 - Check ``./run_panelification`` to see how to call the panelification main function ``panel_main()``.
 - To
