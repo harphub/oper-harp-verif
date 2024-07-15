@@ -23,37 +23,52 @@ NWP:
 * reading_functions
   
   **using reticulate**
-  * nat files (seviri data in their native format)
-  * nc  files (regridded snow data)
+  
+  - ``reading_functions.R``: Contains reading R functions.
+    - read_msg_reticulate() reads and regrids satellite (.nat) and model data (.grib)
+    - read_nc_reticulte() reads regridded snow data in nc format
+  - ``reading_functions.py``: Contains the python functions that are called by R to read / regrid the data
+    - sat_model_to_same_grid() reads/ regrids satellite data
+    - get_data_nc_file() reads snow data
     
   **using harp**
-  * grib files (using grib message for simulated satellite channels defined in file as "unknown";
-                adding rain, snow, graupel to total precipitation)
-
+  - ``reading_functions.R``:  Contains reading R functions.
+    - read_param_with_grbmessg() uses grib message to read simulated satellite channels as they are defined in the file as "unknown".
+    - read_deode_tp() adds "tirf", "tgrp" and "tsnowp" to "tp" (total precipitation)
+    
+* panelification
+  
+  **scripts**
+  - ``run_panelification``: Run the panelification scripts with set input parameters.
+  - ``panel_main.R``: Main scripts for panelification. Reads configs, does the verificatio, calls ranking and plotting functions.
+  - ``panel_ranking_functions.R``: All functions for ranking the scores are collected in this file.
+  - ``panel_utils.R``: Some additional functions that are called by panel_ranking_functions.R.
+  - ``panel_plotting_functions.R``: All functions for plotting the panelification tool can be found here.
+    
+  **panel_configs**
+  - ``panelification.yml``: Sets the configs for which the panel tool shall be run.
+    E.g. date, parameter, models, lead_time and which config files shall be used for the reading of model/obs reading and their verification.
+    Switch that allows to plot FSS and fields separately.
+  - ``definitions_tp_data.``: Collects the information needed to read and verify total precipitation of the DEODE experiments against DMI's radar composite
+  - ``definitions_satp_data.``: Collects the information needed to read and verify simulated satellite channels from DEIDE experiments agains seviri data 
+  - ``definitions_tp_plotting.``: Defines colour scheme and breaks for precipitaion fields
+  - ``definitions_sat_data.``: Defines colour scheme and breaks for infraged fields
+  
+  Plots are saved in ./PLOTS/
+      
 * examples
 
   **read data using reticulate**
   
-  -> example_read_DataUsingReticulate.R 
+  ``example_read_DataUsingReticulate.R``: Example of how to read satellite data using reticulate. Plots how the output of the functions (directly and via read_grid) looks like.
+  If manually run in a terminal one can also use the plotting example to see how the fields actually look.
   
   **spatial verification**
   
   examples on how verify_spatial can be used used:
-  * total precipitation (example_verify_tp_deode.R)
-  * satellite channels  (example_sat_deode.R)
-  * snow cover          (example_snow_cover.R)
-    
-* panelification scripts
-  * panel_main.R
-    
-    script that
-    * uses panel_configs/
-      
-      (for definitions on reading model and observations, score definitions, plottings schemes)
-    * calls panel_ranking_functions.R,
-            panel_utils.R and
-            panel_plotting_functions.R
-    * Plots are saved in PLOTS/
+  - ``example_verify_tp_deode.R``: An example file for verifying total precipitation of DEODE experiments.
+  - ``example_verify_sat_deode.R``: An example file for verifying simulated brightness temperatures against seviri data.
+  - ``example_verify_snow_deode.R``: An example file for verifying regridded snow data.
    
      
 ### Installation instructions
