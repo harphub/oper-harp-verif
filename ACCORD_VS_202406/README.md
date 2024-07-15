@@ -49,10 +49,10 @@ NWP:
   - ``panelification.yml``: Sets the configs for which the panel tool shall be run.
     E.g. date, parameter, models, lead_time and which config files shall be used for the reading of model/obs reading and their verification.
     Switch that allows to plot FSS and fields separately.
-  - ``definitions_tp_data.``: Collects the information needed to read and verify total precipitation of the DEODE experiments against DMI's radar composite.
-  - ``definitions_sat_data.``: Collects the information needed to read and verify simulated satellite channels from DEODE experiments agains seviri data.
-  - ``definitions_tp_plotting.``: Defines colour scheme and breaks for precipitaion fields.
-  - ``definitions_sat_data.``: Defines colour scheme and breaks for infrared fields.
+  - ``definitions_tp_data.R``: Collects the information needed to read and verify total precipitation of the DEODE experiments against DMI's radar composite.
+  - ``definitions_sat_data.R``: Collects the information needed to read and verify simulated satellite channels from DEODE experiments agains seviri data.
+  - ``definitions_tp_plotting.R``: Defines colour scheme and breaks for precipitaion fields.
+  - ``definitions_sat_plotting.R.``: Defines colour scheme and breaks for infrared fields.
   
   Plots are saved in ./PLOTS/
       
