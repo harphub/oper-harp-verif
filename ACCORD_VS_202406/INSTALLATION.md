@@ -151,7 +151,7 @@ install.packages("patchwork")
 In case you need to handle netcdf files
 
 ```
-module load netcdf
+module load netcdf4
 Start R session
 install.packages("ncdf4")
 ```
