@@ -142,7 +142,7 @@ verif_data <- main_ranking(verif_data)
 
 source(paste0(here(), "/ACCORD_VS_202406/scripts/panel_plotting_functions.R"))
 
-plot_name <- paste0("panel_", param, "_", format(verif_date, format="%Y%m%d%H%M+"), lead_time, "_", model, ".png")
+plot_name <- paste0("panel_", param, "_", format(verif_date, format="%Y%m%d%H%M+"), lead_time, ".png")
 
 main_plotting(verif_data      = verif_data,
 	      verif_fields    = verif_fields,
