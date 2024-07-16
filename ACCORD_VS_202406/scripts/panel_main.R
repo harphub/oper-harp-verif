@@ -142,7 +142,7 @@ verif_data <- main_ranking(verif_data)
 
 source(paste0(here(), "/ACCORD_VS_202406/scripts/panel_plotting_functions.R"))
 
-plot_name <- paste0("panel_", param, "_", format(verif_date, "%Y%m%d%H%M+"), lead_time, "_", model, ".png")
+plot_name <- paste0("panel_", param, "_", format(verif_date, format="%Y%m%d%H%M+"), lead_time, "_", model, ".png")
 
 main_plotting(verif_data      = verif_data,
 	      verif_fields    = verif_fields,
@@ -156,13 +156,13 @@ if (configs$save_additional_plt$FSS){
   for (model in models){
     verif    <- verif_data[[model]]
     title    <- paste("Model: ", model, ", Param: ", param)
-    subtitle <- paste0("Period: ", format(init_time, "%Y-%m-%d %H:%M"), 
+    subtitle <- paste0("Period: ", format(init_time, format="%Y-%m-%d %H:%M"), 
                          " + ", lead_time)
-    plot_name <- paste0("FSS_", param, "_", format(init_time, "%Y%m%d%H%M"), "+", lead_time, "_", model, ".png")
+    plot_name <- paste0("FSS_", param, "_", format(init_time, format="%Y%m%d%H%M"), "+", lead_time, "_", model, ".png")
     quick_plot_FSS(verif,
 		   title     = title,
 		   subtitle  = subtitle,
-		   plot_name  = plot_name)
+		   plot_name = plot_name)
   }
 }
 
@@ -171,8 +171,8 @@ if (configs$save_additional_plt$FSS){
 if (configs$save_additional_plt$fields){
   source(definition_file_plt)
   title    <- paste(ob_name, ", Param: ", param)
-  subtitle <- paste0("Period: ", format(verif_date, "%Y-%m-%d %H:%M"))
-  plot_name <- paste0("field_", param, "_", format(verif_date, "%Y%m%d%H%M"), "_", ob_name, ".png")
+  subtitle <- paste0("Period: ", format(verif_date, format="%Y-%m-%d %H:%M"))
+  plot_name <- paste0("field_", param, "_", format(verif_date, format="%Y%m%d%H%M"), "_", ob_name, ".png")
   
   plot_panel_field(verif_fields[[ob_name]]$obfield,
   		 ob_name,
@@ -184,7 +184,7 @@ if (configs$save_additional_plt$fields){
   
   for (model in models){
   	title    <- paste("Model: ", model, ", Param: ", param)
-  	subtitle <- paste0("Period: ", format(init_time, "%Y-%m-%d %H:%M"),
+  	subtitle <- paste0("Period: ", format(init_time, format="%Y-%m-%d %H:%M"),
                          " + ", lead_time)
   	plot_name <- paste0("field_", param, "_",
   			   format(init_time, format="%Y%m%d%H%M"), "+", 

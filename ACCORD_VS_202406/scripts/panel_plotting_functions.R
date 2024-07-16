@@ -399,6 +399,7 @@ main_plotting <- function(verif_data, verif_fields, ob_name, param, plt_definiti
                               subdomain    = verif_subdomain,
                               with_legend  = FALSE
         )
+	message("Finished obpanel.")
 
         # ## fcfields
         fcpanels        <- vector("list", length(fcst_models))
@@ -418,6 +419,7 @@ main_plotting <- function(verif_data, verif_fields, ob_name, param, plt_definiti
                              with_legend  = FALSE
 			     )
         }
+	message("Finished all fcpanels.")
 
         # ## legend
         legend <- plot_panel_field(
@@ -442,6 +444,7 @@ main_plotting <- function(verif_data, verif_fields, ob_name, param, plt_definiti
 
         # ## set size of the plot dependent on number of fields
         plot_window_all <- set_plot_size(fcst_models)
+	message("Finished obpanel.")
 
         # ## save plot to png
         if (plot_path == "") {
