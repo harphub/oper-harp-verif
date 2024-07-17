@@ -73,7 +73,7 @@ proj/9.3.1
 ```
 conda create --name <env_name>
 conda activate <env_name>
-conda install conda-forge::r-base proj r-hdf5r metview r-mass
+conda install conda-forge::r-base=4.4.1 proj r-hdf5r metview r-mass
 
 Start R session
 
