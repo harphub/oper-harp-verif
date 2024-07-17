@@ -1,0 +1,32 @@
+#######################################
+### DEFINE MODELS, DATE, LEAD_TIMES ###
+#######################################
+ 
+### Those parameters are here case study dependent due to the availability of data ### 
+verify_case:
+        prec_verif:
+                def_param : tp
+                init_time : 2024053000
+                lead_time : 6 
+models :
+        - dini
+
+#########################################
+### Define which config files to use: ###
+#########################################
+
+### READING of the models/obs
+dini :
+        tp :
+                definition_file : "definitions_tp_data_dini.R"
+
+### PLOTTING of the fields
+plt_config:
+        tp  : "definitions_tp_plotting.R"
+
+########################
+### Additional Plots ###
+########################
+save_additional_plt : 
+        FSS    : TRUE
+        fields : TRUE
