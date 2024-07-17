@@ -32,8 +32,8 @@ areaId <- switch(model,
                  )
 
 messnum       <- switch(param,
-                  "WV_062" = 23,
-                  "IR_108" = 24)
+                  "WV_062" = 5,
+                  "IR_108" = 6)
 
 thresholds    <- switch(param,
                      "WV_062" = c(220, 240, 260 ),   # TODO: set meaningful thresholds for WV 6.2
