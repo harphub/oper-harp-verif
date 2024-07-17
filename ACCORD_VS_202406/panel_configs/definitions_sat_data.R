@@ -59,8 +59,8 @@ areaId <- switch(model,
                  )
 
 messnum <- switch(param,
-                  "WV_062" = 23,
-                  "IR_108" = 24)
+                  "WV_062" = 4,
+                  "IR_108" = 5)
 
 ##### now standard #####
 
