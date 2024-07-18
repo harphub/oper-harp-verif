@@ -10,7 +10,8 @@ source(paste0(here(), "/ACCORD_VS_202406/scripts/reading_functions.R"))
 ############################
 
 python_function = paste0(here(), "/ACCORD_VS_202406/scripts/reading_functions.py")
-python_version = "/perm/aut4452/venvs/satpy/bin/python3" # TODO: replace this path
+# this is to use satpy, you can point to your python env if you have satpy installed
+python_version = "/perm/miag/venvs/satpy/bin/python3"
 
 ############################
 # define:
@@ -30,10 +31,10 @@ areaId <- switch(model,
                  "DK500m_hres"  = c(53, 6, 59, 17, 0.5, 'laea'),
                  "DK500m_atos"  = c(53, 6, 59, 17, 0.5, 'laea')
                  )
-
+# We use grib message to extract radiances from grib files (shortName is unknown)
 messnum       <- switch(param,
-                  "WV_062" = 23,
-                  "IR_108" = 24)
+                  "WV_062" = 4,
+                  "IR_108" = 5)
 
 thresholds    <- switch(param,
                      "WV_062" = c(220, 240, 260 ),   # TODO: set meaningful thresholds for WV 6.2
@@ -45,11 +46,11 @@ ob_file_template  <- msgFile
 fc_file_path      <- paste0(here(), "/ACCORD_VS_202406/sample_data/deode")
 
 grb_file_template <- switch(
-                                  model,
-                                  "DK2500m_atos" = paste0(init_time, "/harmonie_DK2500g_SP_ATOSDT_00bd/surface_gc_300x300_2500m+00{LDT}h00m00s.grb"),
-                                  "DK2500m_hres" = paste0(init_time, "/harmonie_DK2500g_SP_HRES/surface_gc_300x300_2500m+00{LDT}h00m00s.grb"),
-                                  "DK500m_atos"  = paste0(init_time, "/harmonie_DK500g_SP_ATOSDT_00bd/surface_gc_1500x1500_500m+00{LDT}h00m00s.grb"),
-                                  "DK500m_hres"  = paste0(init_time, "/harmonie_DK500g_SP_HRES/surface_gc_1500x1500_500m+00{LDT}h00m00s.grb"))
+                          model,
+                          "DK2500m_atos" = paste0(init_time, "/harmonie_DK2500g_SP_ATOSDT_00bd/surface_gc_300x300_2500m+00{LDT}h00m00s.grb"),
+                          "DK2500m_hres" = paste0(init_time, "/harmonie_DK2500g_SP_HRES/surface_gc_300x300_2500m+00{LDT}h00m00s.grb"),
+                          "DK500m_atos"  = paste0(init_time, "/harmonie_DK500g_SP_ATOSDT_00bd/surface_gc_1500x1500_500m+00{LDT}h00m00s.grb"),
+                          "DK500m_hres"  = paste0(init_time, "/harmonie_DK500g_SP_HRES/surface_gc_1500x1500_500m+00{LDT}h00m00s.grb"))
 
 file_4regridding_grb <- generate_filenames(
 		            file_path     = fc_file_path,

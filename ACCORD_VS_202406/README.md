@@ -18,9 +18,15 @@ NWP:
 
   Grib files output of the DEODE workflow running HARMONIE cy46h1 (total presipitation and FULL POS simulated radiances channels WV_062 & IR_108)
 
-**Content of the repository**
+### Installation instructions
 
-* **reading_functions**
+Development was done on ATOS (shared using accord group)
+
+Refer to the [installation instructions](INSTALLATION.md) for details of how to install different libraries.
+
+**Overview of the repository**
+
+* **reading_functions (in scripts folder)**
   
   **using reticulate**
   
@@ -38,14 +44,14 @@ NWP:
     
 * **panelification**
   
-  **scripts**
+  **in scripts folder**
   - ``run_panelification``: Run the panelification scripts with set input parameters.
   - ``panel_main.R``: Main scripts for panelification. Reads configs, does the verificatio, calls ranking and plotting functions.
   - ``panel_ranking_functions.R``: All functions for ranking the scores are collected in this file.
   - ``panel_utils.R``: Some additional functions that are called by panel_ranking_functions.R.
   - ``panel_plotting_functions.R``: All functions for plotting the panelification tool can be found here.
     
-  **panel_configs**
+  **in panel_configs folder**
   - ``panelification.yml``: Sets the configs for which the panel tool shall be run.
     E.g. date, parameter, models, lead_time and which config files shall be used for the reading of model/obs reading and their verification.
     Switch that allows to plot FSS and fields separately.
@@ -55,8 +61,14 @@ NWP:
   - ``definitions_sat_plotting.R.``: Defines colour scheme and breaks for infrared fields.
   
   Plots are saved in ./PLOTS/
+
+* **sample_data folder**
+  
+  It contains sample data which allow to test and run the functionality of spatial verification. 
+  NWP data (sample_data/deode or sample_data/dini) and radar (sample_data/radar) precipitation products are provided.
+  EUMETSAT SEVIRI data must be downloaded and placed in (sample_data/seviri).
       
-* **examples**
+* **examples (in scripts folder)**
 
   **read data using reticulate**
   
@@ -82,6 +94,21 @@ NWP:
     
   change the settings accordingly in ``panel_configs/panelification.yml``.
 
+- To run out of the box panelification
+   1. cd ACCORD_VS_202406
+   2. modules load:
+	module load R/4.3.3
+	module load ecmwf-toolbox/2024.04.0.0   
+	module load hdf5/1.14.3   
+	module load proj/9.3.1   
+	module load python3/3.11.8-01
+   3. export your R local installation, e.g.:
+	export R_LIBS_USER=/perm/miag/ACCORD_VS/testing/installHarp/renv/library/R-4.3/x86_64-pc-linux-gnu
+   4.run panelification for precipitation:
+	Rscript ./scripts/panel_main.R prec_verif
+   5.run panelification for satellite radiances:
+	Rscript ./scripts/panel_main.R sat_verif
+  
 **... add other models**
 
 To add another model (panel) to panelification, a file with their definitions on how to read/verify must be added, which will then be added to the panelification.yml.
@@ -91,8 +118,4 @@ To add another model (panel) to panelification, a file with their definitions on
 4. Specify the new file in panel_configs/panelification.yml for model and parameter ``### Define which config files to use ###; ### READING of the models/obs``.
 5. If a new parameter was added, also add a definition file for this parameter in ``panel_configs/panelification.yml`` ``### PLOTTING of the fields``.
      
-### Installation instructions
 
-Development was done on ATOS (shared using accord group)
-
-Refer to the [installation instructions](INSTALLATION.md) for details of how to install different libraries.

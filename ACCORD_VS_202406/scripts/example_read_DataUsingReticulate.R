@@ -8,7 +8,8 @@ source(paste0(here(), "/ACCORD_VS_202406/scripts/reading_functions.R"))
 ############################
 
 python_function = paste0(here(), "/ACCORD_VS_202406/scripts/reading_functions.py")
-python_version  = "/perm/aut4452/venvs/satpy/bin/python3" # TODO: replace this path
+# this is to use satpy, you can point to your python env if you have satpy installed
+python_version  = "/perm/miag/venvs/satpy/bin/python3" 
 
 ############################
 # define:
@@ -28,10 +29,10 @@ areaId <- switch(model,
                  "DK500m_hres"  = c(53, 6, 59, 17, 0.5, 'laea'),
                  "DK500m_atos"  = c(53, 6, 59, 17, 0.5, 'laea'),
                  )
-
+# We use grib message to extract radiances from grib files (shortName is unknown)
 messnum <- switch(strChannel,
-		  "WV_062" = 23,
-		  "IR_108" = 24)
+		  "WV_062" = 4,
+		  "IR_108" = 5)
 
 fc_file_template        <- switch(
                                   model,
