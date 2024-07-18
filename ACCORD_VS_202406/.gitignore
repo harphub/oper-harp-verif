@@ -7,3 +7,4 @@ renv*
 *.nat
 *.h5
 *.sqlite
+*dump

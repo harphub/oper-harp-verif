@@ -43,20 +43,17 @@ The system will ask you to restart R to take effect. Then try to install harp ag
 Keep the personal token in your `.Renviron` for later use. The system will detect it an use it every time you use `install_github`
 
 
-## Steps followed to install HARP in atos
+## Steps followed for Installation
 
 In order to use the harp libraries it is recommended
 to use a local environment created with the `renv` library.
 The local environment can be created from scratch using the instructions below.
 
 
-**Create renv from scratch**
+**On ATOS**
+(tested)
 
-Choose the path you want where to have your local instalaltion:
-
-cd <harp_local_installation>
-
-Module we used (load before sunig R)  
+Module was used (load before running R)  
 ```
 module load R
 module load ecmwf-toolbox  # this one is necessary to install Rgrib2 dependencies
@@ -70,6 +67,27 @@ ecmwf-toolbox/2024.04.0.0
 proj/9.3.1
 ```
 
+**Using a conda environment** 
+(...to be tested...)
+
+```
+conda create --name <env_name>
+conda activate <env_name>
+conda install conda-forge::r-base=4.4.1 proj r-hdf5r metview r-mass
+
+Start R session
+
+install.packages("renv")  
+Exit R (ctrl-D or exit)
+```
+
+## install HARP
+
+Choose the path where you want to have your local instalaltion:
+
+cd <harp_local_installation>
+
+**Create renv from scratch**
 ```
 Start R session
 
@@ -89,24 +107,27 @@ install_github("harphub/harp")
 install_github("pollyaschm/harpIO", "invert-hdf5-data")
 install_github("pollyaschm/harpSpatial", "ACCORD_VS_202406")
 ```
+**Note:**
 
 When installing install_github("pollyaschm/harpSpatial", "ACCORD_VS_202406"), do not update other packages (option 3: None) 
 
 ```
-Changes for harpIO/harpSpatial
+Changes made in harpIO and harpSpatial
 
 harpIO:
 changes to read_hdf5()
-  
+ 
 harpSpatial:
 fc_param_defs input to read_grid()
 prm$basename input to read_grid()      
 prm$basename to force IR and WV satellite channels as the same parameter     
 return fields from verify_spatial()     
-adding scores in verify_spatial() (like RMSE, corr coef, percentage FSS) 
-```
+adding scores in verify_spatial() (like RMSE, corr coef, percentage FSS)
 
-Proceed with the installation of the remaining packages.
+```
+  For more details see [changes harpIO](https://github.com/pollyaschm/harpIO/tree/invert-hdf5-data) and [changes harpSpatial](https://github.com/pollyaschm/harpSpatial/tree/ACCORD_VS_202406)
+
+**Proceed with the installation of the remaining packages.**
 
 ```
 install_github("harphub/Rgrib2")
