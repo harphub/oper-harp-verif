@@ -59,7 +59,7 @@ areaId <- switch(model,
                  )
 
 # We use grib message to extract radiances from grib files (shortName is unknown)
-messnum       <- switch(param,
+messnum <- switch(param,
                   "WV_062" = 4,
                   "IR_108" = 5)
 
