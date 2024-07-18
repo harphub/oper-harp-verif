@@ -24,7 +24,7 @@ Development was done on ATOS (shared using accord group)
 
 Refer to the [installation instructions](INSTALLATION.md) for details of how to install different libraries.
 
-**Overview of the repository**
+### Overview of the repository
 
 * **reading_functions (in scripts folder)**
   
@@ -60,12 +60,12 @@ Refer to the [installation instructions](INSTALLATION.md) for details of how to 
   - ``definitions_tp_plotting.R``: Defines colour scheme and breaks for precipitaion fields.
   - ``definitions_sat_plotting.R.``: Defines colour scheme and breaks for infrared fields.
   
-  Plots are saved in ./PLOTS/
-
 * **sample_data folder**
   
-  It contains sample data which allow to test and run the functionality of spatial verification. 
-  NWP data (sample_data/deode or sample_data/dini) and radar (sample_data/radar) precipitation products are provided.
+  It contains sample data which allow to test and run the functionality of spatial verification.
+  
+  NWP data in sample_data/deode or sample_data/dini; radar precipitation products in sample_data/radar.
+  
   EUMETSAT SEVIRI data must be downloaded and placed in (sample_data/seviri).
       
 * **examples (in scripts folder)**
@@ -97,17 +97,27 @@ Refer to the [installation instructions](INSTALLATION.md) for details of how to 
 - To run out of the box panelification
    1. cd ACCORD_VS_202406
    2. modules load:
-	module load R/4.3.3
-	module load ecmwf-toolbox/2024.04.0.0   
-	module load hdf5/1.14.3   
-	module load proj/9.3.1   
-	module load python3/3.11.8-01
-   3. export your R local installation, e.g.:
-	export R_LIBS_USER=/perm/miag/ACCORD_VS/testing/installHarp/renv/library/R-4.3/x86_64-pc-linux-gnu
-   4.run panelification for precipitation:
-	Rscript ./scripts/panel_main.R prec_verif
-   5.run panelification for satellite radiances:
-	Rscript ./scripts/panel_main.R sat_verif
+	```
+	  module load R/4.3.3
+	  module load ecmwf-toolbox/2024.04.0.0
+	  module load hdf5/1.14.3
+	  module load proj/9.3.1
+	  module load python3/3.11.8-01
+	```
+   4. export your R local installation, e.g.:
+      ```
+      export R_LIBS_USER=/perm/miag/ACCORD_VS/testing/installHarp/renv/library/R-4.3/x86_64-pc-linux-gnu
+      ```
+   5. run panelification for precipitation, e.g.:
+     ```
+     Rscript ./scripts/panel_main.R prec_verif
+     ```
+     Plots, as a results of point 5, are saved in PLOTS folder.
+
+   You can also test the spatial verification for satellite radiances, but to do that, firstly, you need to download the expected EUMETSAT SEVIRI data (as configured in panel_configs/definitions_sat_data.R), then you can run: 
+     ```
+     Rscript ./scripts/panel_main.R sat_verif
+     ```
   
 **... add other models**
 
