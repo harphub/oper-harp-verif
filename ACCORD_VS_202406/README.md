@@ -4,13 +4,13 @@ Polly Schmederer (GeoSphere), Carlos Peralta (DMI) and Fabrizio Baordo (DMI)
 
 **Topics of VS**
 
-Generalising spatial verifications: improving R scripting; use of reticulate package to interface R with Python; applying 'panelification' tool; giving examples
+Generalising spatial verifications: improving R scripting; use of reticulate package to interface R with Python; generalise/ apply harp panel tool ("panelification"); providing examples
 
 **Data used for spatial verification**
 
 Observations:
   
-  DMI's radar precipitation product: Surface Quantitative Precipitation Estimation (SQPE) using both rain guage and radar data
+  DMI's radar precipitation product: Surface Quantitative Precipitation Estimation (SQPE) using both rain gauge and radar data
 
   EUMETSAT SEVIRI data (https://api.eumetsat.int/data/browse/collections): High Rate SEVIRI Level 1.5 Image Data - MSG - 0 degree (native), e.g. MSG3-SEVI-MSG15-0100-NA-20240102235743.693000000Z-NA.nat
 
@@ -22,7 +22,7 @@ NWP:
 
 Development was done on ATOS (shared using accord group)
 
-Refer to the [installation instructions](INSTALLATION.md) for details of how to install different libraries.
+Refer to the [installation instructions](INSTALLATION.md) for details of how to install the libraries.
 
 ### Overview of the repository
 
@@ -46,7 +46,7 @@ Refer to the [installation instructions](INSTALLATION.md) for details of how to 
   
   **in scripts folder**
   - ``run_panelification``: Run the panelification scripts with set input parameters.
-  - ``panel_main.R``: Main scripts for panelification. Reads configs, does the verificatio, calls ranking and plotting functions.
+  - ``panel_main.R``: Main scripts for panelification. Reads configs, does the verificatio, calls ranking and plotting.functions.
   - ``panel_ranking_functions.R``: All functions for ranking the scores are collected in this file.
   - ``panel_utils.R``: Some additional functions that are called by panel_ranking_functions.R.
   - ``panel_plotting_functions.R``: All functions for plotting the panelification tool can be found here.
@@ -55,18 +55,22 @@ Refer to the [installation instructions](INSTALLATION.md) for details of how to 
   - ``panelification.yml``: Sets the configs for which the panel tool shall be run.
     E.g. date, parameter, models, lead_time and which config files shall be used for the reading of model/obs reading and their verification.
     Switch that allows to plot FSS and fields separately.
-  - ``definitions_tp_data.R``: Collects the information needed to read and verify total precipitation of the DEODE experiments against DMI's radar composite.
-  - ``definitions_sat_data.R``: Collects the information needed to read and verify simulated satellite channels from DEODE experiments agains seviri data.
+  - ``definitions_tp_data.R``: Collects the information needed to read and verify total precipitation of the DEODE.experiments against DMI's radar composite.
+  - ``definitions_sat_data.R``: Collects the information needed to read and verify simulated satellite channels from DEODE. experiments agains seviri data.
   - ``definitions_tp_plotting.R``: Defines colour scheme and breaks for precipitaion fields.
   - ``definitions_sat_plotting.R.``: Defines colour scheme and breaks for infrared fields.
   
-* **sample_data folder**
+* **data (in sample_data folder)**
   
-  It contains sample data which allow to test and run the functionality of spatial verification.
+  This folder contains sample data which allows to test and run the functionality of spatial verification.
   
-  NWP data in sample_data/deode or sample_data/dini; radar precipitation products in sample_data/radar.
+  NWP data in ``sample_data/deode/`` or ``sample_data/dini/``,
   
-  EUMETSAT SEVIRI data must be downloaded and placed in (sample_data/seviri).
+  radar precipitation products in ``sample_data/radar/``,
+
+  snow data in ``sample_data/snow_data/``.
+  
+  EUMETSAT SEVIRI data must be downloaded and placed in ``sample_data/seviri/``.
       
 * **examples (in scripts folder)**
 
@@ -85,8 +89,8 @@ Refer to the [installation instructions](INSTALLATION.md) for details of how to 
 **How to...**
 
 **... run the panelification**
-- Run panel script by using ``./run_panelification`` to see whether the scripts and installation works for you.
-- Check ``./run_panelification`` to see how to call the panelification main function ``panel_main()``.
+- Run panel script ``./scripts/run_panelification`` to see whether the scripts and installation works for you.
+- Check ``run_panelification`` to see how to call the panelification main function ``panel_main()``.
 - To
   - run _different dates_ or _lead_times_ (for which the mod/obs data is available),
   - decide _which models_ should be displayed or
@@ -94,25 +98,26 @@ Refer to the [installation instructions](INSTALLATION.md) for details of how to 
     
   change the settings accordingly in ``panel_configs/panelification.yml``.
 
-- To run out of the box panelification
-   1. cd ACCORD_VS_202406
-   2. modules load:
+- To run panelification out of the box
+  1. cd ACCORD_VS_202406
+  2. modules load:
 	```
 	  module load R/4.3.3
 	  module load ecmwf-toolbox/2024.04.0.0
 	  module load hdf5/1.14.3
 	  module load proj/9.3.1
-	  module load python3/3.11.8-01
+	  module load python3/3.11.8-01 (only necessary to run sat_verif)
 	```
-   4. export your R local installation, e.g.:
+  3. export your R local installation, e.g.:
+     (in case step ii alone is not working)
       ```
-      export R_LIBS_USER=/perm/miag/ACCORD_VS/testing/installHarp/renv/library/R-4.3/x86_64-pc-linux-gnu
+      export R_LIBS_USER=<path_to_harp_local_installation>/renv/library/R-4.3/x86_64-pc-linux-gnu
       ```
-   5. run panelification for precipitation, e.g.:
+  5. run panelification for precipitation, e.g.:
      ```
      Rscript ./scripts/panel_main.R prec_verif
      ```
-     Plots, as a results of point 5, are saved in PLOTS folder.
+     Plots, as a results of point iv, are saved in ``PLOTS/`` folder.
 
    You can also test the spatial verification for satellite radiances, but to do that, firstly, you need to download the expected EUMETSAT SEVIRI data (as configured in panel_configs/definitions_sat_data.R), then you can run: 
      ```
@@ -125,7 +130,9 @@ To add another model (panel) to panelification, a file with their definitions on
 1. Know how to read the model that should be added. (An example on how the data may be read can be found in ``example_read_DataUsingReticulate.R``).
 2. Run verify_spatial, to see how the configurations must be passed to this function (see the examples ``example_verify_tp_deode.R``, ``example_verify_sat_deode.R`` or ``example_verify_snow_deode.R``).
 3. Copy a definitions_* file (``definitions_<new>.R``) and change all parameters as needed, to read/verify the data correctly.
-4. Specify the new file in panel_configs/panelification.yml for model and parameter ``### Define which config files to use ###; ### READING of the models/obs``.
-5. If a new parameter was added, also add a definition file for this parameter in ``panel_configs/panelification.yml`` ``### PLOTTING of the fields``.
+4. Specify the new file in ``panel_configs/panelification.yml`` for model and parameter.
+   (Define which config files to use > READING of the models/obs).
+5. If a new parameter was added, also add a definition file for this parameter in ``panel_configs/panelification.yml``
+   (Define which config files to use > PLOTTING of the fields).
      
 
