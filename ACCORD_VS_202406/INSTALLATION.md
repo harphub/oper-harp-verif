@@ -87,7 +87,7 @@ Exit R (ctrl-D or exit)
 
 ## install HARP
 
-Choose the path where you want to have your local instalaltion:
+Choose the path where you want to have your local installation:
 
 cd <harp_local_installation>
 
@@ -99,8 +99,15 @@ library(renv)
 renv::init()
 Exit R (ctrl-D or exit)
 ```
-Once the renv environment is initiated, enter R again and install
-the following libraries
+
+Since the renv environment has just been initiated, after starting R in your <harp_local_installation> you should now see a message like this, pointing
+to a local R installation and not the standard `$HOME/x86_64-pc-linux-gnu-library`:
+
+```
+- Project '/etc/ecmwf/nfs/dh1_perm_b/miag/ACCORD_VS/testing/installHarp' loaded. [renv 1.0.7]
+```
+
+Enter R and install the following libraries
 
 ```
 Start R session
@@ -200,12 +207,6 @@ Start R session
 install.packages("ncdf4")
 ```
 
-After starting R in your <harp_local_installation> you should see a message like this, pointing
-to a local R installation and not the standard `$HOME/x86_64-pc-linux-gnu-library`:
-
-```
-- Project '/etc/ecmwf/nfs/dh1_perm_b/miag/ACCORD_VS/testing/installHarp' loaded. [renv 1.0.7]
-```
 
 To update `renv.lock` after installation use:
 
