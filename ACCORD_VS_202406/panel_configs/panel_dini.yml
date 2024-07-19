@@ -10,6 +10,7 @@ verify_case:
                 lead_time : 6 
 models :
         - dini
+        - ifs
 
 #########################################
 ### Define which config files to use: ###
@@ -17,6 +18,9 @@ models :
 
 ### READING of the models/obs
 dini :
+        tp :
+                definition_file : "definitions_tp_data_dini.R"
+ifs :
         tp :
                 definition_file : "definitions_tp_data_dini.R"
 

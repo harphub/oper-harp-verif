@@ -47,6 +47,7 @@ fc_file_path 	 = paste0(here(), "/ACCORD_VS_202406/sample_data")
 fc_file_template <- switch(
                                   model,
                                  "dini"  = "/dini/DINI_{YYYY}{MM}{DD}00_{LDT2}_TP.grib",
+                                 "ifs" = "/ifs/IFS_{YYYY}{MM}{DD}00_{LDT2}_TP.grib",
                                  "DK500m_hres"  = paste0(init_time, "/harmonie_DK500g_SP_HRES/surface_gc_1500x1500_500m+00{LDT}h00m00s.grb"))
 
 
@@ -78,8 +79,24 @@ example_file <- paste0(here(),"/ACCORD_VS_202406/sample_data/radar/202405300300.
 precip <- harpIO::read_grid(example_file,param,hdf5_opts=hdf5_opts(data_path="/pcp/data1/data", odim=FALSE,meta=TRUE))
 
 verif_domain_dk <- get_domain(precip)
+# reducing the domain a little bit to make it closer to the land
+# Otherwise the radar sweeps cover areas with a lot of undefined values
+# and this produces a nans in the scores calculation
+# Using same approach use for the deode data
+# The verif_domain_dk domain was too big
+# This one also too big domain_dk_mainland  <- geo_subgrid(verif_domain_dk, 55*5, 190*5,80*5, 245*5)
 
-verif_domain = verif_domain_dk
+deode_grb_2500    <- read_param_with_grbmessg(paste0(here(), "/ACCORD_VS_202406/sample_data/deode/2024010200/harmonie_DK2500g_SP_ATOSDT_00bd/surface_gc_300x300_2500m+0024h00m00s.grb"), 1)
+
+deode_grb_500     <- read_param_with_grbmessg(paste0(here(), "/ACCORD_VS_202406/sample_data/deode/2024010200/harmonie_DK500g_SP_ATOSDT_00bd/surface_gc_1500x1500_500m+0024h00m00s.grb"), 1)
+
+verif_domain_2500 <- get_domain(deode_grb_2500)
+verif_domain_500  <- get_domain(deode_grb_500)
+
+domain_500_DK_mainland  <- geo_subgrid(verif_domain_500, 55*5, 190*5,80*5, 245*5)
+domain_2500_DK_mainland <- geo_subgrid(verif_domain_2500, 55, 190,80, 245)
+
+verif_domain = domain_2500_DK_mainland
  
 ######################
 ####### BASIC ########
