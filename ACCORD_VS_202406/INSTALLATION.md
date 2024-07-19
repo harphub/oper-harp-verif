@@ -70,6 +70,10 @@ proj/9.3.1
 **Using a conda environment** 
 (...to be tested...)
 
+Use `conda_environment_R_4.3.3.txt` file to get conda environment.
+
+Or do it step by step:
+
 ```
 conda create --name <env_name>
 conda activate <env_name>
