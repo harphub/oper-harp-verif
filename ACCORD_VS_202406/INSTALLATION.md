@@ -73,7 +73,7 @@ proj/9.3.1
 ```
 conda create --name <env_name>
 conda activate <env_name>
-conda install conda-forge::r-base=4.4.1 proj r-hdf5r metview r-mass
+conda install conda-forge::r-base proj r-hdf5r r-mass metview r-matrix r-ragg
 
 Start R session
 
@@ -135,8 +135,8 @@ install_github("harphub/Rgrib2")
 
 Install hdf5 (needed when you need to access hdf files, e.g. DMI radar products)
 
-When working in atos, follow the instructions below.
-If working in any other machine, this step should not be necessary.
+When working on **ATOS**, follow the instructions below.
+
 
 ```
 Exit R (ctrl-D or exit)
@@ -153,8 +153,13 @@ Exit R (ctrl-D or exit)
 After successful installation remove the `Makevars` file, as this might interfere with the installation of other packages.
 remove ~/.R/Makevars 
 ```
+If working in any other machine, this step should not be necessary.
+Simply do:
+```
+install.packages("hdf5r")
+```
 
-Keep installing packages
+**Continue** installing packages
 
 ```
 Start R session
@@ -162,6 +167,20 @@ Start R session
 install.packages("reticulate")
 install.packages("here")
 install.packages("tidyverse")
+```
+
+When using **conda environment**, there might be a problem with a wrong libtiff.so.* when trying to install tidyverse.
+
+(libtiff.so.5: cannot open shared object file - while libtiff.so.6 is available). In this case "ragg" cannot be installed when trying to install "tidyverse". This can be tricked like this:
+
+```
+cd /path_to_conda_env/lib/
+ln -s libtiff.so.5 libtiff.so.6
+```
+Then install.packages("tidyverse") should work.
+
+**Continue** installing packages
+```
 install.packages("dplyr")
 install.packages("ggpubr")
 install.packages("RColorBrewer")
