@@ -102,17 +102,17 @@ Refer to the [installation instructions](INSTALLATION.md) for details of how to 
 	  module load ecmwf-toolbox/2024.04.0.0
 	  module load hdf5/1.14.3
 	  module load proj/9.3.1
-	  module load python3/3.11.8-01
+	  module load python3/3.11.8-01 (only necessary to run sat_verif)
 	```
-   4. export your R local installation, e.g.:
+   3. export your R local installation, e.g.:
       ```
       export R_LIBS_USER=/perm/miag/ACCORD_VS/testing/installHarp/renv/library/R-4.3/x86_64-pc-linux-gnu
       ```
-   5. run panelification for precipitation, e.g.:
+   4. run panelification for precipitation, e.g.:
      ```
      Rscript ./scripts/panel_main.R prec_verif
      ```
-     Plots, as a results of point 5, are saved in PLOTS folder.
+     Plots, as a results of point 4, are saved in PLOTS folder.
 
    You can also test the spatial verification for satellite radiances, but to do that, firstly, you need to download the expected EUMETSAT SEVIRI data (as configured in panel_configs/definitions_sat_data.R), then you can run: 
      ```
