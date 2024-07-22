@@ -138,9 +138,9 @@ To add another model (panel) to panelification, a file with their definitions on
 
 **Example for other models**
 
-     An example using data from the "dini" versus the "ifs" model is also provided, with the definitions in ``definitions_tp_data_dini.R`` .
-     To test this example use the config file in ``panel_configs/panel_dini_ifs.yml` and run
+An example using data from the dini versus the ifs model is also provided, with the definitions in ``definitions_tp_data_dini.R`` .
+To test this example use the config file in `panel_configs/panel_dini_ifs.yml` and run
 
-     ```
-     Rscript ./scripts/panel_main.R prec_verif panel_configs/panel_dini.yml
-     ```
+```
+Rscript ./scripts/panel_main.R prec_verif panel_configs/panel_dini.yml
+```
