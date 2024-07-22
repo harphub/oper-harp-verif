@@ -84,7 +84,7 @@ Refer to the [installation instructions](INSTALLATION.md) for details of how to 
   examples on how verify_spatial can be used used:
   - ``example_verify_tp_deode.R``: An example file for verifying total precipitation of DEODE experiments.
   - ``example_verify_sat_deode.R``: An example file for verifying simulated brightness temperatures against seviri data.
-  - ``example_verify_snow_deode.R``: An example file for verifying regridded snow data.
+  - ``example_verify_snow_cover.R``: An example file for verifying regridded snow data.
 
 **How to...**
 
@@ -128,7 +128,7 @@ Refer to the [installation instructions](INSTALLATION.md) for details of how to 
 
 To add another model (panel) to panelification, a file with their definitions on how to read/verify must be added, which will then be added to the panelification.yml.
 1. Know how to read the model that should be added. (An example on how the data may be read can be found in ``example_read_DataUsingReticulate.R``).
-2. Run verify_spatial, to see how the configurations must be passed to this function (see the examples ``example_verify_tp_deode.R``, ``example_verify_sat_deode.R`` or ``example_verify_snow_deode.R``).
+2. Run verify_spatial, to see how the configurations must be passed to this function (see the examples ``example_verify_tp_deode.R``, ``example_verify_sat_deode.R`` or ``example_verify_snow_cover.R``).
 3. Copy a definitions_* file (``definitions_<new>.R``) and change all parameters as needed, to read/verify the data correctly.
 4. Specify the new file in ``panel_configs/panelification.yml`` for model and parameter.
    (Define which config files to use > READING of the models/obs).
@@ -136,3 +136,11 @@ To add another model (panel) to panelification, a file with their definitions on
    (Define which config files to use > PLOTTING of the fields).
      
 
+**Example for other models**
+
+     An example using data from the "dini" versus the "ifs" model is also provided, with the definitions in ``definitions_tp_data_dini.R`` .
+     To test this example use the config file in ``panel_configs/panel_dini_ifs.yml` and run
+
+     ```
+     Rscript ./scripts/panel_main.R prec_verif panel_configs/panel_dini.yml
+     ```
