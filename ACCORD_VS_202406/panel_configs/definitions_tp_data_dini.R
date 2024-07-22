@@ -57,7 +57,7 @@ fc_param_defs <- modify_param_def(
                                grib = new_grib_param(
                                                      name = list(tp = "tp"),
                                                      ),
-                               accum = extract_numeric(pcp_accum_period)
+                               accum = readr::parse_number(pcp_accum_period)
                                )
 
 
