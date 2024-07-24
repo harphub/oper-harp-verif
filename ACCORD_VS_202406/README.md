@@ -144,3 +144,6 @@ To add another model (panel) to panelification, a file with their definitions on
      ```
      Rscript ./scripts/panel_main.R prec_verif panel_configs/panel_dini.yml
      ```
+     Note that the ifs model data contains the total precipitation field multiplied by a factor of 1e3 to 
+     make it comparable with the data from dini, that produces total precipitation in units of `kg m^2``, while
+     ifs outputs data in `m`. The units in the ifs files are not updated. A sample mars script to fetch the ifs data is included.
