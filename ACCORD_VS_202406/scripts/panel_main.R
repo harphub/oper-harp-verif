@@ -87,6 +87,7 @@ for (model in models){
     sqlite_file       = sqlite_file,
     thresholds        = thresholds,
     percentiles       = percentiles,
+    window_sizes      = window_sizes,
     scores            = scores,
     return_data       = return_data,
     return_fields     = return_fields
