@@ -36,6 +36,10 @@ if (is.null(run_case)){
 	message("Run verification for: ", run_case)
 }
 
+if (is.null(cfg)){
+	message("ERROR: selected verify_case is not specified in ", yaml_file)
+}
+
 def_param <- cfg$def_param 
 init_time <- cfg$init_time
 lead_time <- cfg$lead_time 
