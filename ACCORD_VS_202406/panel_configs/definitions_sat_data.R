@@ -149,7 +149,7 @@ thresholds <- switch(param,
                      "IR_108" = c(273, 260, 250, 240, 230))
 
 percentiles    = c(25, 50, 75, 90, 95)
-scores         = c("mse", "mae", "bias", "rmse", "Rpearson", "FSS", "FSSp")
+scores         = c("mae", "bias", "rmse", "Rpearson", "FSS", "FSSp")
 
 return_data    = TRUE
 return_fields  = TRUE

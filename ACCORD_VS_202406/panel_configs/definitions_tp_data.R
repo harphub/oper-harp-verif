@@ -103,7 +103,7 @@ percentiles    = c(25, 50, 75, 90, 95)
 # window_sizes   = c(0, 1, 2, 4, 8, 12, 20)  # default
 window_sizes   = c(10, 20, 30, 40, 60, 80, 100, 120, 140, 160, 180, 200)  # default
 
-scores         = c("mse", "mae", "bias", "rmse", "Rpearson", "FSS", "FSSp")
+scores         = c("mae", "bias", "rmse", "Rpearson", "FSS", "FSSp")
 
 return_data    = TRUE
 return_fields  = TRUE
