@@ -254,7 +254,7 @@ plot_tbl_fss <- function(data_tbl,
 				       "3"="#f7ce16",
 				       "4"="#b3bac9",
 				       "5"="#FF9933",
-				       "6"="ffffff")
+				       "6"="#ffffff")
 			 ) {
 
 	data_fss  	    <- data_tbl[[score]]
@@ -265,7 +265,7 @@ plot_tbl_fss <- function(data_tbl,
 	fcdate 	            <- unique(data_fss$fcdate)
 
 	data_fss <- data_fss %>% 
-		mutate(ranking = replace(ranking, ranking > 5, 5)) %>%
+		mutate(ranking = replace(ranking, ranking > 6, 6)) %>%
 		mutate(ranking = as.character(ranking))
 
         thres <- factor(data_fss$threshold, levels = rev(unique(data_fss$threshold)))
