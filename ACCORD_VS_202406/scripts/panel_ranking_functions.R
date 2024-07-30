@@ -51,7 +51,7 @@ fss_ranking <- function(verif_data, score){
            warning("ERROR: ", null_counts, " of the models contain(s) NULL for score ", score)
         }
 
-        command <- "mapply(rank_min"
+        command <- "mapply(rank_max"
         for (mod in names(verif_data)) {command <- paste0(command, ", tmp$", mod)}
         command <- paste0(command, ")")
         ranking <- eval(parse(text=command))
