@@ -11,8 +11,12 @@ The ranks are plotted in the panelification plots.
 - rank 1 (gold)
 - rank 2 (silver)
 - rank 3 (bronze)
+- rank 4 and greater (white)
 - FSS not skilful (< 0.5) (red)
 - NA (black)
+
+When 2 or more models have the same rank, the next model with a higher rank will have a rank that is following up after the "missing" ranks.
+e.g. 3 model have rank 2. 3 and 4 are the missing ranks and the next rankded model will have rank 5.
 
 **Information displayed in the plot**
 
