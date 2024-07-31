@@ -4,7 +4,17 @@ Polly Schmederer (GeoSphere), Carlos Peralta (DMI) and Fabrizio Baordo (DMI)
 
 **Topics of VS**
 
-Generalising spatial verifications: improving R scripting; use of reticulate package to interface R with Python; generalise/ apply harp panel tool ("panelification"); providing examples
+Generalising spatial verifications: 
+
+  - improving R scripting;
+  
+  - use of reticulate package to interface R with Python
+
+  - generalise/ apply harp panel tool ("panelification")
+
+    (This is a harp and R based version of the original python based *panelification* [(see here)](https://github.com/pscheffknecht-geosphere/panelification/tree/main))
+
+  - providing examples
 
 **Data used for spatial verification**
 
@@ -123,6 +133,8 @@ Refer to the [installation instructions](INSTALLATION.md) for details of how to 
      ```
      Rscript ./scripts/panel_main.R sat_verif
      ```
+  To understand and get more information on what you see on a panel plot, check the [interpretation help](panel_INTERPRETATION.md).
+
   
 **... add other models**
 
