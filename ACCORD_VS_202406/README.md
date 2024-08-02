@@ -12,7 +12,7 @@ Generalising spatial verifications:
 
   - generalise/ apply harp panel tool ("panelification")
 
-    (This is a harp and R based version of the original python based *panelification* [(see here)](https://github.com/pscheffknecht-geosphere/panelification/tree/main))
+    (This is a harp and R based version of the originally python based [panelification](https://github.com/pscheffknecht-geosphere/panelification/tree/main).)
 
   - providing examples
 
