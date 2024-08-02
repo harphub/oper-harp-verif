@@ -110,14 +110,22 @@ Refer to the [installation instructions](INSTALLATION.md) for details of how to 
 
 - To run panelification out of the box
   1. cd ACCORD_VS_202406
-  2. modules load:
+  2.
+     a) on ATOS:
+     
+       load modules:
 	```
 	  module load R/4.3.3
 	  module load ecmwf-toolbox/2024.04.0.0
 	  module load hdf5/1.14.3
 	  module load proj/9.3.1
 	  module load python3/3.11.8-01 (only necessary to run sat_verif)
-	```
+	``` 
+       b) on virtual machine:
+        ```
+         conda activate <conda_env>
+        ```
+  
   3. export your R local installation, e.g.:
      (in case step ii alone is not working)
       ```
