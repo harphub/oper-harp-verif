@@ -12,6 +12,11 @@ Rscript ./scripts/panel_main.R prec_verif
 # # Runs the settings of the verif_case "sat_verif" (satellite verification) in 
 # # panel_configs/panelification.yml
 
+# Rscript ./scripts/panel_main.R snow_verif panel_configs/panel_snow_data.yml
+# # Runs the settings of the verif_case "snow_verif" (snow verification) in 
+# # panel_configs/panel_snow_data.yml
+
+
 # Rscript ./scripts/panel_main.R prec_verif panel_configs/panelification.yml
 # # If one would like to specify another config file, add the file as argument 
 # # after specifying the verify_case
