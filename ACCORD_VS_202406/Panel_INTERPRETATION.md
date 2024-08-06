@@ -45,8 +45,9 @@ tbd
   
 
 ## Good to know
-windows: 
+window size is configurable from the 'definitions_X_data.R' (X=tp,sat), e.g.:
+window_sizes   = c(10, 20, 30, 40, 60, 80, 100, 120, 140, 160, 180, 200)
 
 The actual boxes have window size: 2*n+1,
-with n being the amount of grid points
+with n being the amount of grid points (configurable in the variable window_sizes)
 
