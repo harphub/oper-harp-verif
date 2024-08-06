@@ -141,7 +141,7 @@ Refer to the [installation instructions](INSTALLATION.md) for details of how to 
      ```
      Rscript ./scripts/panel_main.R sat_verif
      ```
-  To understand and get more information on what you see on a panel plot, check the [interpretation help](panel_INTERPRETATION.md).
+  To understand and get more information on what you see on a panel plot, check the [interpretation help](Panel_INTERPRETATION.md).
 
   
 **... add other models**
