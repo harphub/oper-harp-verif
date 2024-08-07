@@ -188,7 +188,8 @@ read_nc_reticulate <- function(file_name,
         #print(dttm)
         #print("Creating geodomain")
         gf_domain <- structure(list(
-                                 projection=list(proj=projS$proj),
+                                 #projection=list(proj=projS$proj),
+                                 projection=list(proj="latlon"), #harp does not seem to like regular_ll, which is what the grib file says
                                  nx=projS$nx,
                                  ny=projS$ny,
                                  dx=projS$dx,
@@ -196,7 +197,9 @@ read_nc_reticulate <- function(file_name,
                                  SW=c(projS$SW_lon, projS$SW_lat),
                                  NE=c(projS$NE_lon, projS$NE_lat)),
                             class="geodomain")
-     #print(gf_domain)
+     print("gf_domain being returned by the python function for nc")
+     print(projS$proj)
+     print(gf_domain)
      #print("Creating geofield")
      #print(class(data_array))
      #print(dim(t(data_array)))
