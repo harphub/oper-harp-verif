@@ -204,8 +204,9 @@ read_nc_reticulate <- function(file_name,
      #print(class(data_array))
      #print(dim(t(data_array)))
      #reformat array to match meteogrid expectations as done above
-     data_array <- t(data_array)
-     data_array <- data_array[, ncol(data_array):1]
+     data_array <- t(data_array) 
+     #NO NEED TO DO THIS, since the data is already oriented correctly
+     #data_array <- data_array[, ncol(data_array):1]
 
      #print(dim(data_array))
      data_gf <- meteogrid::as.geofield(data_array,
