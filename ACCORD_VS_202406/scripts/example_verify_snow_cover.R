@@ -43,7 +43,7 @@ ob_file_path <- paste0(here(),"/ACCORD_VS_202406/sample_data/snow_data")
 thresholds <- c(0,1)
 verif <- verify_spatial(
   dttm              = init_time,
-  fcst_model        = "cerise",
+  fcst_model        = "carra",
   parameter         = "bin_snow",
   lead_time         = lead_time,
   #lt_unit           = "h",

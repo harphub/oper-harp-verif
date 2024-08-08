@@ -9,14 +9,14 @@ verify_case:
                 init_time : 2015050100
                 lead_time : 0
 models :
-        - cerise
+        - carra
 
 #########################################
 ### Define which config files to use: ###
 #########################################
 
 ### READING of the models/obs
-cerise :
+carra :
         fscov :
                 definition_file : "definitions_snow_data.R"
 
