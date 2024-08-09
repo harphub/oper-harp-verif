@@ -137,7 +137,19 @@ Refer to the [installation instructions](INSTALLATION.md) for details of how to 
      ```
      Plots, as a results of point iv, are saved in ``PLOTS/`` folder.
 
-   You can also test the spatial verification for satellite radiances, but to do that, firstly, you need to download the expected EUMETSAT SEVIRI data (as configured in panel_configs/definitions_sat_data.R), then you can run: 
+   You can also test the spatial verification for satellite radiances.
+   To do that, 
+
+   firstly, you need to download the expected EUMETSAT SEVIRI data (as configured in panel_configs/definitions_sat_data.R),
+   
+   secondly, you must replace the python_version in the same definition file to the path hwhere your python is installed.
+   If you are not sure where this is, run in you termial:
+
+   ```
+   which python
+   ```
+
+   then you can run: 
      ```
      Rscript ./scripts/panel_main.R sat_verif
      ```

@@ -149,6 +149,10 @@ thresholds <- switch(param,
                      "IR_108" = c(273, 260, 250, 240, 230))
 
 percentiles    = c(25, 50, 75, 90, 95)
+
+# window_sizes   = c(0, 1, 2, 4, 8, 12, 20)  # default
+window_sizes   = c(10, 20, 30, 40, 60, 80, 100, 120, 140, 160, 180, 200)  # default
+
 scores         = c("mae", "bias", "rmse", "Rpearson", "FSS", "FSSp")
 
 return_data    = TRUE
@@ -156,5 +160,3 @@ return_fields  = TRUE
 
 sqlite_path    = NULL
 sqlite_file    = NULL
-
-

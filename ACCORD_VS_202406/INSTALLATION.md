@@ -238,6 +238,9 @@ pip install satpy
 
 or you might source /perm/miag/venvs/satpy/bin/python3 ('rx' permissions for accord group)
 
+The path to your python is explicitly mentioned in the definition files for reticulate examples.
+Change the path to python accordingly. 
+
 ### Note on "non standard" grib parameters
 
 ```
