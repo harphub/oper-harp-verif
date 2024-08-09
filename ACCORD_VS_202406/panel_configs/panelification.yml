@@ -17,7 +17,6 @@ models :
         - DK2500m_atos
         - DK2500m_hres
         - DK500m_atos
-        - DK500m_hres
 
 #########################################
 ### Define which config files to use: ###
