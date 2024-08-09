@@ -38,10 +38,29 @@ e.g. 3 model have rank 2. 3 and 4 are the missing ranks and the next rankded mod
     * ranks of FSS (using percentiles)
     * basic scores - displaying the actual values, (rank according to the value)
 
-
 ## How ranks are calculated
-tbd
+* Basic scores
+  
+  scores are ordered and the ranks given accordingly
+  the ordering is done depending on the nature of the score,
 
+  * mae, rmse: smallest is best
+  * Rpearson: highest is best
+  * bias: smallest absolute value is best
+
+  average: simply average of each score, ranking as above.
+
+* FSS
+
+  *  ordering of all models for each window/threshold (highest best) is done and ranks given accordingly
+  *  NA are given a seperate rank, as well as FSS > skilful FSS or when FSS is 1
+ 
+  average of FSS ranks: sum of the inverted FSS ranks done -> the bigger the better.
+  This is to give models that perform in low thresholds/ great window sizes very good a little less weight.
+
+  TODO: instead of the above approch, weight the FSS values according to thresholds / window sizes
+  (this seems like a better aproach. Smaller window sizes and higher thresholds are more difficult to forecast and should therefore 
+  given more credit)
   
 
 ## Good to know
