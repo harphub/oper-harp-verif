@@ -10,6 +10,15 @@
 \usepackage{fancyhdr}
 \usepackage[dvipsnames]{color}
 
+
+\usepackage{courier} % Import the Courier font package
+
+% Define a new command for some words
+\newcommand{\retis}{\texttt{reticulate }}
+\newcommand{\panels}{\texttt{panelification }}
+\newcommand{\reti}{\texttt{reticulate}}
+\newcommand{\panel}{\texttt{panelification}}
+
 \textwidth = 170.0mm
 \textheight = 246.0mm
 
@@ -66,27 +75,34 @@
 This contribution summarizes the work carried out by Polly Schmederer in contribution with Fabrizio Baordo
 and Carlos Peralta during the ACCORD-funded visit of Polly in June 2024.
 
-Generalising spatial verifications: 
-\begin{itemize}
-    \item improving R scripting;
-    \item use of reticulate package to interface R with Python;
-    \item generalise/apply harp panel tool ("panelification")\\
-    (This is a harp and R based version of the originally Python-based \href{https://github.com/pscheffknecht-geosphere/panelification/tree/main}{panelification}.);
-    \item providing examples.
-\end{itemize}
+The purpose of the visit was to extend the capabilities of the \panels tool \cite{panel_tool} developed at GeoSphere to include additional scores and variables. 
+Additionally, the use of the \retis package \cite{reticulate}, that provides an interface to the python language from the R language, was also considered.
+The whole development is shared in a github repository that includes installation instructions and example data sets \cite{repo}.
+
+A detailed description of the code developments is presented below, along with application examples and future work.
+
+%Generalising spatial verifications: 
+%\begin{itemize}
+%    \item improving R scripting in 
+%    \item use of the \retis package to interface R with Python;
+%    \item generalise/apply the \panels tool
+%    \item providing examples.
+%\end{itemize}
 
 
-This is a style example for contributions for ACCORD Newsletter written in \LaTeX. 
 
+\section{Overview of the repository}
+%\sectionrule
 
-\section{Layout}
-\sectionrule
-
-\subsection{Layout of headings}
+\subsection{Reading functions}
+\subsection{Panelification}
+\subsection{Configuration files}
+\subsection{Installation instructions}
+\section{Data used for spatial verification}
 
 The headings of main sections are underlined. This is achieved by the new command "sectionrule".
 
-\subsection{Table layout}
+\section{Application examples}
 
 An example of a Table is given in \ref{tab:grib}. Please feel free to make a more fancy one if you like.
 
@@ -124,15 +140,13 @@ Please be careful with the size of your picture. LibreOffice has tools to reduce
    Title of my figure}}
 \end{figure}
 
+\section{Future work}
 
 
 \section{References}
 
-
-Bessagnet B., A.Hodzic, R.Vautard, M.Beekmann, S.Cheinet, C.Honor\'e, C.Liousse and L.Rouil,
-Aerosol modeling with CHIMERE - preliminary evaluation at the continental scale, Atmospheric
-Environment, 38, 2803-2817, 2004.
-
+\bibliographystyle{plain}
+\bibliography{references}
 
 
 %\end{flushleft}
