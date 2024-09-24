@@ -6,6 +6,8 @@
 # SHOULD BE USED WITH CAUTION!
 #================================================#
 
+numbers_only <- function(x) !grepl("\\D", x)
+
 #================================================#
 # HELPER FUNCTION TO DEFINE THE PNG NAME
 #================================================#
@@ -67,6 +69,10 @@ fn_save_png <- function(p_c           = "",
     fw <- fxoption_list$fw
     fh <- fxoption_list$fh
   }
+  # Increase width for timeseries
+  if (vroption_list$xg_str == "vd") {
+    fw <- 10
+  }
   
   ggplot2::ggsave(p_c,
                   filename = png_fname,
@@ -123,9 +129,9 @@ check_png_sedate <- function(sdate,
   d_end <- paste0(sdate,"-",edate)
   if (basename(png_archive) != d_end) {
     png_archive <- file.path(png_archive,d_end)
-    if (!dir.exists(png_archive)) {
-      dir.create(file.path(png_archive),showWarnings = TRUE,recursive = FALSE)
-    }
+  }
+  if (!dir.exists(png_archive)) {
+    dir.create(file.path(png_archive),showWarnings = TRUE,recursive = FALSE)
   }
   
   return(png_archive)
@@ -284,6 +290,11 @@ fn_plot_point <- function(verif,
       all_scores_plot <- all_scores
     }
     for (cur_score in all_scores_plot) {
+      if (length(str_split(subtitle_str,"\n")[[1]]) > 1){
+        caption_str <- str_split(subtitle_str,"\n")[[1]][2]
+      } else {
+        caption_str <- "none"
+      }
       plot_point_verif(verif,
                        {{cur_score}},
                        rank_is_relative = "TRUE",
@@ -291,11 +302,11 @@ fn_plot_point <- function(verif,
                        colour_by        = "fcst_model",
                        colour_table     = ctab,
                        plot_title       = ptitle,
-                       plot_subtitle    = subtitle_str,
+                       plot_subtitle    = str_split(subtitle_str,"\n")[[1]][1],
                        legend_position  = "top",
-                       plot_caption     = "none",
+                       plot_caption     = caption_str,
                        num_legend_rows  = nlr,
-                       base_size        = 10)
+                       base_size        = 8)
       
       # Save 
       png_fname <- fn_png_name(c_ftyp,
@@ -688,7 +699,13 @@ fn_plot_map <- function(verif,
     max_lon <- max(df[["lon"]])
     min_lat <- min(df[["lat"]])
     max_lat <- max(df[["lat"]])
-    
+   
+    # If there is only one station, then skip!
+    if ( (min_lon == max_lon) & (min_lat == max_lat)) {
+	   warning("Skipping map plotting as only one SID found")
+	   return(NA_character_)
+    }
+ 
     # Modify default min/max lat/lon for a more readable plot
     if (station %in% c("DINI","All")) {
       #min_lon = max(-30,min_lon)
@@ -737,9 +754,10 @@ fn_plot_map <- function(verif,
             axis.text                 = ggplot2::element_blank(),
             axis.ticks                = ggplot2::element_blank(),
             axis.title                = ggplot2::element_blank(),
-            plot.title                = ggplot2::element_text(size = 14),
+            plot.title                = ggplot2::element_text(size = 12),
+            plot.title.position       = "plot",
             legend.text               = ggplot2::element_text(size = 10),
-            plot.subtitle             = ggplot2::element_text(size = 12), 
+            plot.subtitle             = ggplot2::element_text(size = 8), 
             legend.title              = ggplot2::element_text(size = 12),
             legend.position           = "right", 
             strip.background          = ggplot2::element_rect(fill = "white"),
@@ -842,9 +860,14 @@ fn_plot_profile <- function(verif,
     stop("Number of scores=",num_scores," is not considered in plot_profile")
   }
   
+  if (max(df$p) < 100) {
+    p_label <- "Channel"
+  } else {
+    p_label <- "p (hPa)"
+  }
   p_out <- p_out +
     ggplot2::scale_y_reverse() +
-    ggplot2::labs(y        = "p (hPa)",
+    ggplot2::labs(y        = p_label,
                   x        = par_unit,
                   color    = "",
                   linetype = "") + 
@@ -909,7 +932,7 @@ fn_plot_profile <- function(verif,
                   top = grid::textGrob(paste0(ptitle," \n",subtitle_str),
                                        x     = 0.1,
                                        hjust = 0,
-                                       gp    = grid::gpar(fontsize = 10)),
+                                       gp    = grid::gpar(fontsize = 8)),
                   nrow    = 2,
                   heights = c(lh,bh))
   } else {
@@ -924,7 +947,7 @@ fn_plot_profile <- function(verif,
                   top = textGrob(paste0(ptitle," \n",subtitle_str),
                                x     = 0.1,
                                hjust = 0,
-                               gp    = grid::gpar(fontsize = 10)),
+                               gp    = grid::gpar(fontsize = 8)),
                   nrow    = 2,
                   heights = c(lh,bh))
   }
@@ -1305,13 +1328,13 @@ fn_freqhist <- function(fc,
   # Define the breaks to be used in histogram plotting
   plot_ind <- TRUE
   log_ind  <- FALSE
-  if (param %in% c("T2m","Td2m")) {
+  if ((param %in% c("T2m","Td2m")) || (grepl("T2m",param,fixed=TRUE))) {
     p_breaks <- seq(-30,30,2.5)
   } else if (param == "Q2m") {
     p_breaks <- seq(0.5,10,0.5)
   } else if (param  == "RH2m") {
     p_breaks <- seq(25,100,5)
-  } else if (param %in% c("S10m","Gmax")) {
+  } else if ((param %in% c("S10m","Gmax")) || (grepl("S10m",param,fixed=TRUE))) {
     p_breaks <- c(2.5,5,7.5,10,12.5,15,17.5,20,22.5,25,30,35,40)
   } else if (param == "Cbase") {
     p_breaks <- c(0,100,500,1000,1500,2000,3000,5000,7000,10000,15000,20000)
@@ -1495,6 +1518,64 @@ fn_scatterplot <- function(fc,
   } else {
     warning("Fringe case in scatter where all OBS/Forecast values are the same")
   }
+  
+}
+
+#================================================#
+# HELPER FUNCTION TO GET LEADTIMES USED IN PROFILE
+# PLOTS
+#================================================#
+
+fn_get_lts_used <- function(vh,cyc,allcycles,alllts){
+  
+  allcycles <- setdiff(allcycles,"All")
+  lts_avail <- setdiff(alllts,"All")
+  lts_used  <- c()
+  
+  if (vh == "All") {
+    vh = 100
+    vh_add <- TRUE
+  } else {
+    vh_add <- FALSE
+    vh = as.integer(vh)
+  }
+  
+  if (cyc == "All") {
+    cyc_vec <- allcycles
+  } else {
+    cyc_vec <- cyc
+  }
+    
+  for (cc in cyc_vec) {
+    for (lt in lts_avail) {
+      vv <- as.integer(cc) + as.integer(lt)
+      if (((vv %% 24) == vh) || (vh_add)) {
+        if (is.null(lts_used)) {
+          lts_used <- as.integer(lt)
+        } else {
+          lts_used <- c(lts_used,as.integer(lt))
+        }
+      }
+    }
+  }
+  lts_used <- sort(unique(lts_used))
+  
+  if (is.null(lts_used)) {
+    lts_used <- ""
+  } else {
+    if (length(lts_used) > 5) {
+      lt_used_fig <- c(lts_used[1],
+                       lts_used[2],
+                       "... ",
+                       lts_used[length(lts_used)-1],
+                       lts_used[length(lts_used)])
+      lt_used_fig <- paste0(lt_used_fig,collapse = ", ")
+    } else {
+      lt_used_fig <- paste0(lts_used,collapse = ", ")
+    }
+    lts_used <- paste("+",lt_used_fig)
+  }
+  return(lts_used)
   
 }
 

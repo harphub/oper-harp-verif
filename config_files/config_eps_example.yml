@@ -14,6 +14,10 @@ verif:
     - c("0h","3h")
     - c("0h","1h","2h","3h","4h","5h")
   num_ref_members: "Inf"                    # Number of reference members to use when computing fair scores for an ensemble (e.g. "Inf"). Not used for det runs.
+  ua_fcst_cycle: FALSE                      # For upper air variables, do you want to group by fcst_cycle? Either TRUE or FALSE
+  force_valid_thr: FALSE                    # Set to TRUE if you really want threshold scores over valid times/hours
+  models_to_scale:                          # Use this to scale the forecast from certain fcst_model only (e.g models with diff units). NULL applies same scaling to all.
+    - NULL
   fcst_path: "/path/to/FCTABLE"
   obs_path: "/path/to/OBSTABLE"
   verif_path: "/path/to/rds_output"

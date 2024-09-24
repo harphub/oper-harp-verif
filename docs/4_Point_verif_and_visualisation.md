@@ -5,7 +5,7 @@ Once the configuration file is set and the sqlite tables are created, the point 
 ## set_params.R
 
 This parameter list file is used to specify the parameters considered by the `point_verif.R` script and their associated options, in particular:
-- **scale_fcst**: Forecast scaling (e.g. Kelvin to degress).
+- **scale_fcst**: Forecast scaling (e.g. Kelvin to degress). If you only want to apply the forecast scaling to certain models in `verif:fcst_model`, this can be controlled by the flag `verif:models_to_scale`.
 - **scale_obs**: Observation scaling.
 - **thresholds**: Thresholds used when computing threshold skill scores.
 - **obsmin/max_val**: Max/min observation values allowed.
@@ -25,6 +25,8 @@ This script takes the following command line inputs (required arguments in **bol
 - **-end_date**: The last forecast cycle to process (in YYYYMMDDHH format, no default).
 - *-params_file*: The parameter list file containing parameter scalings, thresholds, etc. (default="verification/set_params.R").
 - *-params_list*: Which parameters for verify (default="ALL"). This should be a comma separated string of parameters, for example "T2m,S10m,T,S". These parameters should exist in the parameter list file, otherwise they will be skipped. If `params_list` is not specified, all parameters in the parameter list file are considered in the verification (this is not recommended in general).
+- *-dynamic_sid_gen*: A logical flag to generate SID lists corresponding to the `verif:domains` during the verification process (default=TRUE). Different `domain` options are defined in `fn_station_selection.pm`. This flag replaces the old methodology of reading SID lists from a static file (i.e. `verification/sid_lists.rds`). This old (now deprecated) method can be activated by switching this flag to "FALSE".
+- *-plot_dynamic_sid*: A logical flag to plot a map of the stations used for each domain and parameter (default=FALSE). This is only relevant when "dynamic_sid_gen=TRUE".
 - *-mod_def_rds*: A logical flag to prepend the project name to harp's default rds filenames (default=FALSE). Not generally required.
 - *-add_proj_png*: A logical flag to prepend the project name to the default png filenames (default=FALSE). Not generally required. 
 - *-rolling_verif*: A logcial flag to indicate "rolling" verification (default=FALSE). If TRUE, rolling verification will produce a reduced set of png files and will not produce rds files or scorecards. Generally rolling verification is restricted to a "short" (e.g. 7 days) near-real time period. This option is not compatible with `gen_sc_only=TRUE`. 

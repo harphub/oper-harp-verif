@@ -102,8 +102,7 @@ fn_plot_aux_scores <- function(fcst_input,
   cycles     <- sort(unique(fcst[["fcst_cycle"]]))
   stations   <- unique(fcst[[station_group_var]])
   par_unit   <- unique(fcst[["units"]])
-  num_cycles <- length(unique(fcst[["fcst_dttm"]])) 
- 
+
   # Get start and end dates
   d_out      <- get_sedate(fsd,
                            fed,
@@ -192,7 +191,7 @@ fn_plot_aux_scores <- function(fcst_input,
   ptheme_l <- ggplot2::theme_bw() + 
     ggplot2::theme(
       plot.title      = ggplot2::element_text(size = 10),
-      plot.subtitle   = ggplot2::element_text(size = 10),
+      plot.subtitle   = ggplot2::element_text(size = 8),
       axis.text       = ggplot2::element_text(size = 10),
       axis.title      = ggplot2::element_text(size = 10),
       strip.text      = ggplot2::element_text(size = 10),
@@ -206,10 +205,9 @@ fn_plot_aux_scores <- function(fcst_input,
       legend.position = "none"
     )
   
-  title_str = suppressMessages(paste0(stringr::str_to_title(param)," : ",
+  title_date_str = suppressMessages(paste0(stringr::str_to_title(param)," : ",
               format(harpIO::str_datetime_to_datetime(tsdate),"%Y-%m-%d-%H")," - ",
-              format(harpIO::str_datetime_to_datetime(tedate),"%Y-%m-%d-%H")," (",
-              num_cycles," cycles)"))
+              format(harpIO::str_datetime_to_datetime(tedate),"%Y-%m-%d-%H")))
   
   fxoption_list <- list("param"             = param,
                         "sdate"             = sdate,
@@ -264,6 +262,9 @@ fn_plot_aux_scores <- function(fcst_input,
       cyc_used_fig <- cycle
       c_fcst       <- fcst %>% dplyr::filter(fcst_cycle == cycle)
     }
+    
+    num_cycles <- length(unique(c_fcst[["fcst_dttm"]])) 
+    title_str = paste0(title_date_str," (",num_cycles," cycles)")
     
     for (station in stations_oi) {
     
