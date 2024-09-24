@@ -15,7 +15,8 @@ fn_plot_point_verif <- function(harp_verif_input,
                                      png_projname = NA_character_,
                                      rolling_verif = FALSE,
                                      fsd = NA_character_,
-                                     fed = NA_character_){
+                                     fed = NA_character_,
+                                     plevel_filter = TRUE){
  
   #=================================================#
   # INITIAL CHECKS
@@ -143,7 +144,7 @@ fn_plot_point_verif <- function(harp_verif_input,
                     "p_leadtime",
                     "p_prof")
     if (rolling_verif) {
-      xgroups  <- c("lead_time","SID")
+      xgroups  <- c("lead_time","valid_dttm","SID")
     }
 
     # EPS EXPERIMENT
@@ -256,7 +257,7 @@ fn_plot_point_verif <- function(harp_verif_input,
                     "p_leadtime",
                     "p_prof")
     if (rolling_verif) {
-      xgroups  <- c("lead_time","SID")
+      xgroups  <- c("lead_time","valid_dttm","SID")
     }
 
   }
@@ -276,7 +277,7 @@ fn_plot_point_verif <- function(harp_verif_input,
   # Add option for fixed start/end dates in directory and png names
   dttm_avail   <- attributes(harp_verif_input)$dttm
   dttm_avail   <- dttm_avail[order(dttm_avail)]
-  num_cycles   <- length(unique(dttm_avail))
+  num_cycles_a <- length(unique(dttm_avail))
   
   # Get start and end dates
   d_out      <- get_sedate(fsd,
@@ -306,10 +307,9 @@ fn_plot_point_verif <- function(harp_verif_input,
                   "economic_value")
   
   # Title string
-  title_str = suppressMessages(paste0(stringr::str_to_title(param)," : ",
+  title_date_str = suppressMessages(paste0(stringr::str_to_title(param)," : ",
               format(harpIO::str_datetime_to_datetime(tsdate),"%Y-%m-%d-%H")," - ",
-              format(harpIO::str_datetime_to_datetime(tedate),"%Y-%m-%d-%H")," (",
-              num_cycles," cycles)"))
+              format(harpIO::str_datetime_to_datetime(tedate),"%Y-%m-%d-%H")))
   
   # More useful attributes
   all_summary_scores   <- names(verif[[paste0(fcst_type,"_summary_scores")]])
@@ -350,7 +350,7 @@ fn_plot_point_verif <- function(harp_verif_input,
   ptheme_l <- ggplot2::theme_bw() + 
     ggplot2::theme(
       plot.title      = ggplot2::element_text(size = 10),
-      plot.subtitle   = ggplot2::element_text(size = 10),
+      plot.subtitle   = ggplot2::element_text(size = 8),
       axis.text       = ggplot2::element_text(size = 10),
       axis.title      = ggplot2::element_text(size = 10),
       strip.text      = ggplot2::element_text(size = 10),
@@ -491,12 +491,38 @@ fn_plot_point_verif <- function(harp_verif_input,
       tmp_out          <- fn_check_verif(c_ver,verif_input,cnames)
       verif            <- tmp_out$verif
       stations         <- tmp_out$stations
-      cycles           <- tmp_out$cycles
+      allcycles        <- tmp_out$cycles
+      cycles           <- allcycles
+      # If fcst_cycle is just equal to "All", we can get all cycles used by
+      # looking at verif$dttm
+      if (!(any(allcycles != "All"))){
+        if (!is.null(attributes(verif_input)$dttm)) {
+          # Get all the cycles in here
+          all_dttm  <- harpCore::as_YMDh(harpIO::str_datetime_to_datetime(attributes(verif_input)$dttm))
+          allcycles <- sort(unique(substr(all_dttm,9,10)))
+        }
+      }
       if (length(cycles) > 1) {
         cycles         <- base::intersect(cycles,cycles_oi)
       }
       leadtimes        <- tmp_out$leadtimes
       leadtime_vals    <- base::intersect(tleadtimes,leadtimes)
+      # If all_lts_avail is an attribute, we can also use this in the subtitle
+      if (!is.null(attributes(verif_input)$all_lts_avail)) {
+        alta <- attributes(verif_input)$all_lts_avail
+        if (length(alta) > 5) {
+          lt_used_fig <- c(alta[1],
+                           alta[2],
+                           "... ",
+                           alta[length(alta)-1],
+                           alta[length(alta)])
+          lt_used_fig <- paste0(lt_used_fig,collapse = ", ")
+        } else {
+          lt_used_fig <- paste0(alta,collapse = ", ")
+        }
+      } else {
+        alta <- NULL
+      }
       allvalidh        <- tmp_out$validhours
       validhours       <- allvalidh
       if ((!is.na(validhours[1])) & (length(mpvalidhours) > 0)) {
@@ -515,10 +541,22 @@ fn_plot_point_verif <- function(harp_verif_input,
         verif_I <- harpPoint::filter_list(verif,fcst_cycle == cycle)
 
         if (cycle == "All") {
-          cy_str <- "All cycles used"
+          if (any(allcycles != "All")) {
+            ac_str <- sort(setdiff(allcycles,"All"))
+            cy_str <- paste0(paste(ac_str,collapse = ","),
+                             "Z cycles")
+          } else {
+            cy_str <- "All cycles"
+          }
+          num_cycles <- num_cycles_a
         } else {
-          cy_str <- paste0(cycle,"Z cycle used")
+          cy_str <- paste0(cycle,"Z cycle")
+          # Get the correct number of cycles used!
+          used_dttm  <- dttm_avail[substr(dttm_avail,9,10) %in% cycle]
+          num_cycles <- length(unique(used_dttm))
         }
+        # Title string
+        title_str = paste0(title_date_str," (",num_cycles," cycles)")
         
         for (station in stations) {
           
@@ -540,7 +578,7 @@ fn_plot_point_verif <- function(harp_verif_input,
           if (!is.null(verif_II[[c_tstr]])) {
             if (nrow(verif_II[[c_tstr]]) == 0) {
               cat("No data found for stations",station,", cycle",cycle,", and xgroup",xgroup,", skipping!\n")
-              break
+              next
             }
           }
           if (("valid_dttm" %in% names(verif_II[[1]])) &
@@ -566,7 +604,15 @@ fn_plot_point_verif <- function(harp_verif_input,
           } else {
             num_stations <- max(verif_II[[1]][["num_stations"]])
           }
-          subtitle_str <- paste0(station," stations (",num_stations,") : ",cy_str)
+          if (numbers_only(station)) {
+            subtitle_str <- paste0("Station ",station," (",num_stations,") : ",cy_str)
+          } else {
+            subtitle_str <- paste0(station," stations (",num_stations,") : ",cy_str)
+          }
+          # Add in lead times used for valid_dttm
+          if ((xgroup %in% c("valid_dttm")) & (!is.null(alta))) {
+            subtitle_str <- paste0(subtitle_str,": +",lt_used_fig)
+          }
 
           # Does the score+xgroup exist in table? Also split according to xgroup
           # This works for standard threshold and summary scores
@@ -606,6 +652,9 @@ fn_plot_point_verif <- function(harp_verif_input,
                 if (xgroup == "threshold") {
                   vlt <- ii
                   vth <- "NA"
+                  if ( (ii == "All") & (!is.null(alta))) {
+                    c_subtitle <- paste0(subtitle_str," (",lt_used_fig,")")
+                  }
                 } else if (xgroup == "lead_time") {
                   vlt <- "NA"
                   if (ii < 0) {
@@ -615,7 +664,7 @@ fn_plot_point_verif <- function(harp_verif_input,
                   }
                 }
                 if (nrow(verif_IIII[[c_tstr]]) == 0) {
-                  break
+                  next
                 }
                 p_c  <- fn_plot_point(verif_IIII,
                                       title_str,
@@ -662,7 +711,7 @@ fn_plot_point_verif <- function(harp_verif_input,
               }
               
               if (nrow(verif_III[[c_tstr]]) == 0) {
-                break
+                next
               }
               p_c <- fn_plot_point(verif_III,
                                    c_title_str,
@@ -707,7 +756,10 @@ fn_plot_point_verif <- function(harp_verif_input,
             
             if (score == "rank_histogram") {
               if (nrow(verif_III[[c_tstr]]) == 0) {
-                break
+                next
+              }
+              if (!is.null(alta)) {
+                subtitle_str <- paste0(subtitle_str,": +",lt_used_fig)
               }
               p_out <- fn_plot_point(verif_III,
                                      title_str,
@@ -730,11 +782,18 @@ fn_plot_point_verif <- function(harp_verif_input,
                   
                   # Check if this combination of lead_time+threhsold exists first!
                   if (nrow(verif_IIII[[c_tstr]]) > 0) {
-                    c_subtitle <- paste0(subtitle_str,
-                                         " : Leadtime = ",lt,
-                                         " : Threshold = ",th)
+                    if ( (lt == "All") & (!is.null(alta))) {
+                      c_subtitle <- paste0(subtitle_str,
+                                           "\n Leadtime = ",lt,
+                                           " (",lt_used_fig,")",
+                                           " : Threshold = ",th)
+                    } else {
+                      c_subtitle <- paste0(subtitle_str,
+                                           "\n Leadtime = ",lt,
+                                           " : Threshold = ",th)
+                    }
                     if (nrow(verif_IIII[[c_tstr]]) == 0) {
-                      break
+                      next
                     }
                     p_out <- fn_plot_point(verif_IIII,
                                            title_str,
@@ -772,7 +831,7 @@ fn_plot_point_verif <- function(harp_verif_input,
                 c_title_str <- title_str
               }
               if (nrow(verif_III[[c_tstr]]) == 0) {
-                break
+                next
               }
               p_c <- fn_plot_map(verif_III,
                                  c_title_str,
@@ -792,10 +851,16 @@ fn_plot_point_verif <- function(harp_verif_input,
               
               for (vhour in validhours) {
                 verif_III <- verif_II
-                if (vhour != "All") {
-                  c_subtitle  <- paste0(subtitle_str," : Valid hour = ",vhour,"Z")
+                if (!is.null(alta)) {
+                  lt_used    <- fn_get_lts_used(vhour,cycle,allcycles,alta)
+                  c_subtitle <- paste0(subtitle_str,": ",lt_used)
                 } else {
-                  c_subtitle  <- paste0(subtitle_str," : Average")
+                  c_subtitle <- subtitle_str
+                }
+                if (vhour != "All") {
+                  c_subtitle  <- paste0(c_subtitle," : Valid hour = ",vhour,"Z")
+                } else {
+                  c_subtitle  <- paste0(c_subtitle," : Average")
                 }
                 
                 if (grepl("ctrl",score_orig)) {
@@ -809,7 +874,7 @@ fn_plot_point_verif <- function(harp_verif_input,
                   c_title_str <- title_str
                 }
                 if (nrow(verif_III[[c_tstr]]) == 0) {
-                  break
+                  next
                 }
                 p_c <- fn_plot_map(verif_III,
                                    c_title_str,
@@ -855,7 +920,16 @@ fn_plot_point_verif <- function(harp_verif_input,
               vroption_list$xgroup <- "lead_time"
               
               # Get the available pressure levels
-              p_levels <- unique(verif_II[[1]][["p"]])
+              p_label <- "hPa"
+              if (plevel_filter) {
+                p_levels <- intersect(unique(verif_II[[1]][["p"]]),
+                                      c(100,150,200,300,400,500,700,850,925,1000))
+              } else {
+                p_levels <- unique(verif_II[[1]][["p"]])
+                if (max(p_levels) < 100) {
+                  p_label <- " Channel"
+                }
+              }
               
               # Loop over pressure levels and plot summary scores
               for (pl in p_levels) {
@@ -865,7 +939,7 @@ fn_plot_point_verif <- function(harp_verif_input,
                                                        valid_hour == "All")
                 param_rename <- paste0(stringr::str_to_title(param),pl)
                 c_title_str  <- gsub(paste0(stringr::str_to_title(param)," : "),
-                                     paste0(param_rename,"hPa : "),title_str)
+                                     paste0(param_rename,p_label," : "),title_str)
                 
                 if (grepl("ctrl",score_orig)) {
                   verif_III[[c_tstr]] <- dplyr::filter(verif_III[[c_tstr]],
@@ -874,7 +948,7 @@ fn_plot_point_verif <- function(harp_verif_input,
                 }
                 
                 if (nrow(verif_III[[c_tstr]]) == 0) {
-                  break
+                  next
                 }
                 p_c <- fn_plot_point(verif_III,
                                      c_title_str,
@@ -913,10 +987,14 @@ fn_plot_point_verif <- function(harp_verif_input,
               }
               
               vhours <- base::intersect(allvalidh,c("00","12"))
-              
+
               if (length(vhours) > 0) {
               for (vh in vhours) {
                 
+                # If vh = "All", only run for fcst_cycle = "All"
+                if ((vh == "All") & (cycle != "All")) {
+                  next
+                }
                 verif_III    <- harpPoint::filter_list(verif_II,
                                                        valid_hour == vh,
                                                        lead_time == "All")
@@ -928,14 +1006,18 @@ fn_plot_point_verif <- function(harp_verif_input,
                   c_title_str <- title_str
                 }
               
+                # Add in lead times used
+                lt_used <- fn_get_lts_used(vh,cycle,allcycles,leadtimes)
+                c_subtitle <- paste0(subtitle_str,": ",lt_used)
+                
                 if (vh != "All") {
-                  c_subtitle  <- paste0(subtitle_str," : Valid hour = ",vh,"Z")
+                  c_subtitle  <- paste0(c_subtitle," : Valid hour = ",vh,"Z")
                 } else {
-                  c_subtitle  <- paste0(subtitle_str," : Average")
+                  c_subtitle  <- paste0(c_subtitle," : Average")
                 }
                 
                 if (nrow(verif_III[[c_tstr]]) == 0) {
-                  break
+                  next
                 }
                 p_c <- fn_plot_profile(verif_III,
                                        c_title_str,

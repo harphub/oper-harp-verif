@@ -69,6 +69,20 @@ if (!interactive()) {
                                  parameter file. If params_list is not specified, 
                                  all parameters in the parameter file are used
                                  (not recommended in general).")
+  parser$add_argument("-dynamic_sid_gen",
+                      type    = "logical",
+                      default = TRUE,
+                      help    = "If TRUE, geographic SID lists are generated on 
+                                 the fly during the verification based on the 
+                                 options avilable in fn_station_selection.R.
+                                 If FALSE, the static lists in sid_list.rds will
+                                 be used")
+  parser$add_argument("-plot_dynamic_sid",
+                      type    = "logical",
+                      default = FALSE,
+                      help    = "If TRUE, a map of the SID lists used for each 
+                                 parameter will be plotted in the verification
+                                 directory.")
   parser$add_argument("-mod_def_rds",
                       type    = "logical",
                       default = FALSE,
@@ -101,6 +115,8 @@ if (!interactive()) {
   config_file        <- args$config_file
   params_file        <- args$params_file
   params_list        <- args$params_list
+  dynamic_sid_gen    <- args$dynamic_sid_gen
+  plot_dynamic_sid   <- args$plot_dynamic_sid
   mod_def_rds        <- args$mod_def_rds
   add_proj_png       <- args$add_proj_png
   rolling_verif      <- args$rolling_verif
@@ -138,6 +154,9 @@ domains         <- CONFIG$verif$domains
 members         <- CONFIG$verif$members
 lags            <- CONFIG$verif$lags
 num_ref_members <- CONFIG$verif$num_ref_members
+ua_fcst_cycle   <- CONFIG$verif$ua_fcst_cycle
+force_valid_thr <- CONFIG$verif$force_valid_thr
+models_to_scale <- CONFIG$verif$models_to_scale
 plot_output     <- CONFIG$post$plot_output
 create_png      <- CONFIG$post$create_png
 cmap            <- CONFIG$post$cmap
@@ -196,18 +215,21 @@ YYYY              <- substr(end_date,0,4)
 sql_file          <- file.path(obs_path,
                                paste0("OBSTABLE_",YYYY,".sqlite"))
 sl_dir            <- file.path(here::here("verification"))
-if (gen_station_lists) {
+sid_lists_fname   <- "sid_lists.rds" 
+if ((gen_station_lists) & (!dynamic_sid_gen)) {
   # This is only required to generate the pre-defined station lists.
   # "DINI" and "T2m" are just dummy arguments in this case
-  tmp_df   <- fn_station_selection("DINI",
-                                   "T2m",
+  cat("Generating static SID lists in point_verif - do you really want to do this?\n")
+  tmp_df   <- fn_station_selection(domain_choice    = "DINI",
+                                   param            = "T2m",
                                    generate_domains = TRUE,
-                                   domains_to_gen = "All",
-                                   plot_domains = TRUE,
-                                   sl_dir = sl_dir,
-                                   sql_file = sql_file,
-                                   png_path = plot_output,
-                                   multlatlon_rmv = TRUE)
+                                   domains_to_gen   = "All_Domains",
+                                   plot_domains     = TRUE,
+                                   sl_dir           = sl_dir,
+                                   sql_file         = sql_file,
+                                   png_path         = plot_output,
+                                   domain_file      = sid_lists_fname,
+                                   multlatlon_rmv   = TRUE)
   rm(tmp_df)
 }
 
@@ -252,7 +274,7 @@ if (params_list == "ALL") {
 grps_surface_default   <- harpCore::make_verif_groups(c("lead_time",
                      "valid_hour","valid_dttm"),c("fcst_cycle","station_group"))
 grps_UA_default        <- harpCore::make_verif_groups(c("lead_time",
-                     "valid_hour"),c("station_group"))
+                     "valid_hour"),c("fcst_cycle","station_group"))
 grps_SID_default       <- list("SID",c("SID","valid_hour"))
 grps_threshold_default <- list("station_group",c("station_group","fcst_cycle"))
 
@@ -270,6 +292,17 @@ if (is.null(cmap)) {
 # Check if num_ref_members is not set
 if (is.null(num_ref_members)) {
   num_ref_members <- NA_character_
+}
+
+# Check if UA grouping by fcst_cycle is set
+if (is.null(ua_fcst_cycle)) {
+  ua_fcst_cycle <- FALSE
+}
+
+# Check if force_valid_thr is set (i.e. force computing of threshold scores
+# over valid_hour/dttm)
+if (is.null(force_valid_thr)) {
+  force_valid_thr <- FALSE
 }
 
 # Rolling verif stuff
@@ -372,14 +405,16 @@ run_verif <- function(prm_info, prm_name) {
   grps_threshold <- grps_threshold_default
   
   if (!is.na(vertical_coordinate)) {
-    # Remove grouping by fcst_cycle for UA vars
-    grps_param <- lapply(grps_param,function(x) x[x != "fcst_cycle"])
-    grps_param <- grps_param[lapply(grps_param,length) > 0] 
-    grps_param <- unique(grps_param)
+    if (!ua_fcst_cycle) {
+      # Remove grouping by fcst_cycle for UA vars
+      grps_param <- lapply(grps_param,function(x) x[x != "fcst_cycle"])
+      grps_param <- grps_param[lapply(grps_param,length) > 0] 
+      grps_param <- unique(grps_param)
+    }
     
     # Only run for certain "large" domains
     domains_to_run <- unique(c(base::intersect(domains,
-                             c("All","Alps","IE_EN","NL_OP","SCD","FR","DE"))))
+                             c("All","Alps","IE_EN","NL_OP","SCD","FR","DE","Baltex"))))
     if (length(domains_to_run) == 0) {
       cat("For parameter",prm_name,", verify over All stations only\n")
       domains_to_run <- "All"
@@ -489,10 +524,24 @@ run_verif <- function(prm_info, prm_name) {
   )
   
   if (!is.null(prm_info$scale_fcst)) {
-    fcst <- do.call(
-      harpCore::scale_param,
-      c(list(x = fcst), 
-        prm_info$scale_fcst))
+    if (is.null(models_to_scale)) {
+      fcst <- do.call(
+        harpCore::scale_param,
+        c(list(x = fcst), 
+          prm_info$scale_fcst))
+    } else {
+      for (cm in models_to_scale) {
+        cat("Scaling the forecast for model",cm,"\n")
+        if (!(cm %in% names(fcst))) {
+          cat("You are tying to scale model",cm,"but it was not found!\n")
+          stop("Exiting!")
+        }
+        fcst[[cm]] <- do.call(
+          harpCore::scale_param,
+          c(list(x = fcst[[cm]]), 
+            prm_info$scale_fcst))
+      }
+    }
   }
   
   # Filter forecasts to max value if indicated in the param file
@@ -587,7 +636,7 @@ run_verif <- function(prm_info, prm_name) {
       new_model_name_vec   <- NULL
       fcst                 <- harpCore::as_det(fcst)
       for (cm in names(fcst)) {
-        new_model_name             <- paste0(cm,"_mbr",
+        new_model_name             <- paste0(cm,"mbr",
                                              sprintf("%03d",
                                                      members_list[[cm]]))
         new_model_name_vec         <- c(new_model_name_vec,new_model_name)
@@ -637,11 +686,25 @@ run_verif <- function(prm_info, prm_name) {
   # HANDLE THE STATION GROUPING
   #================================================#
   
-  all_station_groups <- NULL
+  # Dynamic generation of station lists
+  if (dynamic_sid_gen){
+    cs_list <- fn_station_selection(domain_choice = domains_to_run,
+                         param            = prm_name,
+                         generate_domains = FALSE,
+                         domains_to_gen   = domains_to_run,
+                         plot_domains     = plot_dynamic_sid,
+                         fcst_object      = fcst,
+                         obs_object       = obs,
+                         poly_dir         = here::here("verification/poly_files"),
+                         multlatlon_rmv   = TRUE)
+  } else {
+    # Get domains from station_selection
+    cs_list <- fn_station_selection(domain_choice = base::setdiff(domains_to_run,"All"),
+                                    param       = prm_name,
+                                    domain_file = sid_lists_fname)
+  }
   
-  # Get domains from station_selection
-  cs_list <- fn_station_selection(base::setdiff(domains_to_run,"All"),
-                                  param = prm_name)
+  all_station_groups <- NULL
   
   # Convert into suitable format and add
   avail_domains <- base::intersect(names(cs_list),domains_to_run)
@@ -654,7 +717,7 @@ run_verif <- function(prm_info, prm_name) {
   }
 
   # Extract all SIDS as a group
-  if ("All" %in% domains_to_run) {
+  if (("All" %in% domains_to_run) & (!("All" %in% unique(all_station_groups$station_group)))) {
     all_sids <- data.frame(harpCore::unique_stations(fcst),"All") %>%
       tibble::as_tibble()
     names(all_sids) <- c("SID","station_group")
@@ -714,13 +777,49 @@ run_verif <- function(prm_info, prm_name) {
 
     cat("Running standard verification...\n")
     st_verif <- Sys.time()
+    # Do not compute threshold score for valid_hour/dttm unless explicitly requested
+    if (is.null(thresholds_param)) {
+      # Threshold scores not considered in this case
+      grps_1 <- grps_param
+    } else {
+      if (force_valid_thr) {
+        cat("Using all groups (including valid_dttm/hour) for threshold scores\n")
+        grps_1 <- grps_param
+      } else {
+        cat("Only grouping over lead_time for threshold scores\n")
+        grps_1 <- grps_param[grepl("lead_time",grps_param)]
+      }
+    }
     verif <- do.call(
       get(verif_fn),
       c(list(.fcst      = fcst,
              thresholds = thresholds_param,
-             groupings  = grps_param),
+             groupings  = grps_1),
         verif_options_list)
     ) %>% fn_verif_rename(.,par_unit)
+    
+    # Then compute summary scores for valid_dttm/hour
+    # Only required if:
+    # 1) threshold scores are activated
+    # 2) valid_dttm/hour have not been used above i.e. force_valid_thr=F
+    if ((!is.null(thresholds_param)) & (!force_valid_thr)) {
+      verif_others <- do.call(
+        get(verif_fn),
+        c(list(.fcst      = fcst,
+               thresholds = NULL,
+               groupings  = grps_param[!grepl("lead_time",grps_param)]),
+          verif_options_list)
+      ) %>% fn_verif_rename(.,par_unit)
+      verif <- bind_point_verif(verif,verif_others) %>%
+        select_list(-parameter)
+      # Add in valid_hour and valid_dttm = All After binding, "threshold" 
+      # switches to "chr", so switch it back.
+      verif[[2]] <- verif[[2]] %>% mutate(threshold  = as.double(threshold),
+                                          valid_hour = "All",
+                                          valid_dttm = "All")
+      # par_unit missing after binding
+      attr(verif,"par_unit") <- par_unit
+    }
 
     # Save object to one used for plotting and manipulate as required
     verif_toplot <- verif
@@ -754,6 +853,8 @@ run_verif <- function(prm_info, prm_name) {
                groupings  = grps_SID),
           verif_options_list_nm)
       ) %>% fn_verif_rename(.,par_unit)
+      # Add all lead times used as an attribute 
+      attr(verif_sid,"all_lts_avail") <- as.character(sort(unique(fcst_sid_tmp[[1]]$lead_time)))
       rm(fcst_sid_tmp)
 
       # Need to add lat/lon to the SIDs
@@ -785,8 +886,8 @@ run_verif <- function(prm_info, prm_name) {
         if (!is.null(verif_alllt[[t_s_str]])) {
           verif_alllt[[t_s_str]] <- dplyr::mutate(verif_alllt[[t_s_str]],
                                                   lead_time  = "All",
-                                                  valid_dttm = "All",
-                                                  valid_hour = "All") %>%
+                                                  valid_hour = "All",
+                                                  valid_dttm = "All") %>%
             dplyr::select(names(verif_toplot[[t_s_str]]))
           cat("Adding threshold scores over all lead_times\n")
           verif_toplot[[t_s_str]] <- dplyr::bind_rows(verif_toplot[[t_s_str]],
@@ -815,18 +916,24 @@ run_verif <- function(prm_info, prm_name) {
     #================================================#
   
     # When plotting, filter out situations where very few cases exist
-    # Mostly relevant to UA scores
+    # Only do this for UA leadtime scores, generaly not required for surface
     if (rolling_verif) {
       min_cases_filter <- 1
     } else {
       min_cases_filter <- 100
     }
-    verif_toplot <- filter_verif(verif_toplot,
-                                 ft_str,
-                                 min_cases_filter)
+    
+    if (prm_name %in% all_possible_UA_vars) {
+      verif_toplot <- filter_verif(verif_toplot,
+                                   ft_str,
+                                   min_cases_filter)
+    }
+    
     st_plot <- Sys.time()
     if (create_png) {
       
+      # Add all lead times used as an attribute
+      attr(verif_toplot,"all_lts_avail") <- as.character(sort(unique(fcst[[1]]$lead_time)))
       fn_plot_point_verif(verif_toplot,
                                plot_output,
                                png_projname = png_projname,

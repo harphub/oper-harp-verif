@@ -125,11 +125,23 @@ all_surface_params        <- list("MSLP"              = "Pmsl",
                                   "3h Precipitation"  = "AccPcp3h",
                                   "6h Precipitation"  = "AccPcp6h",
                                   "12h Precipitation" = "AccPcp12h",
-                                  "24h Precipitation" = "AccPcp24h"
+                                  "24h Precipitation" = "AccPcp24h",
+                                  "Clear Sky Index"   = "CSI"
 )
+
+# Add more surface obs types
+more_surface_obstypes <- c("ascat","buoy","ship")
+df1                   <- expand_grid(more_surface_obstypes,unname(unlist(all_surface_params)))
+df1                   <- paste0(df1[[1]],"_",df1[[2]])
+df2                   <- expand_grid(str_to_title(more_surface_obstypes),
+                                     names(all_surface_params))
+df2                   <- paste0(df2[[1]]," ",df2[[2]])
+add_surface_obstypes  <- setNames(as.list(df1),df2)
+all_surface_params    <- c(all_surface_params,add_surface_obstypes)
 
 # All possible upper-air parameters
 all_UA_params            <- list("Temperature"       = "T",
+                                 "Bright. Temp"      = "tb",
                                  "Dew Point T"       = "Td",
                                  "Wind Speed"        = "S",
                                  "Wind Direction"    = "D",
@@ -137,6 +149,16 @@ all_UA_params            <- list("Temperature"       = "T",
                                  "Relative Humidity" = "RH",
                                  "Specific Humidity" = "Q"
 )
+
+# Add more upper-air obs types
+more_UA_obstypes <- c("airep","amsua","amv","atms","mwhs2","temp")
+df1              <- expand_grid(more_UA_obstypes,unname(unlist(all_UA_params)))
+df1              <- paste0(df1[[1]],"_",df1[[2]])
+df2              <- expand_grid(str_to_title(more_UA_obstypes),
+                                names(all_UA_params))
+df2              <- paste0(df2[[1]]," ",df2[[2]])
+add_UA_obstypes  <- setNames(as.list(df1),df2)
+all_UA_params    <- c(all_UA_params,add_UA_obstypes)
 
 # Need an extra list for UA signif plots
 all_available_harp_UA   <- c("Z","T","Td","S","D","RH","Q")
@@ -164,6 +186,17 @@ all_stations             <- list("All stations"      = "All",
                                  "Ireland"           = "IRL",
                                  "Ireland+UK"        = "IE_EN",
                                  "Ireland Synop"     = "IrelandSynop",
+                                 "Cork Airport"      = "EICK",
+                                 "Dublin Airport"    = "EIDW",
+                                 "Shannon Airport"   = "EINN",
+                                 "Casement"          = "EIME",
+                                 "Knock Airport"     = "EIKN",
+                                 "M Buoys"           = "MBuoys",
+                                 "M2 Buoy"           = "M2Buoy",
+                                 "M3 Buoy"           = "M3Buoy",
+                                 "M4 Buoy"           = "M4Buoy",
+                                 "M5 Buoy"           = "M5Buoy",
+                                 "M6 Buoy"           = "M6Buoy",
                                  "UK Synop"          = "UnitedKingdomSynop",
                                  "Scandinavia"       = "SCD",
                                  "Finland Synop"     = "FinlandSynop",
@@ -230,6 +263,7 @@ all_det_ssum_scores      <- list("Bias RMSE"            = paste0("bias",score_se
                                  "Bias STDV Timeseries" = paste0("bias",score_sep,"stde-vd"),
                                  "Frequency Dist"       = "freqdist-NA",
                                  "Frequency Hist"       = "freqhist-cls",
+                                 "Frequency Heatmap"    = "2dfreqhist-cls",
                                  "Frequency Bias"       = "freq_bias-cls",
                                  "Scatterplot"          = "scatterplot-NA"
 )
@@ -238,6 +272,7 @@ all_scat_ssum_scores_2b  <- list("HY-2B Bias RMSE"      = paste0("SCAThy2bbias",
                                  "HY-2B Bias STDV"      = paste0("SCAThy2bbias",score_sep,"stde-lt"))
 all_scat_ssum_scores_2c  <- list("HY-2C Bias RMSE"      = paste0("SCAThy2cbias",score_sep,"rmse-lt"),
                                  "HY-2C Bias STDV"      = paste0("SCAThy2cbias",score_sep,"stde-lt"))
+
 # Combine
 all_det_ssum_scores      <- c(all_det_ssum_scores,all_scat_ssum_scores_2b,
                               all_scat_ssum_scores_2c)
@@ -275,8 +310,10 @@ all_ensctrl_map_scores   <- list("Bias" = "bias",
 all_ensctrl_map_scores   <- lapply(all_ensctrl_map_scores,function(x) paste0("ctrl",x,"-mp"))
 
 # Deterministic experiment 
-all_det_map_scores       <- list("Bias" = "bias",
-                                 "RMSE" = "rmse")
+all_det_map_scores       <- list("Obs Frequency" = "obsfreq",
+                                 "Bias"          = "bias",
+                                 "RMSE"          = "rmse",
+                                 "Cases"         = "num_cases")
 all_det_map_scores       <- lapply(all_det_map_scores,function(x) paste0(x,"-mp"))
 
 # Add SCAT scores
@@ -302,6 +339,9 @@ all_ensctrl_pl_scores    <- lapply(all_ensctrl_pl_scores,function(x) paste0("ctr
 
 all_det_pl_scores        <- list("Bias RMSE" = paste0("bias",score_sep,"rmse"))
 all_det_pl_scores        <- lapply(all_det_pl_scores,function(x) paste0(x,"-lt"))
+# Add obsfreq
+add_det_pl_scores        <- list("Obs Frequency" = "obsfreq-mp")
+all_det_pl_scores        <- c(all_det_pl_scores,add_det_pl_scores)
 
 # Profiles
 # Ensemble
@@ -326,6 +366,12 @@ all_det_prof_UACscores   <- list("Drift corrected Bias RMSE" = paste0("UACbias",
                                  "Drift corrected Bias STDV" = paste0("UACbias",score_sep,"stde"))
 all_det_prof_UACscores   <- lapply(all_det_prof_UACscores,function(x) paste0(x,"-pr"))
 all_det_prof_scores      <- c(all_det_prof_scores,all_det_prof_UACscores)
+# Add pressure/channel leadtime heatmaps
+all_lhmaps_ssum_scores   <- list("Bias Heatmap"         = "bias-plt",
+                                 "RMSE Heatmap"         = "rmse-plt",
+                                 "STDV Heatmap"         = "stde-plt",
+                                 "Cases Heatmap"        = "num_cases-plt")
+all_det_prof_scores      <- c(all_det_prof_scores,all_lhmaps_ssum_scores)
 
 # Statistical signif scores and scorecards
 # Ensemble score diffs
@@ -413,7 +459,7 @@ ui <- shiny::tags$html(
                                               shiny::tabPanel("Map"),
                                               shiny::tabPanel("Signif")
                                             )),
-                            shiny::tabPanel("Temp",
+                            shiny::tabPanel("Upper Air",
                                             shiny::tabsetPanel(
                                               id="temptype",
                                               shiny::tabPanel("Summary"),
@@ -674,11 +720,11 @@ server <- function(input, output, session) {
       param_avail <- unique(unlist(lapply(strsplit(all_files(),"-"),'[',1)))
       #param_for_tab <- switch(input$vartype,
       #                        "Surface"    = all_surface_params,
-      #                        "Temp"       = all_UA_params,
+      #                        "Upper Air"  = all_UA_params,
       #                        "Scorecards" = all_scorecard_params)
       if (input$vartype == "Surface"){
         param_for_tab <- all_surface_params
-      } else if (input$vartype == "Temp"){
+      } else if (input$vartype == "Upper Air"){
         param_for_tab <- switch(input$temptype,
                                 "Summary" = all_UA_params,
                                 "Prof"    = all_UA_params,
@@ -800,7 +846,7 @@ server <- function(input, output, session) {
              "Skill"   = get(paste0("all_",mty,"_skill_scores_th")),
              "Map"     = get(paste0("all_",mty,"_map_scores")),
              "Signif"  = get(paste0("all_",mty,"_sdiffs_scores")))
-    } else if (input$vartype == "Temp"){
+    } else if (input$vartype == "Upper Air"){
       switch(input$temptype,
              "Summary" = get(paste0("all_",mty,"_pl_scores")),
              "Prof"    = get(paste0("all_",mty,"_prof_scores")),
@@ -819,7 +865,7 @@ server <- function(input, output, session) {
                "Skill"   = all_ens_skill_scores_lt,
                "Map"     = all_ensctrl_map_scores,
                "Signif"  = list("L" = -9999))
-      } else if (input$vartype == "Temp"){
+      } else if (input$vartype == "Upper Air"){
         switch(input$temptype,
                "Summary" = all_ensctrl_pl_scores,
                "Prof"    = all_ensctrl_prof_scores,
@@ -834,7 +880,7 @@ server <- function(input, output, session) {
                "Skill"   = all_det_skill_scores_lt,
                "Map"     = list("L" = -9999),
                "Signif"  = list("L" = -9999))
-      } else if (input$vartype == "Temp"){
+      } else if (input$vartype == "Upper Air"){
         switch(input$temptype,
                "Summary" = list("L" = -9999),
                "Prof"    = list("L" = -9999),
@@ -854,7 +900,7 @@ server <- function(input, output, session) {
                "Skill"   = all_ens_skill_scores_ot,
                "Map"     = list("L" = -9999),
                "Signif"  = list("L" = -9999))
-      } else if (input$vartype == "Temp"){
+      } else if (input$vartype == "Upper Air"){
         switch(input$temptype,
                "Summary" = list("L" = -9999),
                "Prof"    = list("L" = -9999),
@@ -988,9 +1034,9 @@ server <- function(input, output, session) {
              "Skill"   = "Lead time",
              "Map"     = "Valid time",
              "Signif"  = "New model")
-    } else if (input$vartype == "Temp"){
+    } else if (input$vartype == "Upper Air"){
       switch(input$temptype,
-             "Summary" = "Level (hPa)",
+             "Summary" = "Level (hPa) / Channel",
              "Prof"    = "Valid time",
              "Signif"  = "New model")
     } else if (input$vartype == "Scorecards"){
@@ -1017,7 +1063,7 @@ server <- function(input, output, session) {
       if (input$surfacetype == "Signif"){
         rname_flag = FALSE
       }
-    } else if (input$vartype == "Temp"){
+    } else if (input$vartype == "Upper Air"){
       if (input$temptype == "Signif"){
         rname_flag = FALSE
       }
@@ -1027,8 +1073,11 @@ server <- function(input, output, session) {
     if (length(vo)>0){
       if (rname_flag){
         # Get numerical/string values
-        qwe <- str_extract(vo,"[aA-zZ]+"); ps <- qwe[!is.na(qwe)]; pn <- vo[is.na(qwe)]; pn <- sort(as.numeric(pn))
-        pn <- sprintf("%02d",pn); vo <- c(ps,pn)
+        qwe <- str_extract(vo,"[aA-zZ]+"); ps <- qwe[!is.na(qwe)]; pn <- vo[is.na(qwe)] 
+        pnsort <- sort(as.numeric(pn)) # Sorting character is not enough
+        pnsort <- sprintf("%02d",pnsort) # Pad to valid hours
+        pnsort[!(pnsort %in% pn)] <- as.numeric(pnsort[!(pnsort %in% pn)]) # In case padding is not required
+        vo <- c(ps,pnsort)
         #qwe <- as.numeric(str_extract(vo,"[0-9]+")); qwe <- qwe[!is.na(qwe)]; qwe <- sort(qwe); qwe <- sprintf("%02d",qwe)
       }
       vo
@@ -1066,7 +1115,7 @@ server <- function(input, output, session) {
              "Skill"   = "Threshold",
              "Map"     = "Threshold",
              "Signif"  = "Ref model")
-    } else if (input$vartype == "Temp"){
+    } else if (input$vartype == "Upper Air"){
       switch(input$temptype,
              "Summary" = "Threshold",
              "Prof"    = "Threshold",
@@ -1090,7 +1139,7 @@ server <- function(input, output, session) {
       if (input$surfacetype == "Signif"){
         rname_flag = FALSE
       }
-    } else if (input$vartype == "Temp"){
+    } else if (input$vartype == "Upper Air"){
       if (input$temptype == "Signif"){
         rname_flag = FALSE
       }
@@ -1156,12 +1205,21 @@ server <- function(input, output, session) {
     } else if (input$vartype == "Scorecards"){
       c_width  <- 1200*scale_f
       c_height <- 800*scale_f
-    } else if (input$vartype == "Temp"){
+    } else if (input$vartype == "Upper Air"){
       if (grepl("UAC",input$score,ignore.case = FALSE,fixed = TRUE)){
         c_width  <- 700*scale_f
         c_height <- 650*scale_f
       }
     }
+    # Add valid_dttm and obsfreq cases
+    if (grepl("-vd",input$score,ignore.case = FALSE,fixed = TRUE)){
+      c_width  <- 1000*scale_f
+    }
+    if (grepl("obsfreq",input$score,ignore.case = FALSE,fixed = TRUE)){
+      c_width  <- 1000*scale_f
+      c_height <- 800*scale_f
+    }
+    
     
     if (is_ens_scores()){
       mty <- "ens"  

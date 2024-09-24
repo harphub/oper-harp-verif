@@ -81,7 +81,7 @@ conv_allsynop <- function(input_list){
 fn_verif_rename <- function(df,par_unit){
   
   for (ii in seq(1,length(df),1)) {
-    for (var_rename in c("fcst_cycle","station_group","valid_hour","lead_time")) {
+    for (var_rename in c("fcst_cycle","station_group","valid_hour","valid_dttm","lead_time")) {
       if (var_rename %in% names(df[[ii]])) {
         
         v_avail  <- unique(df[[ii]][[var_rename]])
@@ -117,7 +117,8 @@ fn_verif_rename <- function(df,par_unit){
 
 get_latlon <- function(df,
                        fc,
-                       ind){
+                       ind,
+                       print_warning = TRUE){
   
   sid_toget <- df[[ind]][["SID"]]
   lat_sids  <- NULL
@@ -134,18 +135,22 @@ get_latlon <- function(df,
     lon_v <- lon_v[!is.na(lon_v)]
     
     if ((length(lat_v) == 0) || (length(lon_v) == 0)) {
-      cat("Warning: Station",sid_i,
-          "has no associated lat/lon value. Assigning NA\n")
+      if (print_warning) {
+        cat("Warning: Station",sid_i,
+            "has no associated lat/lon value. Assigning NA\n")
+      }
       lat_v <- NA
       lon_v <- NA
     }
     
     if ((length(lat_v) > 1) || (length(lon_v) > 1)) {
       
-      cat("Warning: Why multiple lat/lons for SID=",sid_i,
-          "? Will use workaround here. For reference, values are:\n")
-      cat("Lat:",paste0(lat_v,collapse = ","),
-          "and Lon:",paste0(lon_v,collapse = ","),"\n")
+      if (print_warning) {
+        cat("Warning: Why multiple lat/lons for SID=",sid_i,
+            "? Will use workaround here. For reference, values are:\n")
+        cat("Lat:",paste0(lat_v,collapse = ","),
+            "and Lon:",paste0(lon_v,collapse = ","),"\n")
+      }
       
       lat_v <- lat_v[1]
       lon_v <- lon_v[1]
@@ -166,16 +171,17 @@ get_latlon <- function(df,
 #================================================#
 
 fn_sid_latlon <- function(df,
-                          fc){
+                          fc,
+                          print_warning = TRUE){
   
-  ll1         <- get_latlon(df,fc,1)
+  ll1         <- get_latlon(df,fc,1,print_warning)
   df[[1]]$lat <- ll1$lat_sids
   df[[1]]$lon <- ll1$lon_sids
   
   # Do the same for deterministic scores in the case of an ensemble 
   if (length(df) > 2) {
     if (nrow(df[[3]]) > 0) {
-      ll3         <- get_latlon(df,fc,3)
+      ll3         <- get_latlon(df,fc,3,print_warning)
       df[[3]]$lat <- ll3$lat_sids
       df[[3]]$lon <- ll3$lon_sids
     }
