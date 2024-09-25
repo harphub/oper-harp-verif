@@ -42,7 +42,7 @@ db <- dbConnect(SQLite(), dbase)
 #print available dates
 cat("Dates available in ",dbase,"\n")
 if (table == "FC") {
-  out <- tbl(db, table) %>% pull(fcdate) %>% unique() %>% unix2datetime()
+  out <- tbl(db, table) %>% pull(fcst_dttm) %>% unique() %>% unix2datetime()
   df <- enframe(out)
 
   if (ofile != "None") {
@@ -53,7 +53,7 @@ if (table == "FC") {
   }
 
 } else if (table == "SYNOP" || table == "TEMP") {
-  out <- tbl(db, table) %>% pull(validdate) %>% unique() %>% unix2datetime()
+  out <- tbl(db, table) %>% pull(valid_dttm) %>% unique() %>% unix2datetime()
   df <- enframe(out)
   kable(df)
 } else {

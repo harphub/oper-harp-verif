@@ -523,8 +523,19 @@ run_verif <- function(prm_info, prm_name) {
     harpCore::common_cases(fcst)
   )
   
+  # Check if we need to scale models differently for this parameter
+  if (is.null(prm_info$use_models_to_scale)) {
+    use_mts <- FALSE
+  } else {
+    if (prm_info$use_models_to_scale == TRUE) {
+      use_mts <- TRUE
+    } else {
+      use_mts <- FALSE
+    }
+  }
   if (!is.null(prm_info$scale_fcst)) {
-    if (is.null(models_to_scale)) {
+    if ((is.null(models_to_scale)) || (!use_mts)) {
+      cat("Scaling all models using the same scale_fcst\n")
       fcst <- do.call(
         harpCore::scale_param,
         c(list(x = fcst), 

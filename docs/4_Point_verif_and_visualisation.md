@@ -5,12 +5,13 @@ Once the configuration file is set and the sqlite tables are created, the point 
 ## set_params.R
 
 This parameter list file is used to specify the parameters considered by the `point_verif.R` script and their associated options, in particular:
-- **scale_fcst**: Forecast scaling (e.g. Kelvin to degress). If you only want to apply the forecast scaling to certain models in `verif:fcst_model`, this can be controlled by the flag `verif:models_to_scale`.
+- **scale_fcst**: Forecast scaling (e.g. Kelvin to degress). If you only want to apply the forecast scaling to certain models in `verif:fcst_model` for certain paramters, this can be controlled by the flags `verif:models_to_scale` in the config file and `use_models_to_scale` in set_params.R (see below).
 - **scale_obs**: Observation scaling.
 - **thresholds**: Thresholds used when computing threshold skill scores.
 - **obsmin/max_val**: Max/min observation values allowed.
 - **fctmax_val**: Max forecast values allowed (experimental).
-- **error_sd**: Number of standard deviations used in `harpPoint::check_obs_against_fcst`. 
+- **error_sd**: Number of standard deviations used in `harpPoint::check_obs_against_fcst`.
+- **use_models_to_scale**: A logical flag to activate `verif:models_to_scale` such that only models specified by `verif:models_to_scale` are scaled for this parameter (if set to TRUE). If missing or set to FALSE, `verif:models_to_scale` will do nothing. 
 
 Typically this file does not need to be changed. By default `point_verif.R` reads parameter options from this file, but a custom parameter file can also be used by passing the `-params_file` option to `point_verif.R`. 
 
