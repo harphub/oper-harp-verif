@@ -18,6 +18,7 @@
 \newcommand{\panels}{\texttt{panelification }}
 \newcommand{\reti}{\texttt{reticulate}}
 \newcommand{\panel}{\texttt{panelification}}
+\newcommand{\harps}{\texttt{harp }}
 
 \textwidth = 170.0mm
 \textheight = 246.0mm
@@ -59,7 +60,8 @@
 %%%%%%%%%%%%% START %%%%%%%%%%%%% 
 \date{}
 
-\title{Developments done during Polly Schmederer's ACCORD VS at DMI (June 2024) }
+%\title{Developments done during Polly Schmederer's ACCORD VS at DMI (June 2024) }
+\title{New developments of the \panels tool during Polly Schmederer's ACCORD Visiting Scientist Tenure at the Danish Meteorological Institute (June 2024) [alternative title: Along came Polly]}
 
 \author{Polly Schmederer (GeoSphere) \\ Carlos Peralta (DMI) \\ Fabrizio Baordo (DMI)}
 \date{August 2024}
@@ -72,8 +74,8 @@
 
 \section{Introduction}
 \sectionrule
-This contribution summarizes the work carried out by Polly Schmederer in contribution with Fabrizio Baordo
-and Carlos Peralta during the ACCORD-funded visit of Polly in June 2024.
+This contribution summarizes the work carried out by Polly Schmederer as Visiting Scientist (VS) in contribution with Fabrizio Baordo
+and Carlos Peralta during the ACCORD-funded visit of Polly to the Danish Meteorological Institute (DMI) in June 2024.
 
 The purpose of the visit was to extend the capabilities of the \panels tool \cite{panel_tool} developed at GeoSphere to include additional scores and variables. 
 Additionally, the use of the \retis package \cite{reticulate}, that provides an interface to the python language from the R language, was also considered.
@@ -89,61 +91,90 @@ A detailed description of the code developments is presented below, along with a
 %    \item providing examples.
 %\end{itemize}
 
+\section{Development work}
+The general aims of the visit were the following.
+\begin{itemize}
+    \item Integrate the \panels tool in the \harps library.
+    \item Use of the \retis package to interface R with Python;
+    \item Generalise/apply the \panels tool to different applications
+    \item Providing examples.
+\end{itemize}
 
+All the developments were carried out in a branch of the \texttt{oper-harp-verif} repository \cite{oper-harp}.
+The \texttt{renv} package was used to create a local R environment where all
+the necessary libraries and dependencies can be installed.
 
 \section{Overview of the repository}
-%\sectionrule
 
-\subsection{Reading functions}
-\subsection{Panelification}
-\subsection{Configuration files}
-\subsection{Installation instructions}
+The panelification tool is ...ADD DESCRIPTION OF WHAT IT IS AND WHAT IT DOES.
+
+%\sectionrule
+%\subsection{Reading functions}
+The \retis package provides an interface between R and the Python language.
+This allowed us to easily include some of the vast functionalities available
+in Python, for example through the library \texttt{xarray}. This facilitated
+the reading and regridding of the input data from satellite (nat format)
+and model data from different sources in grib and netcdf format.
+A detailed description of the functions can be found in the \texttt{README.md} file
+in the github repository. 
+%The functions inside $reading_functions.R$ contains the following reading functions.
+%\begin{itemize}
+%\item $$read_msg_reticulate$$  Python function that reads/ regrids the data and converts the returned data into a harp data frame.
+%\item $$read_nc_reticulate$$ calls python function that reads snow data and converts the returned data into a harp data frame.
+%\item $$reading_functions.py$$ Contains the python functions that are called by R to read / regrid satellite observations ( in .nat format ) and model data (.grib).
+%\item $$sat_model_to_same_grid$$ reads/ regrids satellite data.
+%\item $$get_data_nc_file()$$ reads regridded snow data in nc format.
+%\end{itemize}
+%\subsection{Panelification}
+%\subsection{Configuration files}
+%\subsection{Installation instructions}
 \section{Data used for spatial verification}
 
-The headings of main sections are underlined. This is achieved by the new command "sectionrule".
+%The headings of main sections are underlined. This is achieved by the new command "sectionrule".
 
-\section{Application examples}
 
-An example of a Table is given in \ref{tab:grib}. Please feel free to make a more fancy one if you like.
+%An example of a Table is given in \ref{tab:grib}. Please feel free to make a more fancy one if you like.
+A list of the different types of input data used in the examples can be found in table \ref{tab:grib}. %Please feel free to make a more fancy one if you like.
 
 \begin{table}
-{\center\it\caption{ \label{tab:grib}Extract of the GRIB header section 1}}
+{\center\it\caption{ \label{tab:grib} Input data}}
 \begin{center}
 \begin{tabular}{lrr}
-                                        & HIRLAM & ECMWF \\
- Parameter identifier (Code Table 2).   &   122  & 146 \\
- Type of level (Code Table 3).          &   105  &   1 \\
- Time unit (Code Table 4).              &     1  &   1 \\
- Time range one.                        &     0  &   6 \\
- Time range two.                        &     6  &   0 \\
- Time range indicator (Code Table 5)    &     4  &   0 \\
+ Model                                       & DINI & DEODE \\
+ Parameter    &   tot prec & tot prec \\
+ %Type of level (Code Table 3).          &   105  &   1 \\
+ %Time unit (Code Table 4).              &     1  &   1 \\
+ %Time range one.                        &     0  &   6 \\
+ %Time range two.                        &     6  &   0 \\
+ %Time range indicator (Code Table 5)    &     4  &   0 \\
 \end{tabular}
 \end{center}
 \end{table} 
 
-\subsection{Figure layout}
-Figures have to be provided in high resolution, preferably in Encapulated PostScript (eps) format, or ".png", ".jpg" or ".gif". 
-\textbf{Please, NO .PS files (PDFLaTeX cannot use .ps image files to produce a .pdf file).}
-In principle it is best to provide me seperately the image files that are closest to the creating source and have not yet been converted into another format.
-
-The picture caption is placed under the picture, in italic, for example see Figure \ref{fig:O3}.
-
-Please be careful with the size of your picture. LibreOffice has tools to reduce the size of the .pdf file created from your article (with reducing the definition of the pictures). It's not the case with latex (or I don't know how to do that), thus the pictures you provide should have reasonable size.
-
-\begin{figure}[ht] %[h*]
-\begin{center}
-  \centerline{
-   \epsfig{file=./exemple.eps,scale=0.6}
-  }
-\end{center}
-  {\center\it\caption{\label{fig:O3}
-   Title of my figure}}
-\end{figure}
+\section{Application examples}
+%\subsection{Figure layout}
+%Figures have to be provided in high resolution, preferably in Encapulated PostScript (eps) format, or ".png", ".jpg" or ".gif". 
+%\textbf{Please, NO .PS files (PDFLaTeX cannot use .ps image files to produce a .pdf file).}
+%In principle it is best to provide me seperately the image files that are closest to the creating source and have not yet been converted into another format.
+%
+%The picture caption is placed under the picture, in italic, for example see Figure \ref{fig:O3}.
+%
+%Please be careful with the size of your picture. LibreOffice has tools to reduce the size of the .pdf file created from your article (with reducing the definition of the pictures). It's not the case with latex (or I don't know how to do that), thus the pictures you provide should have reasonable size.
+%
+%\begin{figure}[ht] %[h*]
+%\begin{center}
+%  \centerline{
+%   \epsfig{file=./exemple.eps,scale=0.6}
+%  }
+%\end{center}
+%  {\center\it\caption{\label{fig:O3}
+%   Title of my figure}}
+%\end{figure}
 
 \section{Future work}
 
 
-\section{References}
+%\section{References}
 
 \bibliographystyle{plain}
 \bibliography{references}
