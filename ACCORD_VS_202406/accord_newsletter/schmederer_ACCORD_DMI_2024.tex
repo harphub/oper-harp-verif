@@ -19,6 +19,7 @@
 \newcommand{\reti}{\texttt{reticulate}}
 \newcommand{\panel}{\texttt{panelification}}
 \newcommand{\harps}{\texttt{harp }}
+\newcommand{\harpss}{\texttt{harpSpatial }}
 
 \textwidth = 170.0mm
 \textheight = 246.0mm
@@ -61,7 +62,7 @@
 \date{}
 
 %\title{Developments done during Polly Schmederer's ACCORD VS at DMI (June 2024) }
-\title{New developments of the \panels tool during Polly Schmederer's ACCORD Visiting Scientist Tenure at the Danish Meteorological Institute (June 2024) [alternative title: Along came Polly]}
+\title{Report on a scientific visit on spatial methods with \harps and the \panels tool}
 
 \author{Polly Schmederer (GeoSphere) \\ Carlos Peralta (DMI) \\ Fabrizio Baordo (DMI)}
 \date{August 2024}
@@ -74,10 +75,10 @@
 
 \section{Introduction}
 \sectionrule
-This contribution summarizes the work carried out by Polly Schmederer as Visiting Scientist (VS) in contribution with Fabrizio Baordo
-and Carlos Peralta during the ACCORD-funded visit of Polly to the Danish Meteorological Institute (DMI) in June 2024.
-
-The purpose of the visit was to extend the capabilities of the \panels tool \cite{panel_tool} developed at GeoSphere to include additional scores and variables. 
+A Visiting scientist (VS) from GeoSphere (Polly Schmederer) visited DMI during June 2024. The VS 
+was funded by the ACCORD-VS program, as part of the MQA working package. The VS was hosted by Fabrizio Baordo
+and Carlos Peralta at the DMI headquarters in Copenhagen. The 4 weeks stay was focused on the 
+implementation  of new capabilities of the \panels tool \cite{panel_tool} developed at GeoSphere to include additional scores and variables. 
 Additionally, the use of the \retis package \cite{reticulate}, that provides an interface to the python language from the R language, was also considered.
 The whole development is shared in a github repository that includes installation instructions and example data sets \cite{repo}.
 
@@ -91,7 +92,20 @@ A detailed description of the code developments is presented below, along with a
 %    \item providing examples.
 %\end{itemize}
 
-\section{Development work}
+\section{Methods and software used}
+The \harps package is a framework for meteorological data developed by Andrew Singleton (Met Norway) and Alex Decknym (RMS) \cite{harp}.
+It is currently the official model verification tool in the ACCORD consortium.
+The \panels tool is a visualization framework developed at GeoSphere in order to display summarized views of spatial verification scores
+produced by the \harpss part of the \harps package \cite{panel_tool}.
+The developments during the VS included the extension of new variables in the panel tool and the inclusion of the \retis package in the 
+tool chain. 
+The \retis package provides an interface between R and the Python language.
+This allowed us to easily include some of the vast functionalities available
+in Python, for example through the library \texttt{xarray}. This facilitated
+the reading and regridding of the input data from satellite (nat format)
+and model data from different sources in grib and netcdf format.
+%This facilitated the ingestion of new data types in netcdf and grib format.
+
 The general aims of the visit were the following.
 \begin{itemize}
     \item Integrate the \panels tool in the \harps library.
@@ -104,17 +118,11 @@ All the developments were carried out in a branch of the \texttt{oper-harp-verif
 The \texttt{renv} package was used to create a local R environment where all
 the necessary libraries and dependencies can be installed.
 
-\section{Overview of the repository}
-
-The panelification tool is ...ADD DESCRIPTION OF WHAT IT IS AND WHAT IT DOES.
+\section{Developments in the \panels too and \harpss}
 
 %\sectionrule
 %\subsection{Reading functions}
-The \retis package provides an interface between R and the Python language.
-This allowed us to easily include some of the vast functionalities available
-in Python, for example through the library \texttt{xarray}. This facilitated
-the reading and regridding of the input data from satellite (nat format)
-and model data from different sources in grib and netcdf format.
+
 A detailed description of the functions can be found in the \texttt{README.md} file
 in the github repository. 
 %The functions inside $reading_functions.R$ contains the following reading functions.
@@ -152,6 +160,31 @@ A list of the different types of input data used in the examples can be found in
 \end{table} 
 
 \section{Application examples}
+
+
+%\begin{figure}[ht] %[h*]
+%\begin{center}
+% \centerline{
+%   \figure{file=../PLOTS/panel_IR_108_202401022300+23.png,scale=0.6}
+%  }
+%\end{center}
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=1.2\textwidth]{../PLOTS/panel_IR_108_202401022300+23}
+    \caption{EUMETSAT SEVIRI data}
+    \label{fig:IRexample}
+\end{figure}
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=1.2\textwidth]{../PLOTS/panel_Accpcp3h_202401030000+24.png}
+    \caption{DMI radar data}
+    \label{fig:TPexample1}
+\end{figure}
+%  {\center\it\caption{\label{fig:O3}
+%   Title of my figure}}
+%\end{figure}
 %\subsection{Figure layout}
 %Figures have to be provided in high resolution, preferably in Encapulated PostScript (eps) format, or ".png", ".jpg" or ".gif". 
 %\textbf{Please, NO .PS files (PDFLaTeX cannot use .ps image files to produce a .pdf file).}
