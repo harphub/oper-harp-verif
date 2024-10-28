@@ -20,6 +20,7 @@
 \newcommand{\panel}{\texttt{panelification}}
 \newcommand{\harps}{\texttt{harp }}
 \newcommand{\harpss}{\texttt{harpSpatial }}
+\newcommand{\renvs}{\texttt{renv }}
 
 \textwidth = 170.0mm
 \textheight = 246.0mm
@@ -80,9 +81,9 @@ was funded by the ACCORD-VS program, as part of the MQA working package. The VS 
 and Carlos Peralta at the DMI headquarters in Copenhagen. The 4 weeks stay was focused on the 
 implementation  of new capabilities of the \panels tool \cite{panel_tool} developed at GeoSphere to include additional scores and variables. 
 Additionally, the use of the \retis package \cite{reticulate}, that provides an interface to the python language from the R language, was also considered.
-The whole development is shared in a github repository that includes installation instructions and example data sets \cite{repo}.
 
-A detailed description of the code developments is presented below, along with application examples and future work.
+The software development is shared in a github repository that includes installation instructions and example data sets \cite{repo}.
+Details of the codea are presented below, along with application examples and future work.
 
 %Generalising spatial verifications: 
 %\begin{itemize}
@@ -125,6 +126,17 @@ the necessary libraries and dependencies can be installed.
 
 A detailed description of the functions can be found in the \texttt{README.md} file
 in the github repository. 
+The main developments included
+\begin{itemize}
+\item New functions to interface Python with R through the \retis package.
+\item Including the new parameters in the \panels tool.
+\item Configuration files for each example presented in the repository, along with
+instructions on how to add new parameters
+\item New functions to display the information in the \panels tool
+\item Example files to test the application.
+\item Instruction on how to install the \harps and \panels packages along with
+ all their dependencies using the \renvs (currently only for the hpc cluster at ECMWF).
+\end{itemize}
 %The functions inside $reading_functions.R$ contains the following reading functions.
 %\begin{itemize}
 %\item $$read_msg_reticulate$$  Python function that reads/ regrids the data and converts the returned data into a harp data frame.
@@ -137,6 +149,30 @@ in the github repository.
 %\subsection{Configuration files}
 %\subsection{Installation instructions}
 \section{Data used for spatial verification}
+The following observation data was use in the examples provided in the repository.
+
+\begin{enumerate}
+\item Radar precipitation product from the DMI: Surface Quantitative Precipitation
+Estimation (SQPE) using both rain gauge and radar data.
+
+\item EUMETSAT SEVIRI data \cite{seviri}: High Rate SEVIRI
+Level 1.5 Image Data - MSG - 0 degree (native), e.g. MSG3-SEVI-
+MSG15-0100-NA-20240102235743.693000000Z-NA.nat
+\item Cryo clim data
+\end{enumerate}
+
+The following model data was used.
+\begin{enumerate}
+\item Grib files output of the DEODE workflow running HARMONIE cy46h1 (total
+precipitation and FULL POS simulated radiances channels WV 062 and IR 08).
+\item CARRA data from the Copernicus Data Service
+
+\end{enumerate}
+
+%As part of the WP6 of the CERISE (Copernicus Climate Change Service
+%Evolution) project, DMI is contributing to the spatial verification of snow cover
+%using the harp verification package. There is a website for the project, if you
+%to add in the README: https://cerise-project.eu/.
 
 %The headings of main sections are underlined. This is achieved by the new command "sectionrule".
 
@@ -147,9 +183,10 @@ A list of the different types of input data used in the examples can be found in
 \begin{table}
 {\center\it\caption{ \label{tab:grib} Input data}}
 \begin{center}
-\begin{tabular}{lrr}
- Model                                       & DINI & DEODE \\
- Parameter    &   tot prec & tot prec \\
+\begin{tabular}{|l|r|r|r|r|} \hline
+ Parameter    &   tot prec & tot prec & tot prec & fraction of snow cover \\ \hline
+ Model                                       & DINI & DEODE &IFS &CARRA \\ \hline
+ Observation                                 & DMI SQPE & DMI SQPE, Seviri & DMI SQPE, Seviri & Cryo Clim \\ \hline
  %Type of level (Code Table 3).          &   105  &   1 \\
  %Time unit (Code Table 4).              &     1  &   1 \\
  %Time range one.                        &     0  &   6 \\
@@ -205,7 +242,8 @@ A list of the different types of input data used in the examples can be found in
 %\end{figure}
 
 \section{Future work}
-
+Currently, the snow cover verification included in the examples cannnot be properly displayed by the 
+\panels tool. The classic fraction skill score
 
 %\section{References}
 
