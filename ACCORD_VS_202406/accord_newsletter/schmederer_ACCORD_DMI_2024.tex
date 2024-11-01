@@ -196,9 +196,15 @@ A list of the different types of input data used in the examples can be found in
 \end{center}
 \end{table} 
 
+
 \section{Application examples}
+The evaluation using the \panel tool shows Fractional Skill Scores \cite{FSS}, a common spatial verification
+score used for total precipitation.
 
-
+Figure \ref{fig:IRexample} shows an example output of FSS scores
+evaluation over the danish domain using EUMETSAT SEVIRI and model data from the DEODE project \cite{deode}.
+Figure \ref{fig:TPexample1} shows an example evaluation based on FSS scores also over
+the danish domain but using data from the DINI model configuration of the Harmonie model \cite{dini}.
 %\begin{figure}[ht] %[h*]
 %\begin{center}
 % \centerline{
@@ -209,14 +215,14 @@ A list of the different types of input data used in the examples can be found in
 \begin{figure}[htbp]
     \centering
     \includegraphics[width=1.2\textwidth]{../PLOTS/panel_IR_108_202401022300+23}
-    \caption{EUMETSAT SEVIRI data}
+    \caption{FSS scores for a spatial verification of a DEODE simulation against EUMETSAT SEVIRI data}
     \label{fig:IRexample}
 \end{figure}
 
 \begin{figure}[htbp]
     \centering
     \includegraphics[width=1.2\textwidth]{../PLOTS/panel_Accpcp3h_202401030000+24.png}
-    \caption{DMI radar data}
+    \caption{FSS scores for a spatial verification of the DINI model against DMI radar data}
     \label{fig:TPexample1}
 \end{figure}
 %  {\center\it\caption{\label{fig:O3}
@@ -241,9 +247,57 @@ A list of the different types of input data used in the examples can be found in
 %   Title of my figure}}
 %\end{figure}
 
+%The scores which are given in the definition file are calculated using harpSpatial.
+
+The models are ranked according to the scores.
+
+The ranks are plotted in the panelification plots.
+
+The colour scheme follows the convention:
+
+\begin{itemize}
+\item perfect scores (green)
+\item rank 1 (gold)
+\item rank 2 (silver)
+\item rank 3 (bronze)
+\item rank 4 and greater (white)
+\item no skill (< 0.5) (red)
+\item NA (black)
+\end{itemize}
+
+When 2 or more models have the same rank, the next model with a higher rank will have a rank that is following up after the "missing" ranks.
+e.g. three models have rank 2. -> 3 and 4 are the missing ranks and the next rankded model will have rank 5.
+
+\subsection{Information displayed in the plot}
+
+In the first panel the observation field is displayed, there is one panel for each of the verified models.
+The observation display follows the convention:  name + valid observation time
+The model display follow the convention:
+
+model title:
+\begin{itemize}
+\item left: model name, initialisation time + lead time, (average FSS rank)
+\item right: average rank of basic scores (this is the average of all non-FSS scores
+    that are passed in the definiton file) and ranking of the models according to this average rank.
+\end{itemize}
+
+top box:
+\begin{itemize}
+\item ranks of FSS (using thresholds)
+\item ranks of FSS (using percentiles)
+\item basic scores - displaying the actual values (rank according to the value)
+\end{itemize}
+
+
 \section{Future work}
-Currently, the snow cover verification included in the examples cannnot be properly displayed by the 
-\panels tool. The classic fraction skill score
+Currently, the \panels tool includes only the Fractional Score. Other spatial scores will be incorporated in the near future.
+
+The snow cover verification included in the examples cannnot be properly displayed by the 
+\panels tool. This is due to the fact that the snow cover being processed is in a binary format (0 for no snow, 1 for snow),
+while the Fraction Skill Score display expects more than one threshold. This will be fixed in future versions.
+
+%For the snow cover verification presented
+%Data used: - CARRA1 West domain in regular lat lon grid (fraction of snow cover). - Snow cover data (probability of snow) provided by MetNorway
 
 %\section{References}
 
