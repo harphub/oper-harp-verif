@@ -1,0 +1,10 @@
+renv*
+.Rprofile
+*.pdf
+*.png
+*.swp
+*.grb
+*.nat
+*.h5
+*.sqlite
+*dump

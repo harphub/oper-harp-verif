@@ -1,0 +1,24 @@
+#total integral of rain flux
+'tirf' = {
+         discipline = 0 ;
+         parameterCategory = 1 ;
+         parameterNumber = 65 ;
+         centre = 65535;
+        }
+
+#Graupel (snow pellets) precipitation
+'tgrp' = {
+         discipline = 0 ;
+         parameterCategory = 1 ;
+         parameterNumber = 75 ;
+         centre = 65535;
+        }
+
+#total snow precipitation
+'tsnowp' = {
+         discipline = 0 ;
+         parameterCategory = 1 ;
+         parameterNumber = 66 ;
+         centre = 65535;
+        }
+

@@ -1,0 +1,32 @@
+#######################################
+### DEFINE MODELS, DATE, LEAD_TIMES ###
+#######################################
+ 
+### Those parameters are here case study dependent due to the availability of data ### 
+verify_case:
+        snow_verif:
+                def_param : fscov
+                init_time : 2015050100
+                lead_time : 0
+models :
+        - carra
+
+#########################################
+### Define which config files to use: ###
+#########################################
+
+### READING of the models/obs
+carra :
+        fscov :
+                definition_file : "definitions_snow_data.R"
+
+### PLOTTING of the fields
+plt_config:
+        fscov  : "definitions_snow_plotting.R"
+
+########################
+### Additional Plots ###
+########################
+save_additional_plt : 
+        FSS    : TRUE
+        fields : TRUE
