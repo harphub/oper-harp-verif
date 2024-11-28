@@ -104,4 +104,32 @@ runApp("visapp")
 
 ```
 
+### Visualizing the results direcly in atos
+It is possible to run the shiny web server directly on atos and open a local browser
+to visualized the results `img_dir` using the `launch_visapp_atos.R` script.
 
+1. Soft link the path with the image results in the `sample_images` directory.
+```
+cd visapp/sample_images/
+ln -sf some_path_somewhere local_name_of_the_path
+cd ../..
+module load R #mind the version where you installed harp
+Rscript launch_visapp_atos.R
+```
+
+2. Open a new terminal and ssh to one of the atos login nodes
+```
+ssh -L 9999:localhost:9999 ac6-102
+```
+
+3. Open the browser on `http://127.0.0.1:9999/` that should show up after doing step 1.
+ 
+or simply click on the link displayed in the terminal.
+
+This will open a local browser in your local pc showing the shiny app there
+while the png files are in the remote server.
+
+Yo might need to install the `shinyWidgets` app.
+
+The same is valid for visualizing the results interactively using the `rds` files.
+In this case use the `launch_dynamicapp_atos.R` instead of `launch_visapp_atos.R` in step 1.
