@@ -18,14 +18,15 @@ This should install fairly easily on the atos supercomputer at ECMWF.
 To install packages required by this repo, you can use:
 ``` r
 pkg_list <- c("here","argparse","yaml","dplyr","tidyr",
-              "purr","forcats","stringr","RColorBrewer","grid",
-              "gridExtra","pracma","RSQlite","scales","pals",
-              "shiny","shinyWidgets","lubridate")
+              "purrr","forcats","stringr","RColorBrewer","grid",
+              "gridExtra","pracma","RSQLite","scales","pals",
+              "shiny","shinyWidgets","lubridate","scico","cowplot","sf")
 for (pkg in pkg_list) {
   install.packages(pkg)
 }
 ```
 
+Note that installation of the package `sf` can sometimes be problematic. These scripts only require `sf` for polygon station filtering. If you do not require polygon filtering, then `sf` does not have to be installed. If you try to use polygon filtering and `sf` is not found, polygon filtering will simply be skipped.
 In order to install the latest version of harp from the main branch in github, you can use:
 ``` r
 install.packages("remotes")
@@ -111,7 +112,9 @@ Create a configuration file for your project using the structure provided in the
 | pre   | params       | Which parameters to consider when generating the sqlite tables from vfld. See `harpIO::show_harp_parameters` and `harpIO::harp_params` for recognised vfld parameters in harp. Set to NULL to convert everything found. | params: <br> - T2m <br> - Td2m <br> - T <br> <br> To convert everything found in the vfld: <br> params: <br> - NULL |
 | post  | plot_output | A root directory indicating where to save the png files generated during the verification process. For a given project, the png files will be stored in `post:plot_output`/`verif:project_name`. Set to "default" to use `verif:verif_path`/archive. | plot_output: "/path/to/png" |
 | post  | create_png  | Flag to indicate if png files should be generated. | create_png: TRUE | 
-| post  | cmap        | What palette to use for the line plots. Choose from a palette in RColorBrewer or "trubetskoy". Defaults to "Set2" if not specified | cmap: "trubetskoy" | 
+| post  | cmap        | What palette to use for the line plots. Choose from a palette in RColorBrewer or "trubetskoy". Defaults to "Set2" if not specified | cmap: "trubetskoy" |
+| post  | cmap_hex    | What pallete to use for scatterplots. Choose from "paired" (RColorBrewer), "magma", "viridis", or a scico pallette (see scico::scico_pallete_names). Defaults to magma. | cmap_hex: "bukavu" |
+| post  | map_cbar_d  | Logcial flag to indicate if a discrete colourbar (with fixed breaks and bounds) should be used in the station map plots as opposed to a continuous one where the bounds change depending on the data. Defaults to "FALSE" if not specified. | map_cbar_discrete: TRUE |
 | scorecards | create_scrd | Logical switch to produce scorecard data, save the data, and plot the scorecard. | create_scrd: TRUE | 
 | scorecards | ref_model   | The reference model for the scorecards. | ref_model: "old_model" |
 | scorecards | fcst_model  | The “new” model for the scorecards (i.e. score differences are `scorecards:fcst_model` - `scorecards:ref_model`). | fcst_model: "new_model" | 

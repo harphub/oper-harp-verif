@@ -60,6 +60,8 @@ post:
   plot_output: "/path/to/png_output"        # Can set to "default" to use verif_path/archive
   create_png: TRUE
   cmap: "trubetskoy"                        # A palette from RColorBrewer or trubetskoy (in pals). Defaults to Set2
+  cmap_hex: "magma"                         # Colour pallete for scatterplots (one of "paired", "magma", "viridis", or a scico pallette). Defaults to magma
+  map_cbar_d: FALSE                         # Use discrete breaks instead of a continuous colourbar for the station map plots
 scorecards:
   create_scrd: TRUE                         # Flag to run scorecard generation or not
   ref_model: model_1

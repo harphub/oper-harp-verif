@@ -10,6 +10,7 @@ fn_plot_point_verif <- function(harp_verif_input,
                                      png_archive,
                                      plot_num_cases = TRUE,
                                      cmap = "Set2",
+                                     map_cbar_d = FALSE,
                                      table_SIDS = FALSE,
                                      compare_mbr000 = TRUE,
                                      png_projname = NA_character_,
@@ -50,6 +51,9 @@ fn_plot_point_verif <- function(harp_verif_input,
   } else {
     stop("Input does not look like a harpPoint verification object, aborting")
   }
+  
+  # Add in check on whether to split up threshold column
+  verif <- fn_split_thr(verif)
 
   #=================================================#
   # USER INTERACTION REQUIRED HERE TO DEFINE
@@ -139,7 +143,7 @@ fn_plot_point_verif <- function(harp_verif_input,
     
     xgroups    <- c("lead_time",
                     "valid_dttm",
-                    "threshold",
+                    "threshold_val",
                     "SID",
                     "p_leadtime",
                     "p_prof")
@@ -251,7 +255,7 @@ fn_plot_point_verif <- function(harp_verif_input,
     # What groups are considered? (see description in "det" section above) 
     xgroups    <- c("lead_time",
                     "valid_dttm",
-                    "threshold",
+                    "threshold_val",
                     "SID",
                     "other",
                     "p_leadtime",
@@ -314,7 +318,7 @@ fn_plot_point_verif <- function(harp_verif_input,
   # More useful attributes
   all_summary_scores   <- names(verif[[paste0(fcst_type,"_summary_scores")]])
   all_threshold_scores <- names(verif[[paste0(fcst_type,"_threshold_scores")]])
-  threshold_vals       <- unique(verif[[paste0(fcst_type,"_threshold_scores")]][["threshold"]])
+  threshold_vals       <- unique(verif[[paste0(fcst_type,"_threshold_scores")]][["threshold_val"]])
   
   #================================================#
   # FIGURE OPTIONS
@@ -378,6 +382,7 @@ fn_plot_point_verif <- function(harp_verif_input,
                         "fw_map"       = fw_map,
                         "fh_map"       = fh_map,
                         "mcolors"      = mcolors,
+                        "map_cbar_d"   = map_cbar_d,
                         "ens_spec"     = ens_spec,
                         "line_styles"  = line_styles,
                         "line_size"    = line_size,
@@ -389,7 +394,9 @@ fn_plot_point_verif <- function(harp_verif_input,
                         "fig_units"    = fig_units,
                         "fig_dpi"      = fig_dpi,
                         "png_projname" = png_projname,
-                        "score_sep"    = score_sep)
+                        "score_sep"    = score_sep, 
+                        "comp_val"     = attributes(verif)$comp_val,
+                        "thr_brks"     = attributes(verif)$thr_brks)
   
   #=====================================================#
   # NOW DO THE PLOTTING
@@ -420,7 +427,7 @@ fn_plot_point_verif <- function(harp_verif_input,
     } else if (xgroup == "valid_hour") {
       xg_str <- "vh"
       scores <- sscores_vh
-    } else if (xgroup == "threshold") {
+    } else if (xgroup == "threshold_val") {
       xg_str <- "th"
       scores <- scores_th
     } else if (xgroup == "other") {
@@ -454,7 +461,7 @@ fn_plot_point_verif <- function(harp_verif_input,
         c_typ       <- "threshold"
         c_ftyp      <- fcst_type
         score_orig  <- score
-        if (xgroup == "threshold") {
+        if (xgroup == "threshold_val") {
           cycles_oi <- cycles_threshold_th
         } else {
           cycles_oi <- cycles_threshold_lt
@@ -481,7 +488,7 @@ fn_plot_point_verif <- function(harp_verif_input,
       # when multiple xgroups are available. Not relevant for UA variables
       # as fcst_cycle is not a grouping variable.
       # This ensures that values relevant to this xgroup are used
-      if ((xgroup %in% c("lead_time","valid_hour","valid_dttm","threshold")) &
+      if ((xgroup %in% c("lead_time","valid_hour","valid_dttm","threshold_val")) &
           (xgroup %in% cnames)) {
         c_ver          <- c_ver %>% dplyr::filter(get(xgroup) != "All")
       }
@@ -629,7 +636,7 @@ fn_plot_point_verif <- function(harp_verif_input,
             if (c_typ == "threshold") {
               
               # Here we are either plotting as a fn of lead_time or threshold
-              if (xgroup == "threshold") {
+              if (xgroup == "threshold_val") {
                 loop_values <- leadtime_vals
                 filter_col  <- "lead_time"
                 verif_III   <- verif_II %>%
@@ -637,7 +644,7 @@ fn_plot_point_verif <- function(harp_verif_input,
                                          valid_dttm == "All")
               } else if (xgroup == "lead_time") {
                 loop_values <- threshold_vals
-                filter_col  <- "threshold"
+                filter_col  <- "threshold_val"
                 # Remove case where we have threshold scores over all leadtimes
                 verif_III   <- harpPoint::filter_list(verif_II,
                                                       lead_time != "All",
@@ -649,7 +656,7 @@ fn_plot_point_verif <- function(harp_verif_input,
                                                      get(filter_col) == ii)
                 c_subtitle <- paste0(subtitle_str," : ",
                                      stringr::str_to_title(filter_col)," = ",ii)
-                if (xgroup == "threshold") {
+                if (xgroup == "threshold_val") {
                   vlt <- ii
                   vth <- "NA"
                   if ( (ii == "All") & (!is.null(alta))) {
@@ -679,12 +686,7 @@ fn_plot_point_verif <- function(harp_verif_input,
                   p_numcases <- fn_plot_numcases(verif_IIII,
                                                  fxoption_list,
                                                  vroption_list)
-                  p_c        <- gridExtra::grid.arrange(p_c,
-                                                        p_numcases,
-                                                        ncol = 1,
-                                                        nrow = 2,
-                                                        widths = c(4),
-                                                        heights = c(4,1))
+                  p_c        <- fn_nc_combine(p_c,p_numcases)
                 }
                 # Save png
                 fn_save_png(p_c           = p_c,
@@ -723,12 +725,7 @@ fn_plot_point_verif <- function(harp_verif_input,
                 p_numcases <- fn_plot_numcases(verif_III,
                                                fxoption_list,
                                                vroption_list)
-                p_c <- gridExtra::grid.arrange(p_c,
-                                               p_numcases,
-                                               ncol = 1,
-                                               nrow = 2,
-                                               widths = c(4),
-                                               heights = c(4,1))
+                p_c        <- fn_nc_combine(p_c,p_numcases)
               }
               
               fn_save_png(p_c           = p_c,
@@ -773,7 +770,7 @@ fn_plot_point_verif <- function(harp_verif_input,
                   verif_IIII           <- verif_III
                   verif_IIII[[c_tstr]] <- dplyr::filter(verif_IIII[[c_tstr]],
                                                         lead_time == lt,
-                                                        threshold == th)
+                                                        threshold_val == th)
                   if (th < 0) {
                     vth <- paste0("m",abs(th))
                   } else {
@@ -960,12 +957,7 @@ fn_plot_point_verif <- function(harp_verif_input,
                   p_numcases <- fn_plot_numcases(verif_III,
                                                  fxoption_list,
                                                  vroption_list)
-                  p_c <- gridExtra::grid.arrange(p_c,
-                                                 p_numcases,
-                                                 ncol    = 1,
-                                                 nrow    = 2,
-                                                 widths  = c(4),
-                                                 heights = c(4,1))
+                  p_c        <- fn_nc_combine(p_c,p_numcases)
                 }
                 
                 fn_save_png(p_c           = p_c,

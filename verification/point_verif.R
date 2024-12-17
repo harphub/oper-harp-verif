@@ -25,7 +25,25 @@ suppressPackageStartupMessages({
   library(RSQLite) # For station selection
   library(scales) # For hue_pal()
   library(pals) # For trubetskoy palette
+  library(scico) # For more (and better) colour palettes
 })
+
+# Check some optional packages
+if ("sf" %in% rownames(installed.packages())) {
+  library(sf)
+  sf_available <- T
+} else {
+  warning("sf package not found - filtering via poly files will not work and will be skipped!\n")
+  sf_available <- F
+}
+if ("cowplot" %in% rownames(installed.packages())) {
+  library(cowplot)
+  cowplot_available <- T
+} else {
+  warning("cowplot package not found\n")
+  cowplot_available <- F
+}
+
 source(here::here("verification/fn_station_selection.R"))
 source(here::here("verification/fn_verif_helpers.R"))
 source(here::here("visualization/fn_plot_point_verif.R"))
@@ -160,6 +178,8 @@ models_to_scale <- CONFIG$verif$models_to_scale
 plot_output     <- CONFIG$post$plot_output
 create_png      <- CONFIG$post$create_png
 cmap            <- CONFIG$post$cmap
+cmap_hex        <- CONFIG$post$cmap_hex
+map_cbar_d      <- CONFIG$post$map_cbar_d
 create_scrd     <- CONFIG$scorecards$create_scrd
 
 # Convert members and lags to named lists for read_point_forecast
@@ -287,6 +307,16 @@ grps_UA_default      <- grps_UA_default[grepl("station_group",
 # Set the default cmap (RColorbrewer assumed)
 if (is.null(cmap)) {
   cmap <- "Set2"
+}
+
+# Set the default cmap_hex
+if (is.null(cmap_hex)) {
+  cmap_hex <- "magma"
+}
+
+# Set the default map_cbar_d
+if (is.null(map_cbar_d)) {
+  map_cbar_d <- FALSE
 }
 
 # Check if num_ref_members is not set
@@ -766,6 +796,7 @@ run_verif <- function(prm_info, prm_name) {
                               png_projname = png_projname,
                               rolling_verif = rolling_verif,
                               cmap = cmap,
+                              cmap_hex = cmap_hex,
                               fsd  = fsd,
                               fed  = fed)
     }
@@ -814,6 +845,9 @@ run_verif <- function(prm_info, prm_name) {
     # 1) threshold scores are activated
     # 2) valid_dttm/hour have not been used above i.e. force_valid_thr=F
     if ((!is.null(thresholds_param)) & (!force_valid_thr)) {
+      # First store the threshold type in verif
+      vttype <- typeof(verif[[2]]$threshold[[1]])
+      
       verif_others <- do.call(
         get(verif_fn),
         c(list(.fcst      = fcst,
@@ -823,11 +857,26 @@ run_verif <- function(prm_info, prm_name) {
       ) %>% fn_verif_rename(.,par_unit)
       verif <- bind_point_verif(verif,verif_others) %>%
         select_list(-parameter)
-      # Add in valid_hour and valid_dttm = All After binding, "threshold" 
-      # switches to "chr", so switch it back.
-      verif[[2]] <- verif[[2]] %>% mutate(threshold  = as.double(threshold),
-                                          valid_hour = "All",
+      # Add in valid_hour and valid_dttm = All 
+      verif[[2]] <- verif[[2]] %>% mutate(valid_hour = "All",
                                           valid_dttm = "All")
+    
+      # After binding, it may be necesssary to switch "threshold" back to it's
+      # original type (e.g. changed from dbl to "chr")
+      nvttype <- typeof(verif[[2]]$threshold[[1]])
+      if (nvttype != vttype){
+        cat("After bpverif, threshold type changed from",vttype,"to",nvttype,"\n")
+        if (vttype == "double") {
+          verif[[2]] <- verif[[2]] %>% mutate(threshold  = as.double(threshold))
+        } else if (vttype == "character") {
+          verif[[2]] <- verif[[2]] %>% mutate(threshold  = as.character(threshold))
+        } else if (vttype == "integer") {
+          verif[[2]] <- verif[[2]] %>% mutate(threshold  = as.integer(threshold))
+        } else {
+          stop("Why are we here?")
+        }
+      }
+     
       # par_unit missing after binding
       attr(verif,"par_unit") <- par_unit
     }
@@ -950,6 +999,7 @@ run_verif <- function(prm_info, prm_name) {
                                png_projname = png_projname,
                                rolling_verif = rolling_verif,
                                cmap = cmap,
+                               map_cbar_d = map_cbar_d,
                                fsd  = fsd,
                                fed  = fed)
       if (is.na(vertical_coordinate)) {
@@ -959,6 +1009,7 @@ run_verif <- function(prm_info, prm_name) {
                                  png_projname = png_projname,
                                  rolling_verif = rolling_verif,
                                  cmap = cmap,
+                                 map_cbar_d = map_cbar_d,
                                  fsd  = fsd,
                                  fed  = fed)
       }
