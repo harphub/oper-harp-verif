@@ -34,12 +34,16 @@ suppressPackageStartupMessages({
   library(RSQLite)
 })
 
-if ("sf" %in% rownames(installed.packages())) {
-  library(sf)
-  sf_available <- TRUE
+if (!exists("sf_available")) {
+  if ("sf" %in% rownames(installed.packages())) {
+    library(sf)
+    sf_available <- TRUE
+  } else {
+    warning("sf package not found - filtering via poly files will not work and will be skipped!\n")
+    sf_available <- FALSE
+  }
 } else {
-  warning("sf package not found - filtering via poly files will not work and will be skipped!\n")
-  sf_available <- FALSE
+  cat("sf_available inherited\n")
 }
 
 fn_station_selection <- function(domain_choice = "All_Domains",
@@ -1189,10 +1193,10 @@ station_map <- function(df,domain,polygon = NULL){
     min_lat <- bbox$ymin
     max_lat <- bbox$ymax
   } else {
-    min_lon      <- min(df[["lon"]]) - 0.5
-    max_lon      <- max(df[["lon"]]) + 0.5
-    min_lat      <- min(df[["lat"]]) - 0.5
-    max_lat      <- max(df[["lat"]]) + 0.5  
+    min_lon      <- min(df[["lon"]]) - 0.2
+    max_lon      <- max(df[["lon"]]) + 0.2
+    min_lat      <- min(df[["lat"]]) - 0.2
+    max_lat      <- max(df[["lat"]]) + 0.2  
   }
   
   if ("elevmap" %in% names(df)) {

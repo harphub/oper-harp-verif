@@ -9,6 +9,40 @@
 numbers_only <- function(x) !grepl("\\D", x)
 
 #================================================#
+# HELPER FUNCTION TO COMBINE IMAGE WITH NUM_CASES
+#================================================#
+
+fn_nc_combine <- function(p,p_nc,h1=4,h2=1) {
+  
+  if (!exists("cowplot_available")) {
+    if ("cowplot" %in% rownames(installed.packages())) {
+      library(cowplot)
+      cowplot_available <- T
+    } else {
+      cowplot_available <- F
+    }
+  }
+  
+  if (cowplot_available) {
+    p_c <- cowplot::plot_grid(p,
+                              p_nc,
+                              align = "v",
+                              ncol  = 1,
+                              nrow  = 2,
+                              rel_heights = c(h1/5,h2/5))
+  } else {
+    p_c <- gridExtra::grid.arrange(p,
+                                   p_nc,
+                                   ncol = 1,
+                                   nrow = 2,
+                                   heights = c(h1,h2))
+  }
+  
+  return(p_c)
+  
+}
+
+#================================================#
 # HELPER FUNCTION TO DEFINE THE PNG NAME
 #================================================#
 
@@ -224,6 +258,8 @@ fn_plot_point <- function(verif,
   fig_dpi      <- fxoption_list$fig_dpi
   png_projname <- fxoption_list$png_projname
   score_sep    <- fxoption_list$score_sep
+  comp_val     <- fxoption_list$comp_val
+  thr_brks     <- fxoption_list$thr_brks
   
   if (all(grepl("_scores",names(verif)))) {
     df <- verif[[paste0(c_ftyp,"_",c_typ,"_scores")]]
@@ -234,8 +270,25 @@ fn_plot_point <- function(verif,
   # x/y labels
   xl <- gsub("_"," ",stringr::str_to_title(xgroup))
   yl <- par_unit             
-  if (xgroup == "threshold") {
-    xl <- paste0(xl," (",par_unit,")")
+  if (xgroup == "threshold_val") {
+    if (comp_val == "ge") {
+      cvstr <- ">= Threshold"
+    } else if (comp_val == "gt") {
+      cvstr <- "> Threshold"
+    } else if (comp_val == "le") {
+      cvstr <- "<= Threshold"
+    } else if (comp_val == "lt") {
+      cvstr <- "< Threshold"
+    } else if (comp_val == "eq") {
+      cvstr <- "= Threshold"
+    } else if (comp_val == "between"){
+      cvstr <- "Classes (between)"
+    } else if (comp_val == "outside") {
+      cvstr <- "Classes (outside)"
+    } else {
+      stop("Comp_val abort!")
+    }
+    xl <- paste0(cvstr," (",par_unit,")")
     yl <- ""
   } else if (xgroup == "mids") {
     xl <- par_unit
@@ -419,6 +472,16 @@ fn_plot_point <- function(verif,
                                            color      = "black",
                                            linetype   = "dashed")
     }
+
+    if (xgroup == "lead_time") {
+      cp_xlim <- ggplot2::layer_scales(p_out)$x$range$range
+      if ((cp_xlim[2] - cp_xlim[1]) < 12) {
+        lt_sep <- 1
+      } else {
+        lt_sep <- 6
+      }
+      p_out <- p_out + ggplot2::scale_x_continuous(breaks = seq(0,720,lt_sep))
+    }
     return(p_out)
     
   } else {
@@ -484,9 +547,18 @@ fn_plot_point <- function(verif,
                                           linetype   = "dashed")
     }
     
-    # Change to log axis for precip threhsold scores
-    if (grepl("AccPcp",param,fixed = TRUE) & (xgroup == "threshold")) {
-      p_out <- p_out + ggplot2::scale_x_continuous(trans = "log10")
+    # Change to log axis for precip threshold scores, and add breaks
+    if (xgroup == "threshold_val") {
+      if (grepl("AccPcp",param,fixed = TRUE)) {
+        p_out <- p_out + ggplot2::scale_x_continuous(trans = "log10",
+                                                     breaks = thr_brks,
+                                                     minor_breaks = NULL)
+      } else {
+        p_out <- p_out + ggplot2::scale_x_continuous(breaks = thr_brks,
+                                                     minor_breaks = NULL)
+      }
+      p_out <- p_out + ggplot2::theme(
+        axis.text.x = ggplot2::element_text(angle = 45,vjust = 0.75))
     }
     
     # Change the breaks for lead_time/validhour plots
@@ -499,7 +571,8 @@ fn_plot_point <- function(verif,
       }
       p_out <- p_out + ggplot2::scale_x_continuous(breaks = seq(0,720,lt_sep))
     } else if (xgroup == "valid_hour") {
-      p_out <- p_out + ggplot2::scale_x_continuous(breaks = seq(0,21,3))
+      p_out <- p_out + ggplot2::scale_x_continuous(breaks = seq(0,21,3),
+                                                   minor_breaks = NULL)
     } else if (xgroup == "mids") {
       if (vroption_list$log_ind) {
         p_out <- p_out + ggplot2::scale_x_continuous(
@@ -548,6 +621,7 @@ fn_plot_numcases <- function(verif,
   ptheme_nc   <- fxoption_list$ptheme_nc
   mcolors     <- fxoption_list$mcolors
   param       <- fxoption_list$param
+  thr_brks    <- fxoption_list$thr_brks
   
   if (all(grepl("_scores",names(verif)))) {
     df <- verif[[paste0(c_ftyp,"_",c_typ,"_scores")]]
@@ -609,17 +683,28 @@ fn_plot_numcases <- function(verif,
     p_out    <- p_out + ggplot2::scale_y_continuous(
       trans  = "pseudo_log",
       breaks = c_breaks,
-      labels = as.character(c_breaks))
+      labels = as.character(c_breaks),
+      minor_breaks = FALSE)
   } else {
     c_breaks <- unique(round(pracma::linspace(p_ylim[1],p_ylim[2],3),0))
     p_out    <- p_out + ggplot2::scale_y_continuous(
       breaks = c_breaks,
-      labels = as.character(c_breaks))
+      labels = as.character(c_breaks),
+      minor_breaks = FALSE)
   }
   
-  # Change to log axis for precip threhsold scores
-  if (grepl("AccPcp",param,fixed = TRUE) & (xgroup == "threshold")) {
-    p_out <- p_out + ggplot2::scale_x_continuous(trans = "log10")
+  # Change to log axis for precip threshold scores, and add breaks
+  if (xgroup == "threshold_val") {
+    if (grepl("AccPcp",param,fixed = TRUE)) {
+      p_out <- p_out + ggplot2::scale_x_continuous(trans = "log10",
+                                                   breaks = thr_brks,
+                                                   minor_breaks = NULL)
+    } else {
+      p_out <- p_out + ggplot2::scale_x_continuous(breaks = thr_brks,
+                                                   minor_breaks = NULL)
+    }
+    p_out <- p_out + ggplot2::theme(
+      axis.text.x = ggplot2::element_text(angle = 45,vjust = 0.75))
   }
 
   # Change the breaks for lead_time/validhour plots
@@ -632,7 +717,8 @@ fn_plot_numcases <- function(verif,
     }
     p_out <- p_out + ggplot2::scale_x_continuous(breaks = seq(0,720,lt_sep))
   } else if (xgroup == "valid_hour") {
-    p_out <- p_out + ggplot2::scale_x_continuous(breaks = seq(0,21,3))
+    p_out <- p_out + ggplot2::scale_x_continuous(breaks = seq(0,21,3),
+                                                 minor_breaks = NULL)
   } else if (xgroup == "mids") {
     if (vroption_list$log_ind) {
       p_out <- p_out + ggplot2::scale_x_continuous(
@@ -671,6 +757,8 @@ fn_plot_map <- function(verif,
   par_unit   <- fxoption_list$par_unit
   station    <- vroption_list$station
   score_sep  <- fxoption_list$score_sep
+  param      <- fxoption_list$param
+  map_cbar_d <- fxoption_list$map_cbar_d
   df         <- verif[[paste0(c_ftyp,"_",c_typ,"_scores")]]
   
   # Split sscore into its individual parts
@@ -691,10 +779,6 @@ fn_plot_map <- function(verif,
     # Colorbar options
     c_min   <- min(df[[score]],na.rm = TRUE)
     c_max   <- max(df[[score]],na.rm = TRUE)
-    c_min   <- c_min - 0.1
-    c_max   <- c_max + 0.1
-    c_min   <- round(c_min,1)
-    c_max   <- round(c_max,1)
     min_lon <- min(df[["lon"]])
     max_lon <- max(df[["lon"]])
     min_lat <- min(df[["lat"]])
@@ -705,36 +789,13 @@ fn_plot_map <- function(verif,
 	   warning("Skipping map plotting as only one SID found")
 	   return(NA_character_)
     }
- 
-    # Modify default min/max lat/lon for a more readable plot
-    if (station %in% c("DINI","All")) {
-      #min_lon = max(-30,min_lon)
-      max_lon = min(17.0,max_lon)
-      min_lat = max(42.5,min_lat)
-      #max_lat = min(68,max_lat)
-    }
     
     p_map <- df %>% ggplot2::ggplot(aes(lon,lat,
                                         fill = get(score),
                                         size = abs(get(score))))
     
-    if (grepl("bias",score)) {
-      p_map_col <- ggplot2::scale_fill_gradient2(
-        paste0("(",par_unit,")"),
-        guide    = ggplot2::guide_colourbar(title.position = "top"),
-        low      = "blue4",
-        mid      = "white",
-        high     = "red4",
-        n.breaks = 5,
-        limits   = c(c_min,c_max))
-    } else {
-      p_map_col <- ggplot2::scale_fill_viridis_c(
-        paste0("(",par_unit,")"),
-        option    = "A",
-        direction = -1,
-        guide     = ggplot2::guide_colourbar(title.position = "top"),
-        limits    = c(c_min,c_max))
-    }
+    # Get the cmap and brks
+    cbar_opts <- fn_get_map_cbar(map_cbar_d,c_min,c_max,score,param,par_unit)
     
     p_map <- p_map + 
       ggplot2::geom_polygon(data        = ggplot2::map_data("world"),
@@ -743,11 +804,8 @@ fn_plot_map <- function(verif,
                             colour      = "black",
                             inherit.aes = FALSE) +  
       ggplot2::geom_point(colour = 'grey40',pch = 21) + 
-      ggplot2::coord_map(projection = "lambert",
-                         lat0       = 63,
-                         lat1       = 63,
-                         xlim       = c(min_lon,max_lon),
-                         ylim       = c(min_lat,max_lat)) +
+      ggplot2::coord_sf(xlim = c(min_lon-0.2,max_lon+0.2),
+                        ylim = c(min_lat-0.2,max_lat+0.2)) +
       ggplot2::theme(
             panel.background          = ggplot2::element_rect(fill = "grey95"),
             panel.grid                = ggplot2::element_blank(),
@@ -756,10 +814,11 @@ fn_plot_map <- function(verif,
             axis.title                = ggplot2::element_blank(),
             plot.title                = ggplot2::element_text(size = 12),
             plot.title.position       = "plot",
-            legend.text               = ggplot2::element_text(size = 10),
+            legend.text               = ggplot2::element_text(size = 8),
             plot.subtitle             = ggplot2::element_text(size = 8), 
-            legend.title              = ggplot2::element_text(size = 12),
+            legend.title              = ggplot2::element_text(size = 10),
             legend.position           = "right", 
+            legend.key.height         = unit(1.5,"cm"),
             strip.background          = ggplot2::element_rect(fill = "white"),
             strip.text                = ggplot2::element_text(size = 12)) +
       ggplot2::facet_wrap(
@@ -772,13 +831,178 @@ fn_plot_map <- function(verif,
                     size     = "") +
       ggplot2::guides(size = "none") # Remove size label from legend
     
-    p_map <- p_map + p_map_col
+    if (map_cbar_d) {
+      p_map <- p_map + ggplot2::binned_scale(
+        name = paste0("(",par_unit,")"),
+        aesthetics = "fill",
+        palette = function(x) cbar_opts$cmap,
+        breaks = cbar_opts$brks,
+        limits = c(min(cbar_opts$brks),max(cbar_opts$brks)),
+        labels = function(x) round(x,2),
+        oob = scales::squish,
+        guide = "colorsteps"
+      ) 
+    } else {
+      p_map <- p_map + cbar_opts$cmap
+    }
     
     return(p_map)
   } else {
     warning("Cannot plot maps as lat/lon missing or multiple scores specified")
     return(NA_character_)
   }
+  
+}
+
+#================================================#
+# DEFINE THE COLOURBAR OPTIONS USED IN MAP PLOTTING
+#================================================#
+
+fn_get_map_cbar <- function(map_cbar_d,c_min,c_max,score,param,par_unit){
+  
+  if (map_cbar_d){
+    
+  # First define the breaks based on the parameter
+  # Largely following those in Monitor
+  if (param %in% c("Pmsl")) {
+    if (score %in% c("bias","mean_bias")) {
+      brks <- seq(-5,-0.5,0.5)
+      brks <- c(brks,-0.25,0.25,-rev(brks))
+    } else {
+      brks <- seq(0,5,0.5)
+    }
+  } else if (param %in% c("T2m","Td2m","Q2m","Tmax","Tmin")) {
+    if (score %in% c("bias","mean_bias")) {
+      brks <- seq(-6,-1,1)
+      brks <- c(brks,-0.5,0.5,-rev(brks))
+    } else {
+      brks <- seq(0,10,1)
+    }
+  } else if (param %in% c("S10m","Gmax","Smax","G10m")) {
+    if (score %in% c("bias","mean_bias")) {
+      brks <- seq(-10,-1,1)
+      brks <- c(brks,-0.5,0.5,-rev(brks))
+    } else {
+      brks <- seq(0,15,1)
+    }
+  } else if (param %in% c("D10m")){
+    if (score %in% c("bias","mean_bias")){
+      brks <- seq(-180,-30,30)
+      brks <- c(brks,-15,15,-rev(brks))
+    } else {
+      brks <- seq(0,180,30)
+    }
+  } else if (param %in% c("RH2m")){
+    if (score %in% c("bias","mean_bias")) {
+      brks <- seq(-25,-5,5)
+      brks <- c(brks,-2.5,2.5,-rev(brks))
+    } else {
+      brks <- seq(0,100,10)
+    }
+  } else if (param %in% c("vis","Cbase")){
+    if (score %in% c("bias","mean_bias")) {
+      brks <- c(-40000,-30000,-20000,-10000,-5000,-2500,-1000)
+      brks <- c(brks,-rev(brks))
+    } else {
+      brks <- c(0,2500,5000,10000,15000,20000,25000,30000,40000,50000)
+    }
+  } else if (param %in% c("CCtot","CClow","CCmed","CChigh","N75")){
+    if (score %in% c("bias","mean_bias")) {
+      brks <- seq(-8,-2,2)
+      brks <- c(brks,-1,1,-rev(brks))
+    } else {
+      brks <- seq(0,8,1)
+    }
+  } else if (grepl("Pcp",param,fixed=T)) {
+    if (score %in% c("bias","mean_bias")) {
+      brks <- seq(-20,-2.5,2.5)
+      brks <- c(brks,-1,1,-rev(brks))
+    } else {
+      brks <- c(seq(0,10,2),12.5,15,17.5,20,25,30,35)
+    }
+  } else {
+    stop("Need to add this param in cmap defs!")
+  }
+  
+  # Then get the cmap
+  if (score %in% c("bias","mean_bias")) {
+    scico_pal <- "vik"
+    scico_dir <- 1
+  } else {
+    scico_pal <-"lipari"
+    scico_dir <- -1
+  }
+  cmap <- scico::scico(length(brks)-1,
+                       palette   = scico_pal,
+                       direction = scico_dir)
+  
+  # Then filter the cmap to just the colours which cover the range cmin-cmax
+  bl <- brks[brks<=c_min]
+  if (length(bl) > 1){
+    bl_ind <- which(brks == tail(bl,1))
+    bl_val <- NULL
+  } else { 
+    bl_ind <- 1
+    bl_val <- round(c_min,1)
+  }
+  bu <- brks[brks>=c_max]
+  if (length(bu) > 1){
+    bu_ind <- which(brks == bu[1])
+    bu_val <- NULL
+  } else {
+    bu_ind <- length(brks)
+    bu_val <- round(c_max,1)
+  }
+  
+  cmap_out <- cmap[bl_ind:(bu_ind-1)] 
+  brks_out <- brks[bl_ind:bu_ind]
+  
+  # If we are outside the limits defined by brks, add in the extremes
+  if (!is.null(bl_val) & (score %in% c("bias","mean_bias"))) {
+    brks_out <- c(bl_val,brks_out)
+    cmap_out <- c("darkorchid3",cmap_out)
+  }
+  if (!is.null(bu_val)){
+    brks_out <- c(brks_out,bu_val)
+    if (score %in% c("bias","mean_bias")) {
+      up_col <- "hotpink2"
+    } else {
+      up_col <- "darkorchid3"
+    }
+    cmap_out <- c(cmap_out,up_col)
+  }
+  
+  } else {
+    
+  c_min   <- c_min - 0.1
+  c_max   <- c_max + 0.1
+  c_min   <- round(c_min,1)
+  c_max   <- round(c_max,1)
+  
+  if (grepl("bias",score)) {
+    cmap_out <- ggplot2::scale_fill_gradient2(
+      paste0("(",par_unit,")"),
+      guide    = ggplot2::guide_colourbar(title.position = "top"),
+      low      = "blue4",
+      mid      = "white",
+      high     = "red4",
+      n.breaks = 5,
+      limits   = c(c_min,c_max))
+  } else {
+    cmap_out <- ggplot2::scale_fill_viridis_c(
+      paste0("(",par_unit,")"),
+      option    = "A",
+      direction = -1,
+      guide     = ggplot2::guide_colourbar(title.position = "top"),
+      limits    = c(c_min,c_max))
+  }
+  
+  brks_out <- NULL
+    
+  }
+  
+  return(list("cmap" = cmap_out,
+              "brks" = brks_out))
   
 }
 
@@ -1154,12 +1378,7 @@ fn_dvar_ts <- function(fc,
     p_nc  <- fn_plot_numcases(dv,
                               fxoption_list,
                               vroption_list)
-    p_c   <- gridExtra::grid.arrange(p_c,
-                                     p_nc,
-                                     ncol    = 1,
-                                     nrow    = 2,
-                                     widths  = c(4),
-                                     heights = c(4,1))
+    p_c   <- fn_nc_combine(p_c,p_nc)
   }
   
   fn_save_png(p_c           = p_c,
@@ -1341,7 +1560,7 @@ fn_freqhist <- function(fc,
     log_ind <- TRUE
   } else if (param %in% c("AccPcp1h","AccPcp3h","AccPcp6h",
                           "AccPcp12h","AccPcp24h")) {
-    p_breaks <- c(0.1,0.25,0.5,1,2.5,5,7.5,10,12.5,15,17.5,20,25,30)
+    p_breaks <- c(0.1,0.25,0.5,1,2.5,5,7.5,10,12.5,15,17.5,20,25,30,40,50,75,100,125,150)
     log_ind <- TRUE
   } else if (param == "vis") {
     p_breaks <- c(0,1000,2000,3000,4000,5000,7500,10000,15000,
@@ -1438,12 +1657,7 @@ fn_freqhist <- function(fc,
       p_nc                <- fn_plot_numcases(df_fb,
                                               fxoption_list,
                                               vroption_list)
-      p_c                 <- gridExtra::grid.arrange(p_c,
-                                                     p_nc,
-                                                     ncol    = 1,
-                                                     nrow    = 2,
-                                                     widths  = c(4),
-                                                     heights = c(3.75,1.25))
+      p_c                 <- fn_nc_combine(p_c,p_nc,h1=3.75,h2=1.25)
       score_ps            <- paste0(cprefix,"freq_bias")
       
       fn_save_png(p_c           = p_c,
@@ -1482,17 +1696,8 @@ fn_scatterplot <- function(fc,
                           ncol = min(fxoption_list$num_models,3))
     max_count <- max(ggplot2::ggplot_build(p_scat)$data[[1]]$count)
     br1       <- unique(round(logseq(1,max_count,5),0))
-    p_scat    <- p_scat +
-      ggplot2::geom_abline(intercept = 0,
-                           slope     = 1,
-                           color     = "black") +
-      ggplot2::labs(x        = paste0("OBS (",fxoption_list$par_unit,")"),
-                    y        = paste0("Forecast (",fxoption_list$par_unit,")"),
-                    title    = ptitle,
-                    subtitle = subtitle_str) +
-      fxoption_list$ptheme_l +
-      ggplot2::theme(legend.key.width = unit(1.5,"cm"))
     
+    oto_col <- "black"
     if (fxoption_list$cmap_hex == "paired") {
       p_scat <- p_scat + ggplot2::scale_fill_gradientn(
         " ",
@@ -1500,6 +1705,15 @@ fn_scatterplot <- function(fc,
         labels = br1,
         breaks = br1,
         trans  = "log")
+    } else if (fxoption_list$cmap_hex %in% scico::scico_palette_names()) {
+      p_scat <- p_scat + scico::scale_fill_scico(
+        " ",
+        palette = fxoption_list$cmap_hex,
+        direction = -1,
+        labels = br1,
+        breaks = br1,
+        trans  = "log")
+      oto_col <- "red"
     } else {
       p_scat <- p_scat + ggplot2::scale_fill_viridis_c(
         " ",
@@ -1508,6 +1722,18 @@ fn_scatterplot <- function(fc,
         labels = br1,
         trans  = "log")
     }
+    
+    p_scat    <- p_scat +
+      ggplot2::geom_abline(intercept = 0,
+                           slope     = 1,
+                           color     = oto_col,
+                           linewidth = 0.375) +
+      ggplot2::labs(x        = paste0("OBS (",fxoption_list$par_unit,")"),
+                    y        = paste0("Forecast (",fxoption_list$par_unit,")"),
+                    title    = ptitle,
+                    subtitle = subtitle_str) +
+      fxoption_list$ptheme_l +
+      ggplot2::theme(legend.key.width = unit(1.5,"cm"))
     
     fn_save_png(p_c           = p_scat,
                 fxoption_list = fxoption_list,

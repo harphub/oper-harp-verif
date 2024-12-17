@@ -96,5 +96,7 @@ The following packages are used by the point verifiation scripts:
 - shiny
 - shinyWidgets
 - lubridate
-- sf
+- cowplot
+- scico
+- sf (optional, only required for polygon filtering)
 

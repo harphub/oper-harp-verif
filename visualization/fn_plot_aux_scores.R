@@ -153,6 +153,8 @@ fn_plot_aux_scores <- function(fcst_input,
     cpal_hex    <- "A"
   } else if (cmap_hex == "viridis") {
     cpal_hex    <- "D"
+  } else if (cmap_hex %in% scico::scico_palette_names()) {
+    cpal_hex    <- cmap_hex
   } else {
     warning("cmap_hex ",cmap_hex," is not available, reverting to default\n")
     cpal_hex    <- "A"

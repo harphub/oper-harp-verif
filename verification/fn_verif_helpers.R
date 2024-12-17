@@ -36,7 +36,7 @@ get_named_list <- function(input_str,
   for (ii in seq(1,length(input_str),1)) {
     if (!is.null(input_str[[ii]])) {
       # Deal with case where lags is specified as "0h" etc, not in c() format
-      if (any(input_str[[ii]] %in% paste0(seq(0,6),"h"))) {
+      if (any(input_str[[ii]] %in% paste0(seq(0,23),"h"))) {
         out[[ii]] <- input_str[[ii]]
       } else {
         out[[ii]] <- eval(parse(text = input_str[[ii]]))
@@ -110,6 +110,74 @@ fn_verif_rename <- function(df,par_unit){
   return(df)
 }
 
+#================================================#
+# SPLIT THRESHOLD INTO VALS AND COMPARATOR
+# (TO ACCOMMODATE HARP VERSIONS 0.2 - 0.3)
+#================================================#
+
+fn_split_thr <- function(vo){
+  
+  if (any(grepl("threshold",names(vo),fixed=T))) {
+    
+    vttype <- typeof(vo[[2]]$threshold[[1]])
+    # If character, then check if we have to split 
+    if (vttype == "character") {
+      
+      # Use numbers only to see if comparator is in there
+      comp_exists <- numbers_only(vo[[2]]$threshold[[1]])
+      if (!comp_exists) {
+        
+        # Str split by "_"
+        len_split <- length(str_split(vo[[2]]$threshold,"_")[[1]])
+        if (len_split == 2) {
+          comp_val  <- unique(unlist(lapply(str_split(vo[[2]]$threshold,"_"),"[",1)))
+          thr_vals  <- as.double(unlist(lapply(str_split(vo[[2]]$threshold,"_"),"[",2)))
+          thr_brks  <- unique(thr_vals)
+        } else if (len_split == 4) {
+          comp_vals1 <- unique(unlist(lapply(str_split(vo[[2]]$threshold,"_"),"[",1)))
+          thr_vals1  <- as.double(unlist(lapply(str_split(vo[[2]]$threshold,"_"),"[",2)))
+          comp_vals2 <- unique(unlist(lapply(str_split(vo[[2]]$threshold,"_"),"[",3)))
+          thr_vals2  <- as.double(unlist(lapply(str_split(vo[[2]]$threshold,"_"),"[",4)))
+          # Use midpoint as thr_vals
+          thr_vals   <- (thr_vals1 + thr_vals2)/2
+          thr_brks   <- unique(thr_vals1,thr_vals2)
+          if (comp_vals1 == "ge") {
+            comp_val <- "between"
+          } else if (comp_vals1 == "le") {
+            comp_val <- "outside"
+          } else {
+            stop("Threshold split issue")
+          }
+        } else {
+          stop("Threshold split issue")
+        }
+        
+        vo[[2]]$threshold_val <- thr_vals
+        
+      } else {
+        # No comparator, so assumed gt (which was the default before "comparator" 
+        # argument was introduced). Can convert straight to double
+        vo[[2]]  <- vo[[2]] %>% mutate(threshold_val = as.double(threshold))
+        comp_val <- "gt"
+        thr_brks <- unique(vo[[2]]$threshold_val)
+      }
+    } else {
+      # No comparator, so assumed gt (which was the default before "comparator" 
+      # argument was introduced).
+      vo[[2]] <- vo[[2]] %>% mutate(threshold_val = threshold)
+      comp_val <- "gt"
+      thr_brks <- unique(vo[[2]]$threshold_val)
+    }
+    
+    # Finally, add attributes
+    attr(vo,"thr_brks") <- sort(thr_brks)
+    attr(vo,"comp_val") <- comp_val
+    
+  }
+  
+  return(vo)
+  
+}
 
 #================================================#
 # GET LAT/LONS FROM HARP FCST OBJECT
@@ -340,6 +408,25 @@ try_rpforecast <- function(start_date,
       cat("Finished FCTABLE reading\n")
     }
   )
+  
+  # Add a check on the number of rows (e.g. FCTABLE could exist, but it may not
+  # include the leadtimes requested)
+  if (!is.null(fcst)) {
+    nrow_rolling <- 0
+    for (ii in names(fcst)) {
+      if (is.data.frame(fcst[[ii]])) {
+        nrow_rolling <- max(nrow_rolling,nrow(fcst[[ii]]))
+      } else {
+        nrow_rolling <- max(nrow_rolling,length(fcst[[ii]]))
+      }
+    }
+    if (nrow_rolling == 0){
+      cat("Did not find any forecast data after reading the FCTABLEs\n")
+      cat("This may be due to missing leadtime data in the sqlite files\n")
+      cat("Parameter",param,"will be skipped\n")
+      fcst <- NULL
+    }
+  }
   
   if (!is.null(fcst)) {
     
