@@ -298,7 +298,7 @@ filter_verif <- function(verif_o,
 #================================================#
 
 create_station_filter <- function(dttm,
-                                  fcst_models,
+                                  fcst_model,
                                   param,
                                   fctable_dir,
                                   station_list_dir){
@@ -338,7 +338,8 @@ create_station_filter <- function(dttm,
       db         <- DBI::dbConnect(RSQLite::SQLite(), dbase)
       num_sids   <- tbl(db, "FC") %>% 
                     dplyr::pull(SID) %>%
-                    unique()
+                    unique() %>%
+                    as.double()
       # Compare to default synop list
       num_sids   <- base::intersect(num_sids,synop_list$SID) %>%
                     length() 
