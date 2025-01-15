@@ -438,6 +438,9 @@ try_rpforecast <- function(start_date,
     }
     
   }
+  
+  # Convert SID column from integer to double to protect against integer64
+  fcst <- fcst %>% mutate_list(SID = as.double(SID))
 
   return(fcst)
 
