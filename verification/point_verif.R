@@ -564,14 +564,14 @@ run_verif <- function(prm_info, prm_name) {
     }
   }
   if (!is.null(prm_info$scale_fcst)) {
-    if ((is.null(models_to_scale)) || (!use_mts)) {
+    if ((is.null(prm_info$models_to_scale)) || (!use_mts)) {
       cat("Scaling all models using the same scale_fcst\n")
       fcst <- do.call(
         harpCore::scale_param,
         c(list(x = fcst), 
           prm_info$scale_fcst))
     } else {
-      for (cm in models_to_scale) {
+      for (cm in prm_info$models_to_scale) {
         cat("Scaling the forecast for model",cm,"\n")
         if (!(cm %in% names(fcst))) {
           cat("You are tying to scale model",cm,"but it was not found!\n")
