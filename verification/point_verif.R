@@ -174,7 +174,6 @@ lags            <- CONFIG$verif$lags
 num_ref_members <- CONFIG$verif$num_ref_members
 ua_fcst_cycle   <- CONFIG$verif$ua_fcst_cycle
 force_valid_thr <- CONFIG$verif$force_valid_thr
-models_to_scale <- CONFIG$verif$models_to_scale
 plot_output     <- CONFIG$post$plot_output
 create_png      <- CONFIG$post$create_png
 cmap            <- CONFIG$post$cmap
@@ -554,17 +553,8 @@ run_verif <- function(prm_info, prm_name) {
   )
   
   # Check if we need to scale models differently for this parameter
-  if (is.null(prm_info$use_models_to_scale)) {
-    use_mts <- FALSE
-  } else {
-    if (prm_info$use_models_to_scale == TRUE) {
-      use_mts <- TRUE
-    } else {
-      use_mts <- FALSE
-    }
-  }
   if (!is.null(prm_info$scale_fcst)) {
-    if ((is.null(prm_info$models_to_scale)) || (!use_mts)) {
+    if (is.null(prm_info$models_to_scale)) {
       cat("Scaling all models using the same scale_fcst\n")
       fcst <- do.call(
         harpCore::scale_param,
