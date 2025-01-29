@@ -523,9 +523,13 @@ server <- function(input, output, session) {
   shinyFiles::shinyDirChoose(input, "folder", roots = roots, session = session)
 
   # Reactive: Get selected directory
-  selected_dir <- reactive({
-    req(input$folder) # Ensure input is not NULL
-    shinyFiles::parseDirPath(roots, input$folder)
+  selected_dir <- reactiveVal(img_dir)  # Initialize with img_dir
+
+  observeEvent(input$folder, {
+    parsed_dir <- shinyFiles::parseDirPath(roots, input$folder)
+    if (!is.null(parsed_dir) && nzchar(parsed_dir)) {
+      selected_dir(parsed_dir)  # Update only when a valid directory is selected
+    }
   })
 
   # Render UI to change the "date" section format if the Seasonal/Monthly/Rolling
