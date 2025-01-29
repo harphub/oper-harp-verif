@@ -12,6 +12,9 @@
 # STANDARD DEVIATIONS (FOR check_obs_against_fcst)
 # ARE INCLUDED
 #
+# models_to_scale CAN BE MISSING, NULL, OR
+# TAKE THE FORM c("Model_A","Model_B",etc.)
+#
 #================================================#
 
 params <- list(
@@ -22,7 +25,8 @@ params <- list(
       scale_obs  = list(scaling = -273.15, new_units = "degC"),
       obsmin_val = 273.15 - 30,
       obsmax_val = 273.15 + 50,
-      error_sd   = 6  
+      error_sd   = 6,
+      models_to_scale = NULL
     ),
     Td2m = list(
       thresholds = c(-20, -10, seq(-5, 25, 5)),
@@ -67,8 +71,7 @@ params <- list(
       thresholds = NULL,
       obsmin_val = 90000/100,
       obsmax_val = 106000/100,
-      error_sd   = 6,
-      use_models_to_scale = FALSE
+      error_sd   = 6
     ),
     S10m = list(
       thresholds = c(2.5,5,7.5,10,15,20,25,30),

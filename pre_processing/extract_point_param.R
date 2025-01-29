@@ -412,7 +412,7 @@ if (is.null(correct_T2m)) {
 if ((!is.null(shortName)) & (!is.null(level)) & (!is.null(level_type)) &
     (file_format == "grib")) {
   param_find <- list(use_grib_shortName(shortName))
-  level_find <- list(use_grib_typeOfLevel(level_type,level = level))
+  level_find <- list(use_grib_typeOfLevel(level_type,level = as.numeric(level)))
   names(param_find) <- param
   names(level_find) <- param
   param_opts    = grib_opts(
@@ -516,8 +516,8 @@ for (fcst_model in fcst_models) {
       break
     } 
     if (lt == tail(lead_times,1)) {
-      cat("No station filtering took place as no data could be found for",dtg,"\n")
-      stations <- all_stations
+      cat("No data found for",dtg_vec[1],"\n")
+      stop("Aborting as the parameter does not exist in the files!\n")
     }
   }
   
@@ -613,8 +613,9 @@ for (fcst_model in fcst_models) {
       df <- df %>% dplyr::select(-member)
     }
     
-    # Convert units for grad
-    if ((param == "grad") & (deaccum) & (!is.null(df))) {
+    # Convert units for some radiation parameters
+    rad_params <- c("grad","nswrs","cssw_surface","cssw_TOA")
+    if ((param %in% rad_params) & (deaccum) & (!is.null(df))) {
       df <- df %>% dplyr::mutate(forecast = forecast/3600,units = "W m**-2")
     }
     
@@ -637,7 +638,7 @@ for (fcst_model in fcst_models) {
       t_str <- "1hr"
     } else {
       # List accumulated parameters here!
-      if (param %in% c("grad")) {
+      if (param %in% rad_params) {
         t_str <- "acc"
       } else {
         t_str <- "ins"

@@ -5,13 +5,13 @@ Once the configuration file is set and the sqlite tables are created, the point 
 ## set_params.R
 
 This parameter list file is used to specify the parameters considered by the `point_verif.R` script and their associated options, in particular:
-- **scale_fcst**: Forecast scaling (e.g. Kelvin to degress). If you only want to apply the forecast scaling to certain models in `verif:fcst_model` for certain paramters, this can be controlled by the flags `verif:models_to_scale` in the config file and `use_models_to_scale` in set_params.R (see below).
+- **scale_fcst**: Forecast scaling (e.g. Kelvin to degress). If you only want to apply the forecast scaling to certain models in `verif:fcst_model` for certain paramters, this can be controlled by the flag `models_to_scale` in your parameter list file (e.g. set_params.R, see below).
 - **scale_obs**: Observation scaling.
 - **thresholds**: Thresholds used when computing threshold skill scores.
 - **obsmin/max_val**: Max/min observation values allowed.
 - **fctmax_val**: Max forecast values allowed (experimental).
 - **error_sd**: Number of standard deviations used in `harpPoint::check_obs_against_fcst`.
-- **use_models_to_scale**: A logical flag to activate `verif:models_to_scale` such that only models specified by `verif:models_to_scale` are scaled for this parameter (if set to TRUE). If missing or set to FALSE, `verif:models_to_scale` will do nothing. 
+- **models_to_scale**: What specific models to scale using `scale_fcst` for this parameter. If missing or NULL for a given parameter, the same scaling will be applied to all models specified by `verif:fcst_model` in the config file if `scale_fcst` is specified. If `models_to_scale` contains a model which is not found in the forecast data, the `point_verif.R` script will abort. For example, suppose you read in two models ("Model_A" and "Model_B") and you only want to scale "Model_A" for T2m and "Model_B" for S10m. Then you should add `models_to_scale = c("Model_A")` under the T2m list and `models_to_scale=c("Model_B")` under the S10m list. For all other parameters where `scale_fcst` is specified, the same scaling will be applied to both "Model_A" and "Model_B". 
 
 Typically this file does not need to be changed. By default `point_verif.R` reads parameter options from this file, but a custom parameter file can also be used by passing the `-params_file` option to `point_verif.R`. 
 
@@ -24,7 +24,7 @@ This script takes the following command line inputs (required arguments in **bol
 - **-config_file**: The config file in the `config_files` directory (no default).
 - **-start_date**: The first forecast cycle to process (in YYYYMMDDHH format, no default).
 - **-end_date**: The last forecast cycle to process (in YYYYMMDDHH format, no default).
-- *-params_file*: The parameter list file containing parameter scalings, thresholds, etc. (default="verification/set_params.R").
+- *-params_file*: The parameter list file containing parameter scalings, thresholds, etc. (default="verification/set_params.R"). **Note: if you are making use of the `models_to_scale` option in the parameter list file, it is best to create a new parameter list file and explicitly call this when you are running point_verif.R. Sharing a parameter list file with specific model scalings across different projects may be dangerous due to common models e.g. Model A is scaled for T2m in project X, but it is not scaled for T2m in project Y. Unfortunately creating new parameter lists for specific projects does introduce some code duplication.**
 - *-params_list*: Which parameters for verify (default="ALL"). This should be a comma separated string of parameters, for example "T2m,S10m,T,S". These parameters should exist in the parameter list file, otherwise they will be skipped. If `params_list` is not specified, all parameters in the parameter list file are considered in the verification (this is not recommended in general).
 - *-dynamic_sid_gen*: A logical flag to generate SID lists corresponding to the `verif:domains` during the verification process (default=TRUE). Different `domain` options are defined in `fn_station_selection.pm`. This flag replaces the old methodology of reading SID lists from a static file (i.e. `verification/sid_lists.rds`). This old (now deprecated) method can be activated by switching this flag to "FALSE".
 - *-plot_dynamic_sid*: A logical flag to plot a map of the stations used for each domain and parameter (default=FALSE). This is only relevant when "dynamic_sid_gen=TRUE".

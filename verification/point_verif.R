@@ -173,8 +173,8 @@ members         <- CONFIG$verif$members
 lags            <- CONFIG$verif$lags
 num_ref_members <- CONFIG$verif$num_ref_members
 ua_fcst_cycle   <- CONFIG$verif$ua_fcst_cycle
+lt_split        <- CONFIG$verif$lt_split
 force_valid_thr <- CONFIG$verif$force_valid_thr
-models_to_scale <- CONFIG$verif$models_to_scale
 plot_output     <- CONFIG$post$plot_output
 create_png      <- CONFIG$post$create_png
 cmap            <- CONFIG$post$cmap
@@ -327,6 +327,11 @@ if (is.null(num_ref_members)) {
 # Check if UA grouping by fcst_cycle is set
 if (is.null(ua_fcst_cycle)) {
   ua_fcst_cycle <- FALSE
+}
+
+# Check if lt_split is set
+if (is.null(lt_split)) {
+  lt_split <- FALSE
 }
 
 # Check if force_valid_thr is set (i.e. force computing of threshold scores
@@ -553,25 +558,16 @@ run_verif <- function(prm_info, prm_name) {
     harpCore::common_cases(fcst)
   )
   
-  # Check if we need to scale models differently for this parameter
-  if (is.null(prm_info$use_models_to_scale)) {
-    use_mts <- FALSE
-  } else {
-    if (prm_info$use_models_to_scale == TRUE) {
-      use_mts <- TRUE
-    } else {
-      use_mts <- FALSE
-    }
-  }
   if (!is.null(prm_info$scale_fcst)) {
-    if ((is.null(models_to_scale)) || (!use_mts)) {
+    # Check if we need to scale models differently for this parameter
+    if (is.null(prm_info$models_to_scale)) {
       cat("Scaling all models using the same scale_fcst\n")
       fcst <- do.call(
         harpCore::scale_param,
         c(list(x = fcst), 
           prm_info$scale_fcst))
     } else {
-      for (cm in models_to_scale) {
+      for (cm in prm_info$models_to_scale) {
         cat("Scaling the forecast for model",cm,"\n")
         if (!(cm %in% names(fcst))) {
           cat("You are tying to scale model",cm,"but it was not found!\n")
@@ -797,6 +793,7 @@ run_verif <- function(prm_info, prm_name) {
                               rolling_verif = rolling_verif,
                               cmap = cmap,
                               cmap_hex = cmap_hex,
+                              lt_split = lt_split,
                               fsd  = fsd,
                               fed  = fed)
     }

@@ -540,11 +540,16 @@ fn_plot_point <- function(verif,
                                           linetype   = "dashed")
     }
     
-    if ((xgroup == "mids") & ("freq_bias" %in% names(df))) {
-      p_out <- p_out + ggplot2::geom_hline(yintercept = 1,
-                                          linewidth  = line_size,
-                                          color      = "black",
-                                          linetype   = "dashed")
+    if ((xgroup == "mids")) {
+      if ("freq_bias" %in% names(df)) {
+        p_out <- p_out + ggplot2::geom_hline(yintercept = 1,
+                                            linewidth  = line_size,
+                                            color      = "black",
+                                            linetype   = "dashed")
+      }
+      p_out <- p_out + ggplot2::labs(
+        subtitle = paste0(subtitle_str," (bins=(], min included, num obs > 0)")
+      )
     }
     
     # Change to log axis for precip threshold scores, and add breaks
@@ -574,16 +579,48 @@ fn_plot_point <- function(verif,
       p_out <- p_out + ggplot2::scale_x_continuous(breaks = seq(0,21,3),
                                                    minor_breaks = NULL)
     } else if (xgroup == "mids") {
+      p_breaks <- vroption_list$p_breaks
+      p_xlim   <- layer_scales(p_out)$x$range$range
+      pbi      <- grep(TRUE,dplyr::between(p_breaks,p_xlim[1],p_xlim[2]))
+      if (length(pbi) == 0) {
+        cat("Something weird happened in the frequency dist - investigate!\n")
+        pb_use <- p_breaks
+      } else {
+        if (pbi[1] > 1) {
+          pbi = c(pbi[1]-1,pbi)
+        }
+        if (pbi[length(pbi)] != length(p_breaks)) {
+          pbi = c(pbi,pbi[length(pbi)]+1)
+        }
+        pb_use <- p_breaks[pbi]
+      }
+      
       if (vroption_list$log_ind) {
         p_out <- p_out + ggplot2::scale_x_continuous(
           trans        = "pseudo_log",
-          breaks       = vroption_list$p_breaks,
+          breaks       = pb_use,
+          labels       = pb_use,
+          limits       = c(min(pb_use),max(pb_use)),
           minor_breaks = NULL)
       } else {
         p_out <- p_out + ggplot2::scale_x_continuous(
-          breaks       = vroption_list$p_breaks,
+          breaks       = pb_use,
+          labels       = pb_use,
+          limits       = c(min(pb_use),max(pb_use)),
           minor_breaks = NULL)
       }
+
+      p_ylim <- ggplot2::layer_scales(p_out)$y$range$range
+      if ("freq_bias" %in% names(df)) {
+        c_breaks <- seq(0,10,0.5)
+      } else {
+        c_breaks <- round(pracma::logseq(max(1,p_ylim[1]),p_ylim[2],6),0)
+      }
+      p_out    <- p_out + ggplot2::scale_y_continuous(
+          trans  = "pseudo_log",
+          breaks = c_breaks,
+          labels = as.character(c_breaks))
+      
       p_out <- p_out + ggplot2::theme(
         axis.text.x = ggplot2::element_text(angle = 45,vjust = 0.75))
     }
@@ -720,17 +757,35 @@ fn_plot_numcases <- function(verif,
     p_out <- p_out + ggplot2::scale_x_continuous(breaks = seq(0,21,3),
                                                  minor_breaks = NULL)
   } else if (xgroup == "mids") {
+    p_breaks <- vroption_list$p_breaks
+    p_xlim   <- layer_scales(p_out)$x$range$range
+    pbi      <- grep(TRUE,dplyr::between(p_breaks,p_xlim[1],p_xlim[2]))
+    if (length(pbi) == 0) {
+      cat("Something weird happened in the frequency dist - investigate!\n")
+      pb_use <- p_breaks
+    } else {
+      if (pbi[1] > 1) {
+        pbi = c(pbi[1]-1,pbi)
+      }
+      if (pbi[length(pbi)] != length(p_breaks)) {
+        pbi = c(pbi,pbi[length(pbi)]+1)
+      }
+      pb_use <- p_breaks[pbi]
+    }
     if (vroption_list$log_ind) {
       p_out <- p_out + ggplot2::scale_x_continuous(
         trans        = "pseudo_log",
-        breaks       = vroption_list$p_breaks,
+        breaks       = pb_use,
+        labels       = pb_use,
+        limits       = c(min(pb_use),max(pb_use)),
         minor_breaks = NULL)
     } else {
       p_out <- p_out + 
-        ggplot2::scale_x_continuous(breaks       = vroption_list$p_breaks,
+        ggplot2::scale_x_continuous(breaks       = pb_use,
+                                    labels       = pb_use,
+                                    limits       = c(min(pb_use),max(pb_use)),
                                     minor_breaks = NULL)
     }
-    
     p_out <- p_out + ggplot2::theme(
       axis.text.x = ggplot2::element_text(angle = 45,vjust = 0.75))
   }
@@ -804,8 +859,6 @@ fn_plot_map <- function(verif,
                             colour      = "black",
                             inherit.aes = FALSE) +  
       ggplot2::geom_point(colour = 'grey40',pch = 21) + 
-      ggplot2::coord_sf(xlim = c(min_lon-0.2,max_lon+0.2),
-                        ylim = c(min_lat-0.2,max_lat+0.2)) +
       ggplot2::theme(
             panel.background          = ggplot2::element_rect(fill = "grey95"),
             panel.grid                = ggplot2::element_blank(),
@@ -831,8 +884,17 @@ fn_plot_map <- function(verif,
                     size     = "") +
       ggplot2::guides(size = "none") # Remove size label from legend
     
+    if (sf_available) {
+      p_map <- p_map + ggplot2::coord_sf(xlim = c(min_lon-0.2,max_lon+0.2),
+                                         ylim = c(min_lat-0.2,max_lat+0.2))
+    } else {
+      p_map <- p_map + ggplot2::coord_cartesian(xlim = c(min_lon-0.2,max_lon+0.2),
+                                                ylim = c(min_lat-0.2,max_lat+0.2))
+    }
+    
     if (map_cbar_d) {
       p_map <- p_map + ggplot2::binned_scale(
+        scale_name = "map_plot",
         name = paste0("(",par_unit,")"),
         aesthetics = "fill",
         palette = function(x) cbar_opts$cmap,
@@ -1259,7 +1321,8 @@ fn_aux <- function(fc,
                    subtitle_str,
                    fxoption_list,
                    vroption_list,
-                   rolling_verif){
+                   rolling_verif,
+                   plot_fd = FALSE){
   
   if (grepl("Mbr000",title_str)) {
     cprefix <- "ctrl"
@@ -1282,14 +1345,16 @@ fn_aux <- function(fc,
                vroption_list)
     
     # Frequency distribution 
-    vroption_list$xgroup <- "NA"
-    vroption_list$score  <- paste0(cprefix,"freqdist")
-    vroption_list$xg_str <- "NA";
-    fn_freqdist(fc,
-                title_str,
-                subtitle_str,
-                fxoption_list,
-                vroption_list)
+    if (plot_fd) {
+      vroption_list$xgroup <- "NA"
+      vroption_list$score  <- paste0(cprefix,"freqdist")
+      vroption_list$xg_str <- "NA";
+      fn_freqdist(fc,
+                  title_str,
+                  subtitle_str,
+                  fxoption_list,
+                  vroption_list)
+    }
     
     # Alternative freqhist method for freq dist plots
     vroption_list$xgroup <- "mids"
@@ -1322,6 +1387,24 @@ fn_aux <- function(fc,
                  subtitle_str,
                  fxoption_list,
                  vroption_list)
+  # Individual hours for scatterplots
+  if (!is.null(vroption_list$scat_lts)) {
+    for (slt in vroption_list$scat_lts) {
+      if (slt %in% unique(fc$lead_time)) {
+        subtitle_1 <- strsplit(subtitle_str,"+",fixed=T)[[1]][1]
+        subtitle_2 <- strsplit(subtitle_str,":",fixed=T)[[1]][2]
+        subtitle_c <- paste0(subtitle_1,"+",slt," :",subtitle_2)
+        vroption_list$lt_used <- slt
+        fn_scatterplot(fc %>% filter(lead_time == slt),
+                       title_str,
+                       subtitle_c,
+                       fxoption_list,
+                       vroption_list)
+      } else {
+        cat("Did not plot scatterplot as leadtime",slt,"was not found in selection",subtitle_str,"\n")
+      }
+    }
+  }
   
 }
 
@@ -1385,7 +1468,8 @@ fn_dvar_ts <- function(fc,
               fxoption_list = fxoption_list,
               vroption_list = vroption_list,
               fcst_type     = fxoption_list$c_ftyp,
-              score         = score_orig)
+              score         = score_orig,
+              vlt           = vroption_list$lt_used)
   
 }
 
@@ -1517,7 +1601,8 @@ fn_freqdist <- function(fc,
                 fxoption_list = fxoption_list,
                 vroption_list = vroption_list,
                 fcst_type     = fxoption_list$c_ftyp,
-                score         = vroption_list$score)
+                score         = vroption_list$score,
+                vlt           = vroption_list$lt_used)
     
   }
   
@@ -1545,34 +1630,10 @@ fn_freqhist <- function(fc,
   }
   
   # Define the breaks to be used in histogram plotting
-  plot_ind <- TRUE
-  log_ind  <- FALSE
-  if ((param %in% c("T2m","Td2m")) || (grepl("T2m",param,fixed=TRUE))) {
-    p_breaks <- seq(-30,30,2.5)
-  } else if (param == "Q2m") {
-    p_breaks <- seq(0.5,10,0.5)
-  } else if (param  == "RH2m") {
-    p_breaks <- seq(25,100,5)
-  } else if ((param %in% c("S10m","Gmax")) || (grepl("S10m",param,fixed=TRUE))) {
-    p_breaks <- c(2.5,5,7.5,10,12.5,15,17.5,20,22.5,25,30,35,40)
-  } else if (param == "Cbase") {
-    p_breaks <- c(0,100,500,1000,1500,2000,3000,5000,7000,10000,15000,20000)
-    log_ind <- TRUE
-  } else if (param %in% c("AccPcp1h","AccPcp3h","AccPcp6h",
-                          "AccPcp12h","AccPcp24h")) {
-    p_breaks <- c(0.1,0.25,0.5,1,2.5,5,7.5,10,12.5,15,17.5,20,25,30,40,50,75,100,125,150)
-    log_ind <- TRUE
-  } else if (param == "vis") {
-    p_breaks <- c(0,1000,2000,3000,4000,5000,7500,10000,15000,
-                  20000,25000,30000,40000)
-    log_ind <- TRUE
-  } else if (param %in% c("CClow","CCmed","CChigh","CCtot")) {
-    p_breaks <- seq(-0.5,8.5,1)
-  } else {
-    warning("Do not produce freq hist plots for ",param)
-    plot_ind <- FALSE
-    p_breaks <- "NA"
-  }
+  gpc      <- get_param_classes(param)
+  p_breaks <- gpc$p_breaks
+  plot_ind <- gpc$plot_ind
+  log_ind  <- gpc$log_ind
   
   vroption_list$p_breaks <- p_breaks
   vroption_list$log_ind  <- log_ind
@@ -1617,8 +1678,8 @@ fn_freqhist <- function(fc,
         df_tmp            <- NULL
         df_tmp$mids       <- f_hist$x
         df_tmp$freqhist   <- f_hist$count
-        df_tmp$fcst_model <- mn; 
         df_tmp$obs_count  <- df_ob$obs_count
+        df_tmp$fcst_model <- mn
         df_tmp$freq_bias  <- df_tmp$freqhist/df_tmp$obs_count
         df_tmp            <- tibble::as_tibble(df_tmp)
         df_fh             <- dplyr::bind_rows(df_fh,df_tmp)
@@ -1645,7 +1706,8 @@ fn_freqhist <- function(fc,
                   fxoption_list = fxoption_list,
                   vroption_list = vroption_list,
                   fcst_type     = fxoption_list$c_ftyp,
-                  score         = score_ps)
+                  score         = score_ps,
+                  vlt           = vroption_list$lt_used)
       
       # Plot associated freq_bias
       vroption_list$score <- "freq_bias"
@@ -1664,10 +1726,54 @@ fn_freqhist <- function(fc,
                   fxoption_list = fxoption_list,
                   vroption_list = vroption_list,
                   fcst_type     = fxoption_list$c_ftyp,
-                  score         = score_ps)
+                  score         = score_ps,
+                  vlt           = vroption_list$lt_used)
       
     }
   } # plot_ind
+  
+}
+
+#================================================#
+# DEFINE PARAMETER CLASESS (FOR FREQUENCY HISTS)
+#================================================#
+
+get_param_classes <- function(param) {
+
+  plot_ind <- TRUE
+  log_ind  <- FALSE
+  if ((param %in% c("T2m","Td2m")) || (grepl("T2m",param,fixed=TRUE))) {
+    p_breaks <- seq(-50,50,2.5)
+  } else if (param == "Q2m") {
+    p_breaks <- seq(0.5,20,0.5)
+  } else if (param  == "RH2m") {
+    p_breaks <- seq(25,100,5)
+  } else if ((param %in% c("S10m","Gmax")) || (grepl("S10m",param,fixed=TRUE))) {
+    p_breaks <- c(1,2.5,5,7.5,10,12.5,15,17.5,20,22.5,25,30,35,40,50,60,70,80)
+  } else if (param == "Cbase") {
+    p_breaks <- c(0,100,500,1000,1500,2000,3000,5000,7000,10000,15000,20000)
+    log_ind <- TRUE
+  } else if (param %in% c("AccPcp1h","AccPcp3h","AccPcp6h",
+                          "AccPcp12h","AccPcp24h")) {
+    p_breaks <- c(0.1,0.25,0.5,1,2.5,5,7.5,10,12.5,15,17.5,20,25,30,40,50,75,100,125,150)
+    log_ind <- TRUE
+  } else if (param == "vis") {
+    p_breaks <- c(0,1000,2000,3000,4000,5000,7500,10000,15000,
+                  20000,25000,30000,40000)
+    log_ind <- TRUE
+  } else if (param %in% c("CClow","CCmed","CChigh","CCtot")) {
+    p_breaks <- seq(-0.5,8.5,1)
+  } else if (param == "Pmsl") {
+    p_breaks <- seq(900,1060,2.5)
+  } else {
+    warning("Do not produce freq hist plots for ",param)
+    plot_ind <- FALSE
+    p_breaks <- "NA"
+  }
+  
+  return(list("p_breaks" = p_breaks,
+              "plot_ind" = plot_ind,
+              "log_ind"  = log_ind))
   
 }
 
@@ -1739,7 +1845,8 @@ fn_scatterplot <- function(fc,
                 fxoption_list = fxoption_list,
                 vroption_list = vroption_list,
                 fcst_type     = fxoption_list$c_ftyp,
-                score         = vroption_list$score)
+                score         = vroption_list$score,
+                vlt           = vroption_list$lt_used)
   
   } else {
     warning("Fringe case in scatter where all OBS/Forecast values are the same")
