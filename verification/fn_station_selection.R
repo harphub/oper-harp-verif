@@ -1237,9 +1237,13 @@ station_map <- function(df,domain,polygon = NULL){
       ggplot2::geom_sf(data = polygon,aes(geometry = geometry),
                        fill="red",alpha = 0.2, inherit.aes = FALSE)
   }
-  
-  p_map <- p_map + ggplot2::coord_sf(xlim = c(min_lon,max_lon),
-                                     ylim = c(min_lat,max_lat))
+  if (sf_available){
+    p_map <- p_map + ggplot2::coord_sf(xlim = c(min_lon,max_lon),
+                                       ylim = c(min_lat,max_lat))
+  } else {
+    p_map <- p_map + ggplot2::coord_cartesian(xlim = c(min_lon,max_lon),
+                                              ylim = c(min_lat,max_lat))
+  }
   
   return(p_map)
   
