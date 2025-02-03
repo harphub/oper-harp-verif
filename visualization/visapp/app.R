@@ -1053,7 +1053,7 @@ server <- function(input, output, session) {
   pp_label <- shiny::reactive({
     if (input$vartype == "Surface"){
       switch(input$surfacetype,
-             "Summary" = "Valid time",
+             "Summary" = "Lead time/Valid time",
              "Skill"   = "Lead time",
              "Map"     = "Valid time",
              "Signif"  = "New model")
@@ -1096,14 +1096,24 @@ server <- function(input, output, session) {
     if (length(vo)>0){
       if (rname_flag){
         # Get numerical/string values
-        qwe <- str_extract(vo,"[aA-zZ]+"); ps <- qwe[!is.na(qwe)]; pn <- vo[is.na(qwe)] 
+        qwe <- str_extract(gsub("_","",vo),"[aA-zZ]+")
+        ps <- qwe[!is.na(qwe)]
+        pn <- vo[is.na(qwe)]
+        pr <- pn[grepl("_",pn,fixed = T)]
+        if (length(pr)>0) {
+          pr <- paste0(gsub("_","-",pr),"h")
+        }
+        pn <- pn[!grepl("_",pn,fixed=T)]
         pnsort <- sort(as.numeric(pn)) # Sorting character is not enough
         pnsort <- sprintf("%02d",pnsort) # Pad to valid hours
         pnsort[!(pnsort %in% pn)] <- as.numeric(pnsort[!(pnsort %in% pn)]) # In case padding is not required
-        vo <- c(ps,pnsort)
+        vo <- c(ps,pr,pnsort)
+        vom <- gsub("h","",gsub("-","_",vo))
         #qwe <- as.numeric(str_extract(vo,"[0-9]+")); qwe <- qwe[!is.na(qwe)]; qwe <- sort(qwe); qwe <- sprintf("%02d",qwe)
+      } else {
+        vom <- vo
       }
-      vo
+      setNames(as.list(vom),vo)
     } else {
       mdi
     }
@@ -1112,7 +1122,7 @@ server <- function(input, output, session) {
   # Selected valid/lead time
   selected_validtime <- shiny::reactive({
     vt_tmp <- NULL
-    if (!is.null(input$validtime) && (input$validtime %in% validtime_out())){
+    if (!is.null(input$validtime) && (input$validtime %in% unlist(validtime_out(),use.names=FALSE))){
       vt_tmp <- input$validtime
     } else if (validtime_out()[1] == mdi){
       vt_tmp <- mdi
