@@ -353,18 +353,22 @@ fn_plot_point_verif <- function(harp_verif_input,
   # Define various themes
   ptheme_l <- ggplot2::theme_bw() + 
     ggplot2::theme(
-      plot.title      = ggplot2::element_text(size = 10),
-      plot.subtitle   = ggplot2::element_text(size = 8),
-      axis.text       = ggplot2::element_text(size = 10),
-      axis.title      = ggplot2::element_text(size = 10),
-      strip.text      = ggplot2::element_text(size = 10),
-      legend.text     = ggplot2::element_text(size = 10),
+      plot.title      = ggplot2::element_text(size = 10, margin = margin(1,0,1,0)),
+      plot.subtitle   = ggplot2::element_text(size = 8, margin = margin(1,0,0,0)),
+      axis.text       = ggplot2::element_text(size = 8),
+      axis.title      = ggplot2::element_text(size = 8, margin = margin(0,0,0,0)),
+      strip.text      = ggplot2::element_text(size = 8),
+      legend.text     = ggplot2::element_text(size = 8),
+      legend.key.spacing.x = unit(1,"lines"),
+      legend.box.spacing   = unit(0,"pt"),
+      legend.margin        = margin(0,0,0,0),
+      legend.box.margin    = margin(0,0,0,0),
       legend.position = "top"
     )
   ptheme_nc <- ggplot2::theme_bw() + 
     ggplot2::theme(
-      axis.text       = ggplot2::element_text(size = 10),
-      axis.title      = ggplot2::element_text(size = 10),
+      axis.text       = ggplot2::element_text(size = 8),
+      axis.title      = ggplot2::element_text(size = 8, margin = margin(0,0,0,0)),
       legend.position = "none"
     )
   

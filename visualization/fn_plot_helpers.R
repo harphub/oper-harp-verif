@@ -865,15 +865,15 @@ fn_plot_map <- function(verif,
             axis.text                 = ggplot2::element_blank(),
             axis.ticks                = ggplot2::element_blank(),
             axis.title                = ggplot2::element_blank(),
-            plot.title                = ggplot2::element_text(size = 12),
+            plot.title                = ggplot2::element_text(size = 10),
             plot.title.position       = "plot",
             legend.text               = ggplot2::element_text(size = 8),
             plot.subtitle             = ggplot2::element_text(size = 8), 
-            legend.title              = ggplot2::element_text(size = 10),
+            legend.title              = ggplot2::element_text(size = 8),
             legend.position           = "right", 
             legend.key.height         = unit(1.5,"cm"),
             strip.background          = ggplot2::element_rect(fill = "white"),
-            strip.text                = ggplot2::element_text(size = 12)) +
+            strip.text                = ggplot2::element_text(size = 8)) +
       ggplot2::facet_wrap(
         vars(fcst_model),
         ncol = min(num_models,3)) +
