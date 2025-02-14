@@ -409,6 +409,25 @@ try_rpforecast <- function(start_date,
       cat("Finished FCTABLE reading\n")
     }
   )
+   
+  # Add a check to test if read_forecast returned a named list
+  # (where the names are the forecast models)
+  # Also deals with converting to a harp list for a single forecast model
+  if (!is.null(fcst)) {
+    
+    # If fcst has at least one of fcst_model, then we are fine. 
+    # If not, then only a single model was found
+    if (!(any(names(fcst) %in% fcst_model))) {
+      
+      avail_model <- unique(fcst$fcst_model)
+      if (length(avail_model) > 1) {
+        stop("Investigation required!")
+      }
+      fcst        <- harpCore::as_harp_list(placeholder = fcst)
+      names(fcst) <- avail_model
+    }
+    
+  }
   
   # Add a check on the number of rows (e.g. FCTABLE could exist, but it may not
   # include the leadtimes requested)
@@ -427,16 +446,6 @@ try_rpforecast <- function(start_date,
       cat("Parameter",param,"will be skipped\n")
       fcst <- NULL
     }
-  }
-  
-  if (!is.null(fcst)) {
-    
-    # In the case of only one forecast model, convert fcst to a harp_list
-    if (length(fcst_model) == 1) {
-      fcst        <- harpCore::as_harp_list(placeholder = fcst)
-      names(fcst) <- fcst_model
-    }
-    
   }
   
   # Convert SID column from integer to double to protect against integer64
