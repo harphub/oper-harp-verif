@@ -14,6 +14,12 @@ numbers_only <- function(x) !grepl("\\D", x)
 
 fn_nc_combine <- function(p,p_nc,h1=4,h2=1) {
   
+  if (all(is.na(p)) || all(is.null(p)) || all(is.na(p_nc)) || all(is.null(p_nc))) {
+    
+    p_c <- NA_character_
+    
+  } else {
+  
   if (!exists("cowplot_available")) {
     if ("cowplot" %in% rownames(installed.packages())) {
       library(cowplot)
@@ -36,6 +42,8 @@ fn_nc_combine <- function(p,p_nc,h1=4,h2=1) {
                                    ncol = 1,
                                    nrow = 2,
                                    heights = c(h1,h2))
+  }
+    
   }
   
   return(p_c)
@@ -96,6 +104,12 @@ fn_save_png <- function(p_c           = "",
                            vth = vth,
                            projectname = fxoption_list$png_projname)
   
+  if (all(is.na(p_c)) || all(is.null(p_c))) {
+  
+    cat("The figure for",png_fname,"does not exist\n") 
+    
+  } else {
+  
   if (map_ind) {
     fw <- fxoption_list$fw_map
     fh <- fxoption_list$fh_map
@@ -117,6 +131,7 @@ fn_save_png <- function(p_c           = "",
                   dpi      = fxoption_list$fig_dpi,
                   device   = 'png')
   
+  }
 }
 
 #================================================#
@@ -385,7 +400,7 @@ fn_plot_point <- function(verif,
       )
     }
     
-    p_out <- "NA"
+    p_out <- NA_character_
     return(p_out)
     
   } else if (any(grepl("mbr",all_scores))) {
@@ -406,7 +421,10 @@ fn_plot_point <- function(verif,
       df_obs  <- df %>% dplyr::filter(member == "OBS") 
       df_mean <- df %>% dplyr::filter(member == "mean")
       df      <- df %>% dplyr::filter(!(member %in% c("mean","spread","OBS")))
-      
+      if ((nrow(df) == 0) || (nrow(df_obs) == 0) || (nrow(df_mean) == 0)) {
+        p_out <- NA_character_
+        return(p_out)
+      }
       p_out <- ggplot2::ggplot() +
         ggplot2::geom_path(data      = df,
                            aes(x     = get(xgroup),
@@ -489,6 +507,10 @@ fn_plot_point <- function(verif,
     if (num_scores == 1) {
       # Remove Inf/-Inf values which may appear for ens skill scores
       df    <- df[!is.infinite(df[[all_scores]]),]
+      if (nrow(df) == 0) {
+        p_out <- NA_character_
+        return(p_out)
+      }
       p_out <- df %>% 
         ggplot2::ggplot(aes(x     = get(xgroup),
                             color = forcats::fct_inorder(fcst_model))) +
@@ -502,6 +524,10 @@ fn_plot_point <- function(verif,
       # Remove Inf/-Inf values which may appear for ens skill scores
       df    <- df[!is.infinite(df[[all_scores[1]]]),]
       df    <- df[!is.infinite(df[[all_scores[2]]]),]
+      if (nrow(df) == 0) {
+        p_out <- NA_character_
+        return(p_out)
+      }
       p_out <- df %>% 
         ggplot2::ggplot(aes(x     = get(xgroup),
                             color = forcats::fct_inorder(fcst_model))) +

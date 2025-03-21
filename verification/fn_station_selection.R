@@ -438,7 +438,9 @@ fn_station_selection <- function(domain_choice = "All_Domains",
     
   qwe  <- fcst_object[[1]] %>% dplyr::select(SID,lat,lon) %>% dplyr::distinct()
   # May have multiple lat lon values here if definition changed in vfld
-  qwe2 <- qwe %>% group_by(SID) %>% summarise(lat = min(lat),lon = min(lon))
+  # Remove NAs which can occur at random leadtimes for Pcp - vfld2sql processing?
+  qwe2 <- qwe %>% group_by(SID) %>% summarise(lat = min(lat,na.rm = T),
+                                              lon = min(lon,na.rm = T))
   if (nrow(qwe) != nrow(qwe2)) {
     mult_ll_SIDS <- names(table(qwe$SID)[table(qwe$SID)>1])
     mult_ll      <- qwe %>% filter(SID %in% mult_ll_SIDS) %>% arrange(SID)

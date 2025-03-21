@@ -225,12 +225,16 @@ fn_plot_aux_scores <- function(fcst_input,
       axis.title      = ggplot2::element_text(size = 8, margin = margin(0,0,0,0)),
       strip.text      = ggplot2::element_text(size = 8),
       legend.text     = ggplot2::element_text(size = 8),
-      legend.key.spacing.x = unit(1,"lines"),
       legend.box.spacing   = unit(0,"pt"),
       legend.margin        = margin(0,0,0,0),
       legend.box.margin    = margin(0,0,0,0),
       legend.position = "top"
     )
+  # legend.key.spacing.x only available for ggplot2 version 3.5.0
+  if (as.numeric(gsub(".","",packageVersion("ggplot2"),fixed=T)) >= 350) {
+    ptheme_l <- ptheme_l +
+      ggplot2::theme(legend.key.spacing.x = unit(1,"lines"))
+  }
   ptheme_nc <- ggplot2::theme_bw() + 
     ggplot2::theme(
       axis.text       = ggplot2::element_text(size = 8),
