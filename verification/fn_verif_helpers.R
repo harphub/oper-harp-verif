@@ -15,6 +15,42 @@ suppressPackageStartupMessages({
 })
 
 #================================================#
+# CHECK IF CONFIG FILE OPTIONS EXIST
+#================================================#
+
+check_config_input <- function(config,x,y,default="None") {
+  
+  val <- config[[x]][[y]]
+  
+  if (is.null(val)) {
+    cat("Could not find",x,":",y,"in the config\n")
+    if (default == "None") {
+      stop("No default value set for ",y,", aborting")
+    } else {
+      cat("Setting",y,"=",default,"\n")
+      val <- default
+    }
+  }
+  
+  return(val)
+  
+}
+
+#================================================#
+# CHECK IF DIRECTORIES EXIST
+#================================================#
+
+check_dirs_exist <- function(dir_vec) {
+  
+  for (cdir in dir_vec) {
+    if (!dir.exists(cdir)) {
+      stop(cdir," does not exist")
+    }
+  }
+  
+}
+
+#================================================#
 # CREATE A NAMED LIST ASSOCIATING fcst_model WITH A
 # INPUT LIST (E.G. MEMBERS/LAGS FOR EPS EXPERIMENTS)
 #================================================#
@@ -71,6 +107,245 @@ conv_allsynop <- function(input_list){
   synop_list  <- tibble::as_tibble(synop_c)
   rm(synop,synop_n,synop_c)
   return(synop_list)
+}
+
+
+#================================================#
+# CALL THE VERIFICATION FUNCTION FOR DIFFERENT
+# GROUPINGS
+#================================================#
+
+fn_run_verif_groups <- function(fcst = "",
+                                prm_name = "",
+                                vertical_coordinate = "",
+                                fcst_type = "",
+                                num_ref_members = "",
+                                grps_param = "",
+                                grps_threshold = "",
+                                grps_SID = "",
+                                all_station_groups = "",
+                                thresholds_param = "",
+                                create_png = "",
+                                force_valid_thr = "",
+                                t_s_str = "",
+                                run_sid = T){
+  
+  # Initialise output
+  verif        <- NULL
+  verif_tpplot <- NULL
+  verif_sid    <- NULL
+  
+  #================================================#
+  # FIRST SET VERIF OPTIONS 
+  #================================================#
+  
+  # Generate verification options
+  if (fcst_type == "eps") {
+    verif_fn              <- "ens_verify"
+    verif_options_list_nm <- list(parameter       = {{prm_name}},
+                                  num_ref_members = num_ref_members,
+                                  verify_members  = FALSE,
+                                  rank_hist       = FALSE,
+                                  crps            = FALSE,
+                                  brier           = FALSE,
+                                  hexbin          = FALSE)
+    verif_options_list    <- list(parameter       = {{prm_name}},
+                                  num_ref_members = num_ref_members,
+                                  verify_members  = TRUE,
+                                  hexbin          = FALSE)
+  } else if (fcst_type == "det") {
+    verif_fn              <- "det_verify"
+    verif_options_list    <- list(parameter = {{prm_name}},
+                                  hexbin    = FALSE)
+    verif_options_list_nm <- verif_options_list
+  }
+  
+  # Get units
+  par_unit <- unique(fcst[[1]][["units"]])
+  
+  #================================================#
+  # RUN STANDARD VERIFICATION
+  #================================================#
+  
+  num_fcst_cycles <- length(unique(fcst[[1]][["fcst_cycle"]]))
+  if (num_fcst_cycles == 1) {
+    warning("Only one fcst_cycle exits, removing it as a group")
+    grps_param     <- lapply(grps_param,function(x) x[x != "fcst_cycle"])
+    grps_param     <- grps_param[lapply(grps_param,length) > 0]
+    grps_param     <- unique(grps_param)
+    grps_threshold <- list("station_group")
+  }
+  
+  cat("Running standard verification...\n")
+  # Do not compute threshold score for valid_hour/dttm unless explicitly requested
+  if (is.null(thresholds_param)) {
+    # Threshold scores not considered in this case
+    grps_1 <- grps_param
+  } else {
+    if (force_valid_thr) {
+      cat("Using all groups (including valid_dttm/hour) for threshold scores\n")
+      grps_1 <- grps_param
+    } else {
+      cat("Only grouping over lead_time for threshold scores\n")
+      grps_1 <- grps_param[grepl("lead_time",grps_param)]
+    }
+  }
+  verif <- do.call(
+    get(verif_fn),
+    c(list(.fcst      = fcst,
+           thresholds = thresholds_param,
+           groupings  = grps_1),
+      verif_options_list)
+  ) %>% fn_verif_rename(.,par_unit)
+  
+  # Then compute summary scores for valid_dttm/hour
+  # Only required if:
+  # 1) threshold scores are activated
+  # 2) valid_dttm/hour have not been used above i.e. force_valid_thr=F
+  if ((!is.null(thresholds_param)) & (!force_valid_thr)) {
+    # First store the threshold type in verif
+    vttype <- typeof(verif[[2]]$threshold[[1]])
+    
+    verif_others <- do.call(
+      get(verif_fn),
+      c(list(.fcst      = fcst,
+             thresholds = NULL,
+             groupings  = grps_param[!grepl("lead_time",grps_param)]),
+        verif_options_list)
+    ) %>% fn_verif_rename(.,par_unit)
+    verif <- bind_point_verif(verif,verif_others) %>%
+      select_list(-parameter)
+    # Add in valid_hour and valid_dttm = All 
+    verif[[2]] <- verif[[2]] %>% mutate(valid_hour = "All",
+                                        valid_dttm = "All")
+    
+    # After binding, it may be necesssary to switch "threshold" back to it's
+    # original type (e.g. changed from dbl to "chr")
+    nvttype <- typeof(verif[[2]]$threshold[[1]])
+    if (nvttype != vttype){
+      cat("After bpverif, threshold type changed from",vttype,"to",nvttype,"\n")
+      if (vttype == "double") {
+        verif[[2]] <- verif[[2]] %>% mutate(threshold  = as.double(threshold))
+      } else if (vttype == "character") {
+        verif[[2]] <- verif[[2]] %>% mutate(threshold  = as.character(threshold))
+      } else if (vttype == "integer") {
+        verif[[2]] <- verif[[2]] %>% mutate(threshold  = as.integer(threshold))
+      } else {
+        stop("Why are we here?")
+      }
+    }
+    
+    # par_unit missing after binding
+    attr(verif,"par_unit") <- par_unit
+  }
+  
+  # Save object to one used for plotting and manipulate as required
+  verif_toplot <- verif
+  if (!is.null(verif_toplot[[t_s_str]])) {
+    verif_toplot[[t_s_str]][["lead_time"]] <- 
+      as.character(verif_toplot[[t_s_str]][["lead_time"]])
+  }
+  
+  # Add all lead times used as an attribute
+  attr(verif_toplot,"all_lts_avail") <- as.character(sort(unique(fcst[[1]]$lead_time)))
+  
+  #================================================#
+  # RUN SID AND ALL THRESHOLD VERIFICATION FOR
+  # SURFACE PARAMS
+  #================================================#
+  
+  if (is.na(vertical_coordinate) & (create_png)) {
+    
+    #================================================#
+    # SID/MAP SCORES
+    #================================================#
+    
+    if (run_sid){
+      
+      cat("Running verification over individual stations...\n")
+      # Reduce the number of valid_hours as computing map scores is intense
+      fcst_sid_tmp <- fcst %>% 
+        harpPoint::filter_list(valid_hour %in% sprintf("%02d",seq(0,21,3)))
+      # Check if we should remove valid_hour as a group if only one is present
+      num_valid_hours <- length(unique(fcst_sid_tmp[[1]][["valid_hour"]]))
+      if (num_valid_hours == 1) {
+        warning("Only one valid hour exits, removing it as a group")
+        grps_SID <- list("station_group")
+      }
+      
+      verif_sid <- do.call(
+        get(verif_fn),
+        c(list(.fcst      = fcst_sid_tmp,
+               thresholds = NULL,
+               groupings  = grps_SID),
+          verif_options_list_nm)
+      ) %>% fn_verif_rename(.,par_unit)
+      # Add all lead times used as an attribute 
+      attr(verif_sid,"all_lts_avail") <- as.character(sort(unique(fcst_sid_tmp[[1]]$lead_time)))
+      rm(fcst_sid_tmp)
+      
+      # Need to add lat/lon to the SIDs
+      verif_sid <- fn_sid_latlon(verif_sid,fcst)
+      
+      # Join station_groups to verif object
+      for (vn in names(verif_sid)) {
+        verif_sid[[vn]] <- dplyr::inner_join(verif_sid[[vn]],
+                                             all_station_groups,
+                                             by = "SID",
+                                             relationship = "many-to-many")
+      }
+      
+    } else {
+      
+      cat("Skipping verification over individual stations...\n")
+      
+    }
+    
+    #================================================#
+    # THRESHOLD SCORES OVER ALL LEAD TIMES
+    #================================================#
+    
+    # Compute the standard threshold scores over all lead_times and add
+    if (!(is.null(thresholds_param))) {
+      cat("Running all threshold verification...\n")
+      verif_alllt <- do.call(
+        get(verif_fn),
+        c(list(.fcst      = fcst,
+               thresholds = thresholds_param,
+               groupings  = grps_threshold),
+          verif_options_list_nm)
+      ) %>% fn_verif_rename(.,par_unit)
+      
+      if (!is.null(verif_alllt[[t_s_str]])) {
+        verif_alllt[[t_s_str]] <- dplyr::mutate(verif_alllt[[t_s_str]],
+                                                lead_time  = "All",
+                                                valid_hour = "All",
+                                                valid_dttm = "All") %>%
+          dplyr::select(names(verif_toplot[[t_s_str]]))
+        cat("Adding threshold scores over all lead_times\n")
+        verif_toplot[[t_s_str]] <- dplyr::bind_rows(verif_toplot[[t_s_str]],
+                                                    verif_alllt[[t_s_str]])
+      }
+    } # threshold flag
+    
+    # Filter threshold scores to cases where we have a significant number of cases
+    min_thr_cases <- 20
+    if (!is.null(verif_toplot[[t_s_str]])) {
+      if (fcst_type == "det") {
+        verif_toplot[[t_s_str]] <- verif_toplot[[t_s_str]] %>% 
+          dplyr::filter(num_cases_for_threshold_observed >= min_thr_cases)
+      } else if (fcst_type == "eps") {
+        verif_toplot[[t_s_str]] <- verif_toplot[[t_s_str]] %>% 
+          dplyr::filter(num_cases_total >= min_thr_cases)
+      }
+    }
+    
+  } # is.na(vertical_coordinate)
+  
+  return(list("verif"        = verif,
+              "verif_toplot" = verif_toplot,
+              "verif_sid"    = verif_sid))
+  
 }
 
 #================================================#
@@ -265,7 +540,8 @@ fn_sid_latlon <- function(df,
 # Filter verif object dataframe
 filter_verif <- function(verif_o,
                          fts,
-                         cf){
+                         cf,
+                         force_vh = FALSE){
   
   # Only filter cases for lead_time, not valid_dttm or valid_hour
   verif_out <- verif_o
@@ -275,6 +551,18 @@ filter_verif <- function(verif_o,
       TRUE ~ num_cases >= 1)
     )
   
+  # Force valid_hour filtering
+  if (force_vh) {
+    max_vh_cases <- verif_f[[paste0(fts,"_summary_scores")]] %>%
+      filter(lead_time == "All")
+    max_vh_cases <- max(max_vh_cases$num_cases)
+    verif_f  <- verif_f %>%
+      harpPoint::filter_list(dplyr::case_when(
+        lead_time == "All" ~ num_cases >= round(max_vh_cases/4),
+        TRUE ~ num_cases >= 1)
+      )
+  }
+    
   # Check the filtered object
   qwe <- verif_f[[paste0(fts,"_summary_scores")]] %>% 
     dplyr::filter(lead_time != "All") 
