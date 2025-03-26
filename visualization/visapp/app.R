@@ -33,6 +33,13 @@
 # 2) INCLUDE THE EXPERIMENT NAME IN all_exp_names (NO LONGER REQUIRED)
 #
 # 06/2022
+# A BROWSER BUTTON HAS BEEN ADDED TO ALLOW NAVIGATING THROUGH SUBFOLDERS INSIDE
+# img_dir, IN CASE THAT ONE HAS A LOT OF VERIFICATION PROJECTS ARRANGED IN SEVERAL
+# LEVELS OF SUBFOLDERS - E.G. YEAR, MONTH, DATE...THIS IS FOR EXAMPLE THE CASE OF 
+# OD-DT DAILY RUNS FROM THE DESTINATION EARTH - EXTREMES PROJECT (DEODE)
+# THE USE OF THE BROWSER BUTTON IS COMPLETELY OPTIONAL, AND ITS FUNCTIONALITIES 
+# ARE ONLY INTENDED FOR USE WITH smr_ind = FALSE
+# 01/2025
 #========================================================================================#
 
 library(shiny)
@@ -43,6 +50,7 @@ library(lubridate)
 library(dplyr)
 library(tidyr)
 library(purrr)
+library(shinyFiles)
 rm(list=ls()) # clear all
 
 #================================================#
@@ -442,6 +450,7 @@ ui <- shiny::tags$html(
                           #                                 choices  = exps_for_tab,
                           #                                 selected = exps_for_tab[[1]],
                           #                                 outline = TRUE),
+                          shinyFiles::shinyDirButton("folder", "Browse", "Select a root directory containing verification 'projects' and presss 'Select': "),
                           shiny::uiOutput("timetypeui"),
                           shiny::selectInput('expname',label='Experiment',
                                              choices = "Waiting..."),
@@ -507,6 +516,21 @@ server <- function(input, output, session) {
   
   # Indicator for missing data
   mdi <- "No data"
+   # Set up a root path for folder browsing
+  roots <- c(home = normalizePath(img_dir))
+  
+  # Enable folder browser
+  shinyFiles::shinyDirChoose(input, "folder", roots = roots, session = session)
+
+  # Reactive: Get selected directory
+  selected_dir <- reactiveVal(img_dir)  # Initialize with img_dir
+
+  observeEvent(input$folder, {
+    parsed_dir <- shinyFiles::parseDirPath(roots, input$folder)
+    if (!is.null(parsed_dir) && nzchar(parsed_dir)) {
+      selected_dir(parsed_dir)  # Update only when a valid directory is selected
+    }
+  })
 
   # Render UI to change the "date" section format if the Seasonal/Monthly/Rolling
   # switch is TRUE (to be used for oper)
@@ -527,23 +551,22 @@ server <- function(input, output, session) {
     }
    })
   
-  # Get the available experiments
+  # Get the available experiments by
+  # updating c_exps based on the selected directory
   c_exps <- shiny::reactive({
-    if (smr_ind){
-      dl <- list.dirs(path=file.path(img_dir,input$timetype),
-                      full.names=FALSE,recursive=FALSE)
-    } else {
-      dl <- list.dirs(path=file.path(img_dir),
-                      full.names=FALSE,recursive=FALSE)
-    }
-    if (length(dl) > 0){
-      dl <- setdiff(dl,c("Monthly","Rolling","Seasonal"))
-      exps_for_tab1 <- all_exp_names[unlist(all_exp_names,use.names = FALSE) %in% dl]
-      # If the display name does not exist in the above, then create a default name
-      qwe <- dl[!(dl %in% unlist(all_exp_names,use.names = FALSE))]
-      exp_display_names <- stringr::str_to_title(gsub("_"," ",qwe))
-      exps_for_tab2 <- setNames(as.list(qwe),exp_display_names)
-      exps_for_tab <- c(exps_for_tab1,exps_for_tab2)
+    selected_path <- selected_dir()
+    if (!is.null(selected_path)) {
+      dl <- list.dirs(path = selected_path, full.names = FALSE, recursive = FALSE)
+      #dl <- setdiff(dl, c("Monthly", "Rolling", "Seasonal"))
+      if (length(dl) > 0) {
+        exps_for_tab1 <- all_exp_names[unlist(all_exp_names, use.names = FALSE) %in% dl]
+        qwe <- dl[!(dl %in% unlist(all_exp_names, use.names = FALSE))]
+        exp_display_names <- stringr::str_to_title(gsub("_", " ", qwe))
+        exps_for_tab2 <- setNames(as.list(qwe), exp_display_names)
+        exps_for_tab <- c(exps_for_tab1, exps_for_tab2)
+      } else {
+        exps_for_tab <- "Error: No experiments listed in the directory"
+      }
     } else {
       exps_for_tab <- "Error: No experiments listed in the directory"
     }
@@ -578,7 +601,7 @@ server <- function(input, output, session) {
       dl <- list.dirs(path=file.path(img_dir,input$timetype,input$expname),
                       full.names=FALSE,recursive=FALSE)
     } else {
-      dl <- list.dirs(path=file.path(img_dir,input$expname),
+      dl <- list.dirs(path=file.path(selected_dir(),input$expname),
                       full.names=FALSE,recursive=FALSE)
     }
     # Match only directories with YYYYMMDDHH-YYYYMMDDHH format
@@ -631,7 +654,7 @@ server <- function(input, output, session) {
       dl <- list.dirs(path=file.path(img_dir,input$timetype,input$expname),
                       full.names=FALSE,recursive=FALSE)
     } else {
-      dl <- list.dirs(path=file.path(img_dir,input$expname),
+      dl <- list.dirs(path=file.path(selected_dir(),input$expname),
                       full.names=FALSE,recursive=FALSE)
     }
     # Match only directories with YYYYMMDDHH-YYYYMMDDHH format
@@ -686,7 +709,7 @@ server <- function(input, output, session) {
     if (smr_ind){
       file.path(img_dir,input$timetype,input$expname,input$dates)
     } else {
-      file.path(img_dir,input$expname,input$dates)
+      file.path(selected_dir(),input$expname,input$dates)
     }
   })
   # Add an extra check to handle the case where the project name is included
@@ -1201,6 +1224,13 @@ server <- function(input, output, session) {
     
     req(input$validtime)
     req(input$threshold)
+    req(input$param)
+    req(input$score)
+    req(input$inittime)
+    req(input$dates)
+    req(input$station)
+    req(data_dirname())
+
     
     # Fixed dimensions
     scale_f  <- 0.95
@@ -1244,8 +1274,16 @@ server <- function(input, output, session) {
     if (proj_name_flag()){
       fname <- paste0(input$expname,"-",fname)
     }
+
+     # Ensure data_dirname() is valid
+     dirname <- data_dirname()
+     if (is.null(dirname) || dirname == "") {
+       stop("Error: data_dirname() returned NULL or empty.")
+     }
+
+
     filename <- file.path(data_dirname(),fname)
-    
+ 
     # Return a list containing the filename
     list(src    = filename,
          width  = c_width,
