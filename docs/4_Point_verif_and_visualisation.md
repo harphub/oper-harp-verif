@@ -101,7 +101,51 @@ Note that you can have images for multiple projects in `plot_output` and switch 
 ``` r
 library(shiny)
 runApp("visapp")
-
 ```
+
+### Fixed colours for certain models
+
+In many cases you may want to associate a given forecast model with a fixed colour in the png plots e.g. "model_A" is always coloured red. To do this, search for `model_names` in `visualization/fn_plot_helpers.R`, which defaults to:
+
+
+``` r
+# Some fixed model names which the verification scripts know about.
+# The default below considers 20 known models, corresponding to the number
+# available from "trubetskoy" in the pals packages (less last two colours).
+# The number of colours available in RColorBrewer is typically less, while
+# pals offers more options. 
+model_names  <- c("c1",
+                  "c2",
+                  "c3",
+                  "c4",
+                  "c5",
+                  "c6",
+                  "c7",
+                  "c8",
+                  "c9",
+                  "c10",
+                  "c11",
+                  "c12",
+                  "c13",
+                  "c14",
+                  "c15",
+                  "c16",
+                  "c17",
+                  "c18",
+                  "c19",
+                  "c20")
+```
+
+Then take a look at your chosen colour pallete (as specfied by cmap in your config file) from the [pals](https://cran.r-project.org/web/packages/pals/vignettes/pals_examples.html) or [RColorBrewer](https://r-graph-gallery.com/38-rcolorbrewers-palettes.html) packages and replace "cX" by your model name for the colour you want. Note that the index of your model in `model_names` is assoicated with the colour for that index in the palette. For example, if you use `cmap:trubetskoy` in your config file and set:
+
+``` r
+model_names  <- c("model_A",
+                  "c2",
+                  "c3",
+                  "model_B",
+...
+```
+
+then "model_A" will be always be in red and "model_B" will always be in blue i.e. the 1st and 4th colours of the trubetskoy pallete. If some or all of your forecast models are not listed in `model_names`, the colours assoicated with these models will default to the first ones available in the palette. For example, suppose you have forecast models "model_A", "model_B", and "model_C" and `model_names` is set as per the example above. In this case "model_A" will be in red, "model_B" be in blue", and "model_C" will be in green (i.e. the 2nd colour of the trubetskoy pallete, as the 1st colour is already taken by "model_A"). 
 
 

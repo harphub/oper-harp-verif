@@ -173,7 +173,7 @@ source(here::here(params_file))
 # READ OPTIONS FROM THE CONFIG FILE
 #================================================#
 
-cat("%%%%%%%%% point_verif: Using config file",config_file,"%%%%%%%%%\n")
+cat("%%%%%%%%% point_verif: Using config file",config_file,"and parameter file",params_file,"%%%%%%%%%\n")
 
 CONFIG          <- yaml::yaml.load_file(here::here(config_file))
 project_name    <- check_config_input(CONFIG,"verif","project_name")
