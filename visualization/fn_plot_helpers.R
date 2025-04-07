@@ -959,6 +959,13 @@ fn_get_map_cbar <- function(map_cbar_d,c_min,c_max,score,param,par_unit){
     } else {
       brks <- seq(0,5,0.5)
     }
+  } else if (param %in% c("Ps")) {
+    if (score %in% c("bias","mean_bias")) {
+      brks <- seq(-20,-2,2)
+      brks <- c(brks,-1,1,-rev(brks))
+    } else {
+      brks <- seq(0,15,1)
+    }
   } else if (param %in% c("T2m","Td2m","Q2m","Tmax","Tmin")) {
     if (score %in% c("bias","mean_bias")) {
       brks <- seq(-6,-1,1)
@@ -1791,6 +1798,8 @@ get_param_classes <- function(param) {
     p_breaks <- seq(-0.5,8.5,1)
   } else if (param == "Pmsl") {
     p_breaks <- seq(900,1060,2.5)
+  } else if (param == "Ps") {
+    p_breaks <- seq(600,1100,10)
   } else {
     warning("Do not produce freq hist plots for ",param)
     plot_ind <- FALSE
@@ -1946,9 +1955,11 @@ fn_gen_model_colors <- function(in_names,
                                 cmap,
                                 withobs=FALSE){
   
-  # Some fixed model names which the verification scripts know about
-  # If "trubetskoy" is used, up to 20 colours are available, with
-  # less for RColorBrewer
+  # Some fixed model names which the verification scripts know about.
+  # The default below considers 20 known models, corresponding to the number
+  # available from "trubetskoy" in the pals packages (less last two colours).
+  # The number of colours available in RColorBrewer is typically less, while
+  # pals offers more options. 
   model_names  <- c("c1",
                     "c2",
                     "c3",
@@ -1970,43 +1981,72 @@ fn_gen_model_colors <- function(in_names,
                     "c19",
                     "c20")
   
-  # If all of the input names are known, use a fixed list.
-  # Otherwise, use length(in_names) colours
-  if (all(in_names %in% model_names)) {
-    pal_length <- length(model_names)
-    pal_names  <- model_names
+  # am - names of all models
+  # al - corresponding index
+  il <- which(model_names %in% in_names)
+  if (length(il) > 0) {
+    im <- model_names[il]
+    om <- setdiff(in_names,im)
+    am <- im
+    al <- il
+    if (length(om) > 0) {
+      ol <- which(!model_names %in% in_names)
+      ol <- ol[1:length(om)]
+      am <- c(am,om)
+      al <- c(al,ol)
+    }
   } else {
-    pal_length <- length(in_names)
-    pal_names  <- in_names
+    am <- in_names
+    al <- seq(1,length(in_names))
   }
   
-  # Assuming cmap is an Rcolorbrewer type
-  bi <- rownames(RColorBrewer::brewer.pal.info)
+  # Generate all of the available colours. 
+  # Note that max(al) must be less than the length of the palette
+  # Here assuming Rcolorbrewer type or something from pals
+  model_colors <- NULL
+  pal_length   <- max(al)
+  bi           <- rownames(RColorBrewer::brewer.pal.info)
   if (cmap %in% bi) {
     if (RColorBrewer::brewer.pal.info[bi == cmap,]$maxcolors >= pal_length) {
-      model_colors <- RColorBrewer::brewer.pal(max(pal_length,3),cmap)
+      model_colors <- RColorBrewer::brewer.pal(
+        RColorBrewer::brewer.pal.info[bi == cmap,]$maxcolors,
+        cmap
+        )
+    } 
+    # Use pals package
+  } else if (cmap %in% ls("package:pals")) {
+    tmap         <- unname(get(cmap)()) 
+    if (cmap == "trubetskoy") {
+      # Drop the last two colours (white,black)
+      tmap       <- tmap[1:20]
+    } 
+    if (pal_length <= length(tmap)) {
+      model_colors <- tmap
     }
-  # Use pals package
-  } else if ((cmap %in% c("trubetskoy")) & (pal_length <= 20)) {
-    # Drop the last two colours (white,black)
-    tmap         <- unname(get(cmap)())[1:20]
-    model_colors <- tmap[1:pal_length]
-  # If not these, then go to the default
-  } else {
-    warning(cmap," does not have enough colours/is not in RColorBrewer")
-    cat("Using R's defualt line colors")
-    model_colors <- scales::hue_pal()(pal_length)
   }
   
-  model_colors <- model_colors[1:length(pal_names)]
+  # If not these, then go to the default. In this case the concept of
+  # known models is pointless, and we return from here.
+  if (is.null(model_colors)) {
+    warning(cmap," does not have enough colours/is not in RColorBrewer or pals. As such known models will be ignored.")
+    cat("Using R's defualt line colors")
+    model_colors <- scales::hue_pal()(length(in_names))
+    if (withobs) {
+      model_colors <- c(model_colors,'#4F4F4F')
+      am           <- c(am,"OBS")
+    }
+    names(model_colors) <- am
+    return(model_colors)
+  }
+  
+  # Now access only speicfic colours corresponding to known models.
+  # Unknown models are just drawn from the remainder.
+  model_colors <- model_colors[al]
   if (withobs) {
     model_colors <- c(model_colors,'#4F4F4F')
-    pal_names    <- c(pal_names,"OBS")
+    am           <- c(am,"OBS")
   }
-  names(model_colors) <- pal_names
-  
-  # Filter to just in_names
-  model_colors <- model_colors[names(model_colors) %in% c(in_names,"OBS")]
+  names(model_colors) <- am
   
   return(model_colors)
 }
