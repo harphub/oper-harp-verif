@@ -12,7 +12,52 @@ suppressPackageStartupMessages({
   library(tidyr)
   library(stringr)
   library(RSQLite)
+  library(lubridate)
 })
+
+#================================================#
+# CHECK IF START AND END DATE ARE OKAY
+#================================================#
+
+check_sedate <- function(start_date,end_date) {
+  
+  sdate <- NULL
+  edate <- NULL
+  
+  if (nchar(start_date) == 10) {
+    sdate <- start_date
+  }
+  if (nchar(end_date) == 10) {
+    edate <- end_date
+  }
+  if (nchar(start_date) == 8) {
+    # i.e. YYYYMMDD format - assume the first cycle of the day
+    sdate <- paste0(start_date,"00")
+  }
+  if (nchar(end_date) == 8) {
+    # i.e. YYYYMMDD format - assume the last possible cycle of the day
+    edate <- paste0(end_date,"23")
+  }
+  if (nchar(start_date) == 6) {
+    # i.e. YYYYMM format - assume the first day and cycle of the month
+    sdate <- paste0(start_date,"0100")
+  }
+  if (nchar(end_date) == 6) {
+    # i.e. YYYYMM format - assume the last day and possible cycle of the month
+    lastday <- lubridate::days_in_month(harpCore::as_dttm(paste0(end_date,"01"))) %>%
+      unname()
+    edate <- paste0(end_date,lastday,"23")
+  }
+  
+  if ((!is.null(sdate)) & (!is.null(edate))) {
+    cat("Looking at date range",sdate,"-",edate,"\n")
+  } else {
+    stop("The input start/end_date should be 6, 8, or 10 characters!")
+  }
+  
+  return(list("start_date" = sdate,
+              "end_date"   = edate))
+}
 
 #================================================#
 # CHECK IF CONFIG FILE OPTIONS EXIST
@@ -27,7 +72,7 @@ check_config_input <- function(config,x,y,default="None") {
     if (default == "None") {
       stop("No default value set for ",y,", aborting")
     } else {
-      cat("Setting",y,"=",default,"\n")
+      cat("Setting",y,"=",default[[1]],"\n")
       val <- default
     }
   }
@@ -109,6 +154,57 @@ conv_allsynop <- function(input_list){
   return(synop_list)
 }
 
+
+#================================================#
+# MODIFY THE STATION ELEVATION IN THE STATIONS FILE
+# TO THE ACTUAL ELEVATION FROM THE OBSERVATIONS
+#================================================#
+
+modify_station_elev <- function(stations_rf,
+                                obs_path,
+                                start_date,
+                                output_diag = FALSE) {
+  
+  # Read in the obstable
+  yyyy <- substr(start_date,0,4)
+  sql_file <- file.path(obs_path,paste0("OBSTABLE_",yyyy,".sqlite"))
+  
+  if (!file.exists(sql_file)) {
+    
+    cat("Could not find OBSTABLE for correcting station elev, skipping\n")
+    return(stations_rf)
+    
+  } else {
+    
+    con        <- DBI::dbConnect(drv    = RSQLite::SQLite(),
+                                 dbname = sql_file)
+    sql_synop  <- DBI::dbGetQuery(conn      = con,
+                                  statement = "SELECT SID,elev FROM SYNOP") %>%
+      as_tibble() %>% distinct() %>% filter(elev != -99) %>%
+      group_by(SID) %>% summarise(obs_elev = mean(elev))
+    DBI::dbDisconnect(con)
+    
+    # Join and update elev with OBSTABLE elev if it exists
+    onames      <- colnames(stations_rf)
+    stations_rf <- left_join(stations_rf,sql_synop,by = "SID") %>%
+      mutate(obs_elev_filtered = case_when(
+        is.na(obs_elev) ~ elev,
+        .default = obs_elev),
+        asl_elev = elev) %>% 
+      mutate(elev_diff = abs(asl_elev - obs_elev_filtered)) %>%
+      mutate(elev = obs_elev_filtered)
+    
+    if (output_diag) {
+      out_name <- "asl_corrected_elev.rds"
+      cat("Saving",out_name,"with updated station elev info\n")
+      saveRDS(stations_rf, file = here("pre_processing/",out_name))
+    }
+    
+    stations_rf <- stations_rf %>% select(all_of(onames))
+    return(stations_rf)
+  }
+  
+}
 
 #================================================#
 # CALL THE VERIFICATION FUNCTION FOR DIFFERENT
@@ -264,13 +360,23 @@ fn_run_verif_groups <- function(fcst = "",
       
       cat("Running verification over individual stations...\n")
       # Reduce the number of valid_hours as computing map scores is intense
-      fcst_sid_tmp <- fcst %>% 
-        harpPoint::filter_list(valid_hour %in% sprintf("%02d",seq(0,21,3)))
+      # Generally looks at valid hours 00-21:3, but only do this filtering 
+      # if all of these hours exist in the data
+      avail_vhours <- unique(fcst[[1]][["valid_hour"]]) %>% as.integer()
+      if (all(seq(0,21,3) %in% avail_vhours)) {
+        cat("Using valid hours 0-21:3 when computing map scores\n")
+        fcst_sid_tmp <- fcst %>% 
+          harpPoint::filter_list(valid_hour %in% sprintf("%02d",seq(0,21,3)))
+      } else {
+        # In this case just use whatever is available
+        cat("Using valid hours",avail_vhours,"when computing maps scores\n")
+        fcst_sid_tmp <- fcst
+      }
       # Check if we should remove valid_hour as a group if only one is present
       num_valid_hours <- length(unique(fcst_sid_tmp[[1]][["valid_hour"]]))
       if (num_valid_hours == 1) {
         warning("Only one valid hour exits, removing it as a group")
-        grps_SID <- list("station_group")
+        grps_SID <- list("SID")
       }
       
       verif_sid <- do.call(
@@ -344,7 +450,8 @@ fn_run_verif_groups <- function(fcst = "",
   
   return(list("verif"        = verif,
               "verif_toplot" = verif_toplot,
-              "verif_sid"    = verif_sid))
+              "verif_sid"    = verif_sid,
+              "verif_fn"     = verif_fn))
   
 }
 

@@ -14,6 +14,7 @@ suppressPackageStartupMessages({
   library(here)
   library(yaml)
 })
+source(here::here("verification/fn_verif_helpers.R"))
 
 #================================================#
 # READ COMMAND LINE ARGUMENTS
@@ -60,6 +61,11 @@ if (any(c(start_date,end_date,config_file) == "None")) {
 if (!file.exists(here::here(config_file))) {
   stop("Cannot find config file",here::here(config_file))
 }
+
+# Check start/end dates
+sedate     <- check_sedate(start_date,end_date)
+start_date <- sedate$start_date
+end_date   <- sedate$end_date
 
 #================================================#
 # READ OPTIONS FROM THE CONFIG FILE

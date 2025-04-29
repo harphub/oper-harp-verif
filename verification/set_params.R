@@ -73,6 +73,12 @@ params <- list(
       obsmax_val = 106000/100,
       error_sd   = 6
     ),
+    Ps = list(
+      thresholds = NULL,
+      obsmin_val = 60000/100,
+      obsmax_val = 110000/100,
+      error_sd   = 6
+    ),
     S10m = list(
       thresholds = c(2.5,5,7.5,10,15,20,25,30),
       obsmin_val = 0,

@@ -13,6 +13,7 @@ suppressPackageStartupMessages({
   library(argparse)
   library(here)
   library(yaml)
+  library(RSQLite)
 })
 source(here::here("verification/fn_verif_helpers.R"))
 
@@ -51,6 +52,20 @@ if (!interactive()) {
                                  files. Useful when memebrs have different model elevations
                                  e.g. multi-model ensembles [default %(default)s]",
                       metavar = "Boolean")
+  parser$add_argument("-params_list",
+                      type    = "character",
+                      default = "MISSING",
+                      help    = "A comma separarated list of parameters to convert.
+                                 This will have precedence over 'params' in the config
+                                 file if specified. Only generally used in specific
+                                 circumstances.",
+                      metavar = "String")
+  parser$add_argument("-use_obs_elev",
+                      type    = "logical",
+                      default = FALSE,
+                      help    = "When correcting for T2m/Ps, you may want to read
+                                 the actual station elevation from the observations.",
+                      metavar = "Boolean")
   
   args           <- parser$parse_args()
   start_date     <- args$start_date
@@ -58,6 +73,8 @@ if (!interactive()) {
   config_file    <- args$config_file
   use_custom_asl <- args$use_custom_asl
   remove_m_elev  <- args$remove_m_elev
+  params_list    <- args$params_list
+  use_obs_elev   <- args$use_obs_elev
   
 } else {
   
@@ -66,6 +83,8 @@ if (!interactive()) {
   config_file    <- "config_files/config_det_example.yml"
   use_custom_asl <- F
   remove_m_elev  <- F
+  params_list    <- "T2m,Pmsl,Ps"
+  use_obs_elev   <- T
   
 }
 
@@ -78,6 +97,11 @@ if (any(c(start_date,end_date,config_file) == "None")) {
 if (!file.exists(here::here(config_file))) {
   stop("Cannot find config file",here::here(config_file))
 }
+
+# Check start/end dates
+sedate     <- check_sedate(start_date,end_date)
+start_date <- sedate$start_date
+end_date   <- sedate$end_date
 
 #================================================#
 # READ OPTIONS FROM THE CONFIG FILE
@@ -109,6 +133,11 @@ if (is.null(lead_time_str)) {
   cat("Using CONFIG$pre for the lead_times to convert\n")
 }
 lead_time <- eval(parse(text = lead_time_str))
+
+# If use_obs_elev, then you need the OBSTABLE from the config
+if (use_obs_elev) {
+  obs_path <- check_config_input(CONFIG,"verif","obs_path")
+}
 
 #================================================#
 # OPTION CHECKS
@@ -147,6 +176,15 @@ if (use_custom_asl) {
   stations_rf <- harpCore::station_list
 }
 
+# Now correct the elevation by using the observation elevation
+if (use_obs_elev) {
+  cat("Trying to correct station elevation using observations\n")
+  stations_rf <- modify_station_elev(stations_rf,
+                                     obs_path,
+                                     start_date,
+                                     output_diag = T)
+}
+
 if (remove_m_elev) {
   cat("Do not include model_elevation in the sqlite files\n")
 }
@@ -157,6 +195,12 @@ if (length(CONFIG$pre$members) == 1) {
   if (is.null(CONFIG$pre$members[[1]])) {
     members_list <- NULL
   }
+}
+
+# Check if we should use params_list over params
+if (params_list[1] != "MISSING") {
+  params <- stringr::str_split_1(gsub(" ","",params_list),",")
+  cat("Only converting",params,"as params_list has been specified\n")
 }
 
 #================================================#
