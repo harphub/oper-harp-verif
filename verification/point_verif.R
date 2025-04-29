@@ -128,6 +128,14 @@ if (!interactive()) {
                       default = TRUE,
                       help    = "Use the input start/end dates in output figs/rds?
                                  If FALSE, the first/last valid fcst_dttm are used")
+  parser$add_argument("-skip_sid_verif",
+                      type    = "logical",
+                      default = FALSE,
+                      help    = "Skip the SID verification i.e. map scores")
+  parser$add_argument("-skip_thresh_verif",
+                      type    = "logical",
+                      default = FALSE,
+                      help    = "Skip the threshold verification")
 
   args               <- parser$parse_args()
   start_date         <- args$start_date
@@ -142,6 +150,8 @@ if (!interactive()) {
   rolling_verif      <- args$rolling_verif
   gen_sc_only        <- args$gen_sc_only
   use_fixed_dates    <- args$use_fixed_dates
+  skip_sid_verif     <- args$skip_sid_verif
+  skip_thresh_verif  <- args$skip_thresh_verif
 
 } else {
   
@@ -166,6 +176,11 @@ if (!file.exists(here::here(params_file))) {
   stop("Cannot find parameter file",here::here(params_file))
 }
 
+# Check start/end dates
+sedate     <- check_sedate(start_date,end_date)
+start_date <- sedate$start_date
+end_date   <- sedate$end_date
+
 # Read in the parameter file
 source(here::here(params_file))
 
@@ -180,6 +195,7 @@ project_name    <- check_config_input(CONFIG,"verif","project_name")
 fcst_model      <- check_config_input(CONFIG,"verif","fcst_model")
 lead_time_str   <- check_config_input(CONFIG,"verif","lead_time")
 lead_time       <- eval(parse(text = lead_time_str))
+lead_time_UA    <- CONFIG$verif$lead_time_UA
 by_step         <- check_config_input(CONFIG,"verif","by_step")
 fcst_type       <- check_config_input(CONFIG,"verif","fcst_type")
 fcst_path       <- check_config_input(CONFIG,"verif","fcst_path")
@@ -188,12 +204,14 @@ verif_path      <- check_config_input(CONFIG,"verif","verif_path")
 domains         <- check_config_input(CONFIG,"verif","domains",default="All")
 members         <- CONFIG$verif$members
 lags            <- check_config_input(CONFIG,"verif","lags")
+shifts          <- check_config_input(CONFIG,"verif","shifts",default=list(NULL))
 num_ref_members <- check_config_input(CONFIG,"verif","num_ref_members",default="Inf")
 ua_fcst_cycle   <- check_config_input(CONFIG,"verif","ua_fcst_cycle",default=F)
 lt_split        <- check_config_input(CONFIG,"verif","lt_split",default=F)
 force_valid_thr <- check_config_input(CONFIG,"verif","force_valid_thr",default=F)
 plot_output     <- check_config_input(CONFIG,"post","plot_output",default="default")
 create_png      <- check_config_input(CONFIG,"post","create_png",default=T)
+save_vofp       <- check_config_input(CONFIG,"post","save_vofp",default=F)
 cmap            <- check_config_input(CONFIG,"post","cmap",default="Set2")
 cmap_hex        <- check_config_input(CONFIG,"post","cmap_hex",default="magma")
 map_cbar_d      <- check_config_input(CONFIG,"post","map_cbar_d",default=F)
@@ -202,6 +220,7 @@ create_scrd     <- check_config_input(CONFIG,"scorecards","create_scrd",default=
 # Convert members and lags to named lists for read_point_forecast
 members_list    <- get_named_list(members,fcst_model,"members")
 lags_list       <- get_named_list(lags,fcst_model,"lags")
+shifts_list     <- get_named_list(shifts,fcst_model,"shifts")
 
 # Abort if directories do not exist
 check_dirs_exist(c(fcst_path,obs_path,verif_path))
@@ -384,6 +403,9 @@ if (use_fixed_dates) {
   fed <- NA_character_
 }
 
+# Set default lead_time
+lead_time_default <- lead_time
+
 #================================================#
 # FIND MODEL WITH MIN NUMBER OF STATIONS TO 
 # REDUCE INITIAL IO
@@ -449,11 +471,21 @@ run_verif <- function(prm_info, prm_name) {
     domains_to_run <- domains
   }
   
-  # Do not run threshold scores if in rolling verif
-  if (rolling_verif) {
+  # Do not run threshold scores if in rolling verif (or if it is turned off)
+  if ((rolling_verif) || (skip_thresh_verif)){
     thresholds_param <- NULL
   } else {
     thresholds_param <- prm_info$thresholds
+  }
+  
+  # Allow for specific leadtimes for UA variables
+  lead_time <- lead_time_default
+  prm_name_nolevel <- gsub('[0-9]+','',prm_name)
+  if (prm_name_nolevel %in% all_possible_UA_vars) {
+    if (!is.null(lead_time_UA)) {
+      lead_time <- eval(parse(text = lead_time_UA))
+      cat("Using lead_time_UA option i.e. leadtimes=",lead_time,"for variable",prm_name,"\n")
+    }
   }
   
   # Initialise timings
@@ -536,6 +568,28 @@ run_verif <- function(prm_info, prm_name) {
     }
     
   } 
+  
+  #================================================#
+  # SHIFT THE FORECAST (EXPERIMENTAL)
+  #================================================#
+  
+  if ((!is.null(shifts_list[[1]])) & (fcst_type == "det")) {
+    cat("Looks like you are trying to shift the models in time with:\n")
+    print(shifts_list)
+    fcst <- harpPoint::shift_forecast(
+      fcst,
+      fcst_shifts = shifts_list,
+      keep_unshifted = F
+    )
+    # And do some renaming (to reduce length of legend)
+    shifted_names <- gsub("shifted_","s",names(fcst))
+    # If the shift is zero hours, remove this from the model name
+    shifted_names <- gsub("_s0h","",shifted_names)
+    for (ii in seq(1,length(fcst))) {
+      fcst[[ii]][["fcst_model"]] <- shifted_names[ii]
+    }
+    names(fcst) <- shifted_names
+  }
   
   #================================================#
   # COMMON CASE, SCALE, FILTER TO MAX FORECAST
@@ -775,12 +829,13 @@ run_verif <- function(prm_info, prm_name) {
                                      create_png = create_png,
                                      force_valid_thr = force_valid_thr,
                                      t_s_str = t_s_str,
-                                     run_sid = T)
+                                     run_sid = !skip_sid_verif)
     et_verif <- Sys.time()
     dt_verif <- round(as.numeric(et_verif - st_verif,units = "secs"))
     verif        <- verif_all$verif
     verif_toplot <- verif_all$verif_toplot
     verif_sid    <- verif_all$verif_sid
+    verif_fn     <- verif_all$verif_fn
         
     #================================================#
     # CALL PLOTTING SCRIPT FOR DIFFERENT GROUPS
@@ -811,7 +866,7 @@ run_verif <- function(prm_info, prm_name) {
                                map_cbar_d = map_cbar_d,
                                fsd  = fsd,
                                fed  = fed)
-      if (is.na(vertical_coordinate)) {
+      if ((is.na(vertical_coordinate)) & (!is.null(verif_sid))) {
         fn_plot_point_verif(verif_sid,
                                  plot_output,
                                  table_SIDS = FALSE,
@@ -824,6 +879,15 @@ run_verif <- function(prm_info, prm_name) {
       }
   
     }
+    
+    # Save the verification object used for plotting pngs if desired
+    if (save_vofp) {
+      vtpname <- paste(project_name,prm_name,start_date,end_date,sep = "_")
+      saveRDS(object = verif_toplot,
+              file   = file.path(plot_output,
+                                 paste0(vtpname,".rds")))
+    }
+    
     et_plot <- Sys.time()
     dt_plot <- round(as.numeric(et_plot - st_plot,units = "secs"))
         

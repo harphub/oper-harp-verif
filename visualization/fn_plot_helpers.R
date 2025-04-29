@@ -254,6 +254,7 @@ fn_plot_point <- function(verif,
   cycle        <- vroption_list$cycle
   station      <- vroption_list$station
   xg_str       <- vroption_list$xg_str
+  fylims       <- vroption_list$fylims
   line_size    <- fxoption_list$line_size
   stroke_size  <- fxoption_list$stroke_size
   ptheme_l     <- fxoption_list$ptheme_l
@@ -337,6 +338,13 @@ fn_plot_point <- function(verif,
     stroke_size <- 0
     point_size  <- 0
     xl          <- "Valid date"
+  }
+  
+  # If looking at lead_time, use fixed y-limits if specified
+  if ((xgroup == "lead_time") & (!is.null(fylims[1]))) {
+    ylims <- fylims
+  } else {
+    ylims <- NULL
   }
   
   # Plot according to number of scores 
@@ -499,6 +507,9 @@ fn_plot_point <- function(verif,
         lt_sep <- 6
       }
       p_out <- p_out + ggplot2::scale_x_continuous(breaks = seq(0,720,lt_sep))
+      if (!is.null(ylims[1])) {
+        p_out <- p_out + ggplot2::scale_y_continuous(limits = ylims)
+      }
     }
     return(p_out)
     
@@ -558,6 +569,10 @@ fn_plot_point <- function(verif,
       ptheme_l + 
       ggplot2::scale_color_manual(values = mcolors)
     
+    if (!is.null(ylims[1])) {
+      p_out <- p_out + ggplot2::scale_y_continuous(limits = ylims)
+    }
+
     cp_ylim <- layer_scales(p_out)$y$range$range
     if ((cp_ylim[1] < 0) && (cp_ylim[2] > 0)) {
       p_out <- p_out + ggplot2::geom_hline(yintercept = 0,

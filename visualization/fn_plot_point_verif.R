@@ -17,6 +17,7 @@ fn_plot_point_verif <- function(harp_verif_input,
                                      rolling_verif = FALSE,
                                      fsd = NA_character_,
                                      fed = NA_character_,
+                                     fylims = NULL,
                                      plevel_filter = TRUE){
  
   #=================================================#
@@ -80,7 +81,8 @@ fn_plot_point_verif <- function(harp_verif_input,
     
     # Scores as a fn of lead_time
     scores_lt  <- c(paste0("bias",score_sep,"rmse"),
-                    paste0("bias",score_sep,"stde"))
+                    paste0("bias",score_sep,"stde"),
+                    paste0("bias",score_sep,"mae"))
     
     # Scores as a fn of valid_dttm
     scores_vd  <- c(paste0("bias",score_sep,"stde"))
@@ -575,6 +577,24 @@ fn_plot_point_verif <- function(harp_verif_input,
         
         for (station in stations) {
           
+          # Get fixed limits based on parameter and station group i.e. fylims 
+          # should take the form of a list fylims$param$station. The default
+          # fixed limits should be given by fylims$param$default
+          ylims <- c(NA,NA)
+          if (!is.null(names(fylims))) {
+            # Check if param exists in the list
+            if (param %in% names(fylims)) {
+              # Check if domain exists in the list
+              if (station %in% names(fylims[[param]])) {
+                ylims <- fylims[[param]][[station]]
+              } else {
+                if ("default" %in% names(fylims[[param]])) {
+                  ylims <- fylims[[param]][["default"]]
+                }
+              }
+            }
+          }
+          
           # Variable options
           vroption_list <- list("xgroup"  = xgroup,
                                 "score"   = score,
@@ -582,7 +602,8 @@ fn_plot_point_verif <- function(harp_verif_input,
                                 "station" = station,
                                 "c_typ"   = c_typ,
                                 "c_ftyp"  = c_ftyp,
-                                "xg_str"  = xg_str)
+                                "xg_str"  = xg_str,
+                                "fylims"  = ylims)
             
           verif_II <- harpPoint::filter_list(verif_I,
                                              get(station_group_var) == station)
