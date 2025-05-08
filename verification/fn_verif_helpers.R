@@ -450,8 +450,7 @@ fn_run_verif_groups <- function(fcst = "",
   
   return(list("verif"        = verif,
               "verif_toplot" = verif_toplot,
-              "verif_sid"    = verif_sid,
-              "verif_fn"     = verif_fn))
+              "verif_sid"    = verif_sid))
   
 }
 
@@ -1150,10 +1149,18 @@ gen_sc <- function(sc_data,
                    param,
                    domain,
                    CONFIG,
-                   verif_fn,
+                   fcst_type,
                    vc,
                    all_UA_vars,
                    num_ref_members){
+  
+  if (fcst_type == "eps") {
+    verif_fn <- "ens_verify"
+  } else if (fcst_type == "det") {
+    verif_fn <- "det_verify"
+  } else {
+    stop("Why did this happen?")
+  }
 
   if (!is.na(vc)) {
     
