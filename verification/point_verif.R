@@ -835,8 +835,7 @@ run_verif <- function(prm_info, prm_name) {
     verif        <- verif_all$verif
     verif_toplot <- verif_all$verif_toplot
     verif_sid    <- verif_all$verif_sid
-    verif_fn     <- verif_all$verif_fn
-        
+    
     #================================================#
     # CALL PLOTTING SCRIPT FOR DIFFERENT GROUPS
     #================================================#
@@ -937,7 +936,7 @@ run_verif <- function(prm_info, prm_name) {
                                {{prm_name}},
                                scrd_domain,
                                CONFIG,
-                               verif_fn,
+                               fcst_type,
                                vertical_coordinate,
                                all_possible_UA_vars,
                                num_ref_members)

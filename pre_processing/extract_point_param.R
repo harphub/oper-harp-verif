@@ -666,3 +666,5 @@ for (fcst_model in fcst_models) {
   } # DTG
   
 } # Models
+
+cat("Finished extract_point_param\n")

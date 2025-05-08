@@ -143,6 +143,13 @@ You can define SIDs which should always be removed from the verification process
 ```
 Filtering for additional parameters can be added as required. 
 
+### Filtering based on elevation
+
+For a given domain/SID list, denoted as X, you can select stations which have elevation above or below a given height Y by using the following convention:
+- "X_ELEVA_Y": This will use all stations in domain/SID list X above (>) elevation Y m.
+- "X_ELEVB_Y": This will use all stations in domain/SID list X below (<=) elevation Y m.
+Note that stations with missing elevation (typically denoted as -99, which comes from the vobs files) will always be removed in this case. If no stations are found which meet the criteria "X_ELEVA/B_Y" then this domain will be skipped.
+
 ### Add a new domain/SID list
 
 You can add a new domain/SID list definition by editing `fn_station_selection.R` as follows. **Note that the name of your new domain should not conflict with any existing domain/list name!**

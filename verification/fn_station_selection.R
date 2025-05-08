@@ -436,11 +436,13 @@ fn_station_selection <- function(domain_choice = "All_Domains",
   
   if (dynamic_gen){
     
-  qwe  <- fcst_object[[1]] %>% dplyr::select(SID,lat,lon) %>% dplyr::distinct()
+  qwe  <- fcst_object[[1]] %>% dplyr::select(SID,lat,lon,elev) %>% dplyr::distinct()
   # May have multiple lat lon values here if definition changed in vfld
   # Remove NAs which can occur at random leadtimes for Pcp - vfld2sql processing?
-  qwe2 <- qwe %>% group_by(SID) %>% summarise(lat = min(lat,na.rm = T),
-                                              lon = min(lon,na.rm = T))
+  # Use "max" for elev in case of -99 instances
+  qwe2 <- qwe %>% group_by(SID) %>% summarise(lat  = min(lat,na.rm = T),
+                                              lon  = min(lon,na.rm = T),
+                                              elev = max(elev,na.rm = T))
   if (nrow(qwe) != nrow(qwe2)) {
     mult_ll_SIDS <- names(table(qwe$SID)[table(qwe$SID)>1])
     mult_ll      <- qwe %>% filter(SID %in% mult_ll_SIDS) %>% arrange(SID)
@@ -722,6 +724,16 @@ fn_station_selection <- function(domain_choice = "All_Domains",
       
       read_poly <- FALSE
       poly_file <- file.path(poly_dir,paste0(domain,".poly"))
+      
+      # Check for ELEVA or ELEVB flags in domain name
+      elevl <- grepl("_ELEV",domain,fixed = T)
+      if (elevl) {
+        domain_o <- domain
+        domain   <- strsplit(domain_o,"_ELEV")[[1]][1]
+        elevab   <- strsplit(strsplit(domain_o,"_ELEV")[[1]][2],"_")[[1]][1]
+        elevf    <- strsplit(strsplit(domain_o,"_ELEV")[[1]][2],"_")[[1]][2]
+      }
+      
       if (domain %in% names(all_station_lists)){
         if (dynamic_gen) {
           cat("Domain",domain,"is already a user specified list, skipping dynamic gen loop\n")
@@ -804,6 +816,43 @@ fn_station_selection <- function(domain_choice = "All_Domains",
         df <- allstations
       }
       } # dynamic gen
+      
+      # Now apply elev filtering if required
+      if (elevl) {
+        
+        domain <- domain_o
+
+        if (!("elev" %in% names(df))) {
+          
+          cat("No elevation found - cannot do filtering")
+          next
+          
+        } else {
+        
+          # Remove -99 stations
+          df99 <- df %>% filter(elev == -99)
+          df   <- df %>% filter(elev != -99)
+          if (nrow(df99) > 0) {
+            cat("Removed the following stations due to -99 elevation\n")
+            print(df99,n=nrow(df99))
+          }
+          
+          if (elevab == "A") {
+            df <- df %>% filter(elev > as.double(elevf))
+          } else if (elevab == "B") {
+            df <- df %>% filter(elev <= as.double(elevf))
+          } else {
+            stop("Elevation filtering went wrong - check your domain!")
+          }
+          
+          if (nrow(df) == 0) {
+            cat("No stations found for",domain," - skipping\n")
+            next
+          }
+        
+        }
+        
+      }
       
       # Plot the maps if desired
       if ((plot_domains) & (nrow(df)>0)){
