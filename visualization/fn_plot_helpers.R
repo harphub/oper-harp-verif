@@ -637,11 +637,17 @@ fn_plot_point <- function(verif,
       }
       
       if (vroption_list$log_ind) {
+        if (pb_use[1] == 0) {
+          min_pb_use <- NA
+          pb_use     <- pb_use[pb_use>0]
+        } else {
+          min_pb_use <- min(pb_use)
+        }
         p_out <- p_out + ggplot2::scale_x_continuous(
           trans        = "pseudo_log",
           breaks       = pb_use,
           labels       = pb_use,
-          limits       = c(min(pb_use),max(pb_use)),
+          limits       = c(min_pb_use,max(pb_use)),
           minor_breaks = NULL)
       } else {
         p_out <- p_out + ggplot2::scale_x_continuous(
@@ -653,7 +659,7 @@ fn_plot_point <- function(verif,
 
       p_ylim <- ggplot2::layer_scales(p_out)$y$range$range
       if ("freq_bias" %in% names(df)) {
-        c_breaks <- seq(0,10,0.5)
+        c_breaks <- c(seq(0,2,0.5),3,4,seq(5,15,2.5))
       } else {
         c_breaks <- round(pracma::logseq(max(1,p_ylim[1]),p_ylim[2],6),0)
       }
@@ -814,11 +820,17 @@ fn_plot_numcases <- function(verif,
       pb_use <- p_breaks[pbi]
     }
     if (vroption_list$log_ind) {
+      if (pb_use[1] == 0) {
+        min_pb_use <- NA
+        pb_use     <- pb_use[pb_use>0]
+      } else {
+        min_pb_use <- min(pb_use)
+      }
       p_out <- p_out + ggplot2::scale_x_continuous(
         trans        = "pseudo_log",
         breaks       = pb_use,
         labels       = pb_use,
-        limits       = c(min(pb_use),max(pb_use)),
+        limits       = c(min_pb_use,max(pb_use)),
         minor_breaks = NULL)
     } else {
       p_out <- p_out + 
