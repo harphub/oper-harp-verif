@@ -17,6 +17,7 @@ fn_plot_point_verif <- function(harp_verif_input,
                                      rolling_verif = FALSE,
                                      fsd = NA_character_,
                                      fed = NA_character_,
+                                     fylims = NULL,
                                      plevel_filter = TRUE){
  
   #=================================================#
@@ -80,7 +81,8 @@ fn_plot_point_verif <- function(harp_verif_input,
     
     # Scores as a fn of lead_time
     scores_lt  <- c(paste0("bias",score_sep,"rmse"),
-                    paste0("bias",score_sep,"stde"))
+                    paste0("bias",score_sep,"stde"),
+                    paste0("bias",score_sep,"mae"))
     
     # Scores as a fn of valid_dttm
     scores_vd  <- c(paste0("bias",score_sep,"stde"))
@@ -353,18 +355,26 @@ fn_plot_point_verif <- function(harp_verif_input,
   # Define various themes
   ptheme_l <- ggplot2::theme_bw() + 
     ggplot2::theme(
-      plot.title      = ggplot2::element_text(size = 10),
-      plot.subtitle   = ggplot2::element_text(size = 8),
-      axis.text       = ggplot2::element_text(size = 10),
-      axis.title      = ggplot2::element_text(size = 10),
-      strip.text      = ggplot2::element_text(size = 10),
-      legend.text     = ggplot2::element_text(size = 10),
+      plot.title      = ggplot2::element_text(size = 10, margin = margin(1,0,1,0)),
+      plot.subtitle   = ggplot2::element_text(size = 8, margin = margin(1,0,0,0)),
+      axis.text       = ggplot2::element_text(size = 8),
+      axis.title      = ggplot2::element_text(size = 8, margin = margin(0,0,0,0)),
+      strip.text      = ggplot2::element_text(size = 8),
+      legend.text     = ggplot2::element_text(size = 8),
+      legend.box.spacing   = unit(0,"pt"),
+      legend.margin        = margin(0,0,0,0),
+      legend.box.margin    = margin(0,0,0,0),
       legend.position = "top"
     )
+  # legend.key.spacing.x only available for ggplot2 version 3.5.0
+  if (as.numeric(gsub(".","",packageVersion("ggplot2"),fixed=T)) >= 350) {
+    ptheme_l <- ptheme_l +
+      ggplot2::theme(legend.key.spacing.x = unit(1,"lines"))
+  }
   ptheme_nc <- ggplot2::theme_bw() + 
     ggplot2::theme(
-      axis.text       = ggplot2::element_text(size = 10),
-      axis.title      = ggplot2::element_text(size = 10),
+      axis.text       = ggplot2::element_text(size = 8),
+      axis.title      = ggplot2::element_text(size = 8, margin = margin(0,0,0,0)),
       legend.position = "none"
     )
   
@@ -567,6 +577,24 @@ fn_plot_point_verif <- function(harp_verif_input,
         
         for (station in stations) {
           
+          # Get fixed limits based on parameter and station group i.e. fylims 
+          # should take the form of a list fylims$param$station. The default
+          # fixed limits should be given by fylims$param$default
+          ylims <- c(NA,NA)
+          if (!is.null(names(fylims))) {
+            # Check if param exists in the list
+            if (param %in% names(fylims)) {
+              # Check if domain exists in the list
+              if (station %in% names(fylims[[param]])) {
+                ylims <- fylims[[param]][[station]]
+              } else {
+                if ("default" %in% names(fylims[[param]])) {
+                  ylims <- fylims[[param]][["default"]]
+                }
+              }
+            }
+          }
+          
           # Variable options
           vroption_list <- list("xgroup"  = xgroup,
                                 "score"   = score,
@@ -574,7 +602,8 @@ fn_plot_point_verif <- function(harp_verif_input,
                                 "station" = station,
                                 "c_typ"   = c_typ,
                                 "c_ftyp"  = c_ftyp,
-                                "xg_str"  = xg_str)
+                                "xg_str"  = xg_str,
+                                "fylims"  = ylims)
             
           verif_II <- harpPoint::filter_list(verif_I,
                                              get(station_group_var) == station)

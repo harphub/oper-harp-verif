@@ -14,6 +14,12 @@ numbers_only <- function(x) !grepl("\\D", x)
 
 fn_nc_combine <- function(p,p_nc,h1=4,h2=1) {
   
+  if (all(is.na(p)) || all(is.null(p)) || all(is.na(p_nc)) || all(is.null(p_nc))) {
+    
+    p_c <- NA_character_
+    
+  } else {
+  
   if (!exists("cowplot_available")) {
     if ("cowplot" %in% rownames(installed.packages())) {
       library(cowplot)
@@ -36,6 +42,8 @@ fn_nc_combine <- function(p,p_nc,h1=4,h2=1) {
                                    ncol = 1,
                                    nrow = 2,
                                    heights = c(h1,h2))
+  }
+    
   }
   
   return(p_c)
@@ -96,6 +104,12 @@ fn_save_png <- function(p_c           = "",
                            vth = vth,
                            projectname = fxoption_list$png_projname)
   
+  if (all(is.na(p_c)) || all(is.null(p_c))) {
+  
+    cat("The figure for",png_fname,"does not exist\n") 
+    
+  } else {
+  
   if (map_ind) {
     fw <- fxoption_list$fw_map
     fh <- fxoption_list$fh_map
@@ -117,6 +131,7 @@ fn_save_png <- function(p_c           = "",
                   dpi      = fxoption_list$fig_dpi,
                   device   = 'png')
   
+  }
 }
 
 #================================================#
@@ -239,6 +254,7 @@ fn_plot_point <- function(verif,
   cycle        <- vroption_list$cycle
   station      <- vroption_list$station
   xg_str       <- vroption_list$xg_str
+  fylims       <- vroption_list$fylims
   line_size    <- fxoption_list$line_size
   stroke_size  <- fxoption_list$stroke_size
   ptheme_l     <- fxoption_list$ptheme_l
@@ -324,6 +340,13 @@ fn_plot_point <- function(verif,
     xl          <- "Valid date"
   }
   
+  # If looking at lead_time, use fixed y-limits if specified
+  if ((xgroup == "lead_time") & (!is.null(fylims[1]))) {
+    ylims <- fylims
+  } else {
+    ylims <- NULL
+  }
+  
   # Plot according to number of scores 
   # (and handle some special scores for plot_point_verif)
   if (all(all_scores %in% ens_spec)) {
@@ -385,7 +408,7 @@ fn_plot_point <- function(verif,
       )
     }
     
-    p_out <- "NA"
+    p_out <- NA_character_
     return(p_out)
     
   } else if (any(grepl("mbr",all_scores))) {
@@ -406,7 +429,10 @@ fn_plot_point <- function(verif,
       df_obs  <- df %>% dplyr::filter(member == "OBS") 
       df_mean <- df %>% dplyr::filter(member == "mean")
       df      <- df %>% dplyr::filter(!(member %in% c("mean","spread","OBS")))
-      
+      if ((nrow(df) == 0) || (nrow(df_obs) == 0) || (nrow(df_mean) == 0)) {
+        p_out <- NA_character_
+        return(p_out)
+      }
       p_out <- ggplot2::ggplot() +
         ggplot2::geom_path(data      = df,
                            aes(x     = get(xgroup),
@@ -481,6 +507,9 @@ fn_plot_point <- function(verif,
         lt_sep <- 6
       }
       p_out <- p_out + ggplot2::scale_x_continuous(breaks = seq(0,720,lt_sep))
+      if (!is.null(ylims[1])) {
+        p_out <- p_out + ggplot2::scale_y_continuous(limits = ylims)
+      }
     }
     return(p_out)
     
@@ -489,6 +518,10 @@ fn_plot_point <- function(verif,
     if (num_scores == 1) {
       # Remove Inf/-Inf values which may appear for ens skill scores
       df    <- df[!is.infinite(df[[all_scores]]),]
+      if (nrow(df) == 0) {
+        p_out <- NA_character_
+        return(p_out)
+      }
       p_out <- df %>% 
         ggplot2::ggplot(aes(x     = get(xgroup),
                             color = forcats::fct_inorder(fcst_model))) +
@@ -502,6 +535,10 @@ fn_plot_point <- function(verif,
       # Remove Inf/-Inf values which may appear for ens skill scores
       df    <- df[!is.infinite(df[[all_scores[1]]]),]
       df    <- df[!is.infinite(df[[all_scores[2]]]),]
+      if (nrow(df) == 0) {
+        p_out <- NA_character_
+        return(p_out)
+      }
       p_out <- df %>% 
         ggplot2::ggplot(aes(x     = get(xgroup),
                             color = forcats::fct_inorder(fcst_model))) +
@@ -532,6 +569,10 @@ fn_plot_point <- function(verif,
       ptheme_l + 
       ggplot2::scale_color_manual(values = mcolors)
     
+    if (!is.null(ylims[1])) {
+      p_out <- p_out + ggplot2::scale_y_continuous(limits = ylims)
+    }
+
     cp_ylim <- layer_scales(p_out)$y$range$range
     if ((cp_ylim[1] < 0) && (cp_ylim[2] > 0)) {
       p_out <- p_out + ggplot2::geom_hline(yintercept = 0,
@@ -596,11 +637,17 @@ fn_plot_point <- function(verif,
       }
       
       if (vroption_list$log_ind) {
+        if (pb_use[1] == 0) {
+          min_pb_use <- NA
+          pb_use     <- pb_use[pb_use>0]
+        } else {
+          min_pb_use <- min(pb_use)
+        }
         p_out <- p_out + ggplot2::scale_x_continuous(
           trans        = "pseudo_log",
           breaks       = pb_use,
           labels       = pb_use,
-          limits       = c(min(pb_use),max(pb_use)),
+          limits       = c(min_pb_use,max(pb_use)),
           minor_breaks = NULL)
       } else {
         p_out <- p_out + ggplot2::scale_x_continuous(
@@ -612,7 +659,7 @@ fn_plot_point <- function(verif,
 
       p_ylim <- ggplot2::layer_scales(p_out)$y$range$range
       if ("freq_bias" %in% names(df)) {
-        c_breaks <- seq(0,10,0.5)
+        c_breaks <- c(seq(0,2,0.5),3,4,seq(5,15,2.5))
       } else {
         c_breaks <- round(pracma::logseq(max(1,p_ylim[1]),p_ylim[2],6),0)
       }
@@ -773,11 +820,17 @@ fn_plot_numcases <- function(verif,
       pb_use <- p_breaks[pbi]
     }
     if (vroption_list$log_ind) {
+      if (pb_use[1] == 0) {
+        min_pb_use <- NA
+        pb_use     <- pb_use[pb_use>0]
+      } else {
+        min_pb_use <- min(pb_use)
+      }
       p_out <- p_out + ggplot2::scale_x_continuous(
         trans        = "pseudo_log",
         breaks       = pb_use,
         labels       = pb_use,
-        limits       = c(min(pb_use),max(pb_use)),
+        limits       = c(min_pb_use,max(pb_use)),
         minor_breaks = NULL)
     } else {
       p_out <- p_out + 
@@ -865,15 +918,15 @@ fn_plot_map <- function(verif,
             axis.text                 = ggplot2::element_blank(),
             axis.ticks                = ggplot2::element_blank(),
             axis.title                = ggplot2::element_blank(),
-            plot.title                = ggplot2::element_text(size = 12),
+            plot.title                = ggplot2::element_text(size = 10),
             plot.title.position       = "plot",
             legend.text               = ggplot2::element_text(size = 8),
             plot.subtitle             = ggplot2::element_text(size = 8), 
-            legend.title              = ggplot2::element_text(size = 10),
+            legend.title              = ggplot2::element_text(size = 8),
             legend.position           = "right", 
             legend.key.height         = unit(1.5,"cm"),
             strip.background          = ggplot2::element_rect(fill = "white"),
-            strip.text                = ggplot2::element_text(size = 12)) +
+            strip.text                = ggplot2::element_text(size = 8)) +
       ggplot2::facet_wrap(
         vars(fcst_model),
         ncol = min(num_models,3)) +
@@ -932,6 +985,13 @@ fn_get_map_cbar <- function(map_cbar_d,c_min,c_max,score,param,par_unit){
       brks <- c(brks,-0.25,0.25,-rev(brks))
     } else {
       brks <- seq(0,5,0.5)
+    }
+  } else if (param %in% c("Ps")) {
+    if (score %in% c("bias","mean_bias")) {
+      brks <- seq(-20,-2,2)
+      brks <- c(brks,-1,1,-rev(brks))
+    } else {
+      brks <- seq(0,15,1)
     }
   } else if (param %in% c("T2m","Td2m","Q2m","Tmax","Tmin")) {
     if (score %in% c("bias","mean_bias")) {
@@ -1765,6 +1825,8 @@ get_param_classes <- function(param) {
     p_breaks <- seq(-0.5,8.5,1)
   } else if (param == "Pmsl") {
     p_breaks <- seq(900,1060,2.5)
+  } else if (param == "Ps") {
+    p_breaks <- seq(600,1100,10)
   } else {
     warning("Do not produce freq hist plots for ",param)
     plot_ind <- FALSE
@@ -1920,9 +1982,11 @@ fn_gen_model_colors <- function(in_names,
                                 cmap,
                                 withobs=FALSE){
   
-  # Some fixed model names which the verification scripts know about
-  # If "trubetskoy" is used, up to 20 colours are available, with
-  # less for RColorBrewer
+  # Some fixed model names which the verification scripts know about.
+  # The default below considers 20 known models, corresponding to the number
+  # available from "trubetskoy" in the pals packages (less last two colours).
+  # The number of colours available in RColorBrewer is typically less, while
+  # pals offers more options. 
   model_names  <- c("c1",
                     "c2",
                     "c3",
@@ -1944,43 +2008,72 @@ fn_gen_model_colors <- function(in_names,
                     "c19",
                     "c20")
   
-  # If all of the input names are known, use a fixed list.
-  # Otherwise, use length(in_names) colours
-  if (all(in_names %in% model_names)) {
-    pal_length <- length(model_names)
-    pal_names  <- model_names
+  # am - names of all models
+  # al - corresponding index
+  il <- which(model_names %in% in_names)
+  if (length(il) > 0) {
+    im <- model_names[il]
+    om <- setdiff(in_names,im)
+    am <- im
+    al <- il
+    if (length(om) > 0) {
+      ol <- which(!model_names %in% in_names)
+      ol <- ol[1:length(om)]
+      am <- c(am,om)
+      al <- c(al,ol)
+    }
   } else {
-    pal_length <- length(in_names)
-    pal_names  <- in_names
+    am <- in_names
+    al <- seq(1,length(in_names))
   }
   
-  # Assuming cmap is an Rcolorbrewer type
-  bi <- rownames(RColorBrewer::brewer.pal.info)
+  # Generate all of the available colours. 
+  # Note that max(al) must be less than the length of the palette
+  # Here assuming Rcolorbrewer type or something from pals
+  model_colors <- NULL
+  pal_length   <- max(al)
+  bi           <- rownames(RColorBrewer::brewer.pal.info)
   if (cmap %in% bi) {
     if (RColorBrewer::brewer.pal.info[bi == cmap,]$maxcolors >= pal_length) {
-      model_colors <- RColorBrewer::brewer.pal(max(pal_length,3),cmap)
+      model_colors <- RColorBrewer::brewer.pal(
+        RColorBrewer::brewer.pal.info[bi == cmap,]$maxcolors,
+        cmap
+        )
+    } 
+    # Use pals package
+  } else if (cmap %in% ls("package:pals")) {
+    tmap         <- unname(get(cmap)()) 
+    if (cmap == "trubetskoy") {
+      # Drop the last two colours (white,black)
+      tmap       <- tmap[1:20]
+    } 
+    if (pal_length <= length(tmap)) {
+      model_colors <- tmap
     }
-  # Use pals package
-  } else if ((cmap %in% c("trubetskoy")) & (pal_length <= 20)) {
-    # Drop the last two colours (white,black)
-    tmap         <- unname(get(cmap)())[1:20]
-    model_colors <- tmap[1:pal_length]
-  # If not these, then go to the default
-  } else {
-    warning(cmap," does not have enough colours/is not in RColorBrewer")
-    cat("Using R's defualt line colors")
-    model_colors <- scales::hue_pal()(pal_length)
   }
   
-  model_colors <- model_colors[1:length(pal_names)]
+  # If not these, then go to the default. In this case the concept of
+  # known models is pointless, and we return from here.
+  if (is.null(model_colors)) {
+    warning(cmap," does not have enough colours/is not in RColorBrewer or pals. As such known models will be ignored.")
+    cat("Using R's defualt line colors")
+    model_colors <- scales::hue_pal()(length(in_names))
+    if (withobs) {
+      model_colors <- c(model_colors,'#4F4F4F')
+      am           <- c(am,"OBS")
+    }
+    names(model_colors) <- am
+    return(model_colors)
+  }
+  
+  # Now access only speicfic colours corresponding to known models.
+  # Unknown models are just drawn from the remainder.
+  model_colors <- model_colors[al]
   if (withobs) {
     model_colors <- c(model_colors,'#4F4F4F')
-    pal_names    <- c(pal_names,"OBS")
+    am           <- c(am,"OBS")
   }
-  names(model_colors) <- pal_names
-  
-  # Filter to just in_names
-  model_colors <- model_colors[names(model_colors) %in% c(in_names,"OBS")]
+  names(model_colors) <- am
   
   return(model_colors)
 }

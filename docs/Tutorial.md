@@ -87,11 +87,13 @@ Create a configuration file for your project using the structure provided in the
 | verif | project_name | A descriptive name for the verification project. This is the same as the the project name variable PROJECT in monitor’s configuration file scr/Env_exp. | project_name: "TEST" |
 | verif | fcst_model   | The names of the forecast models to consider. | fcst_model: <br> - model_A  <br> - model_B |
 | verif | lead_time    | Lead times to consider in the verification e.g. 0 to 48 in steps of 3 hours. `seq` and `c()` will be parsed and evaluated by R. | lead_time: seq(0,48,3) | 
+| verif | lead_time_UA | If you want to use specific lead times for upper-air variables. The default is NULL, which means that upper-air variables will use lead times specfied by `verif:lead_time`. Useful if you are verifying a list of surface and upper-air parameters, e.g. "T2m,T,Pmsl", and want to change the lead times used without having to change the config. | Default: <br> lead_time_UA: NULL <br> <br> Use hours 0-24 in steps of 1 for upper-air variables <br> lead_time_UA: seq(0,24,1) | 
 | verif | by_step      | Interval (in hours) between cycles to be used for verification i.e. cycles considered are `start_date` to `end_date` in steps of `verif:by_step`. | by_step: "6h" |
 | verif | fcst_type    | Forecast type, either `det` or `eps`. | fcst_type: "det" |
 | verif | domains      | What SID lists to verify (equivalent to SURFSELECTION/TEMPSELECTION in monitor, where the station lists are defined in scr/selection.pm). The choice "All" will use all stations available in the data. SID lists, either defined explicitly or based on a geographic area, can be defined in `fn_station_selection` (see the documentation below for more information). | domains: <br> -"All" <br> <br> domains: <br> - "IRL" <br> - "IE_EN" | 
 | verif | members      | What ensemble members to use in the verification for each `verif:fcst_model`. Set to NULL to use all the members available in each ensemble. Include a list here if the members to be used differ for each of the `verif:fcst_model`. | For a deterministic model or to read all memeber in an ensemble: <br> members: <br> - NULL <br> <br> Specific members from different ensembles: <br> members: <br> - c(1,2,3) <br> - c(4,5,6) |
 | verif | lags         | How to lag the ensemble members for each ensemble. Include a list if the lags differ for each of the `verif:fcst_model`. Set to “0h” for no lagging. The parent cycles for lagging are determined by the `start date`, `end date`, and `verif:by_step`. See `harpIO::read_point_forecast` for more information. | For a deterministic model: <br> lags: <br> - "0h" <br> <br> For 3hr lagging in the first ensemble, no lagging in the second: <br> lags: <br> - c("0h","3h") <br> - "0h" |
+| verif | shifts       |  Experimental and for deterministic models only! How to shift forecasts forwards/backards in time for each model. Include a list if the shifts differ for each of the `verif:fcst_model`. Set to NULL to do nothing (i.e. default behaviour, equivalent to shifting by zero hours). Use digits only, where the shift is assumed to be in hours. Positive values shift forward in time, negative values backwards. | Default: <br> shifts: <br> - NULL <br> <br> Do not shift first model, but shift second by 6h forward in time: <br> shifts: <br> - "0" <br> - "6" |
 | verif | num_ref_members | Number of reference members to use when computing fair scores for an ensemble (e.g. "Inf"). Not used for deterministic models. See `harpPoint::ens_verify` for more details. | num_ref_memebrs: "Inf" |
 | verif | ua_fcst_cycle | For upper air variables, do you want to group by fcst_cycle? Either TRUE or FALSE | ua_fcst_cycle: FALSE |
 | verif | force_valid_thr | Set to TRUE if you really want threshold scores over valid times/hours. FALSE is generally sufficient. | force_valid_thr: FALSE |
@@ -112,7 +114,8 @@ Create a configuration file for your project using the structure provided in the
 | pre   | params       | Which parameters to consider when generating the sqlite tables from vfld. See `harpIO::show_harp_parameters` and `harpIO::harp_params` for recognised vfld parameters in harp. Set to NULL to convert everything found. | params: <br> - T2m <br> - Td2m <br> - T <br> <br> To convert everything found in the vfld: <br> params: <br> - NULL |
 | post  | plot_output | A root directory indicating where to save the png files generated during the verification process. For a given project, the png files will be stored in `post:plot_output`/`verif:project_name`. Set to "default" to use `verif:verif_path`/archive. | plot_output: "/path/to/png" |
 | post  | create_png  | Flag to indicate if png files should be generated. | create_png: TRUE | 
-| post  | cmap        | What palette to use for the line plots. Choose from a palette in RColorBrewer or "trubetskoy". Defaults to "Set2" if not specified | cmap: "trubetskoy" |
+| post  | save_vofp   | Flag to indicate if the verification object used for creating pngs should be saved. Useful for generating images at a later stage. Files will be stored in `post:plot_output`/`verif:project_name`. | save_vofp: TRUE |
+| post  | cmap        | What palette to use for the line plots. Choose from a palette in "RColorBrewer" or a function from the "pals" package e.g. "trubetskoy". Defaults to "Set2" from RColorBrewer if not specified. | cmap: "trubetskoy" |
 | post  | cmap_hex    | What pallete to use for scatterplots. Choose from "paired" (RColorBrewer), "magma", "viridis", or a scico pallette (see scico::scico_pallete_names). Defaults to magma. | cmap_hex: "bukavu" |
 | post  | map_cbar_d  | Logcial flag to indicate if a discrete colourbar (with fixed breaks and bounds) should be used in the station map plots as opposed to a continuous one where the bounds change depending on the data. Defaults to "FALSE" if not specified. | map_cbar_discrete: TRUE |
 | scorecards | create_scrd | Logical switch to produce scorecard data, save the data, and plot the scorecard. | create_scrd: TRUE | 
@@ -135,10 +138,12 @@ Typically the vfld and vobs files need to be converted to sqlite tables before s
 The pre-processing of vfld files in particular can take some time, especially for ensemble experiments. However, the tables only need to be generated once. As such, this step can be skipped once the tables are in place. The `vfld2sql.R` script takes the following command line inputs (required arguments in **bold**, optional arguments are in *italics*):
 
 - **-config_file**: The config file in the `config_files` directory (no default).
-- **-start_date**: The first forecast cycle to process (in YYYYMMDDHH format, no default).
-- **-end_date**: The last forecast cycle to process (in YYYYMMDDHH format, no default).
+- **-start_date**: The first forecast cycle to process (in YYYYMM, YYYYMMDD, or YYYYMMDDHH format (preferred), with no default). If YYYYMM is given then the first day and cycle of the month (i.e. 01/00Z) is assumed. If YYYYMMDD is given then the first cycle (i.e. 00Z) of YYYYMMDD is assumed. 
+- **-end_date**: The last forecast cycle to process (in YYYYMM, YYYYMMDD, or YYYYMMDDHH format (preferred), with no default). If YYYYMM is given then the last day and cycle of the month (i.e. lastday/23Z) is assumed. If YYYYMMDD is given then the last cycle (i.e. 23Z) of YYYYMMDD is assumed. 
 - *-use_custom_asl*: Logical flag to use a custom HARMONIE-AROME allsynop.list (as specified in the config file) when converting the vfld (default=FALSE). This is useful when your vfld files contain more stations than in harp's default list of stations (`harpCore::station_list`). The script will automatically convert the allsynop.list into something readable by harp. If set to `FALSE`, or not specified in the config file, harp's default station list is used. 
 - *-remove_m_elev*: Logical flag to remove writing model elevation to the sqlite files (default=FALSE). This may be useful for ensemble experiments when members have different model elevations. 
+- *-params_list*: A comma separated list of parameters to convert (default="MISSING"). This will override whatever is set for `pre:params` in your config file, which may be useful in certain circumstances. If this argument is not specified then `pre:params` will be used (i.e. the default behaviour).
+- *-use_obs_elev*: Logical flag to use the station elevation from the OBSTABLE (i.e. `verif:obs_path`) when performing the height correction for T2m or Ps (surface pressure). This option is included as the observation station elevation can differ significantly from that in a stations file (e.g. an "allsynop.list" file or harp's default `harpCore::station_list`). Set to FALSE by default i.e. just use the elevation from the stations file. 
 
 Typical usage:
 ``` 
@@ -186,10 +191,10 @@ Typically this file does not need to be changed. By default `point_verif.R` read
 This script takes the following command line inputs (required arguments in **bold**, optional arguments are in *italics*):
 
 - **-config_file**: The config file in the `config_files` directory (no default).
-- **-start_date**: The first forecast cycle to process (in YYYYMMDDHH format, no default).
-- **-end_date**: The last forecast cycle to process (in YYYYMMDDHH format, no default).
+- **-start_date**: The first forecast cycle to process (in YYYYMM, YYYYMMDD, or YYYYMMDDHH format (preferred), with no default). If YYYYMM is given then the first day and cycle of the month (i.e. 01/00Z) is assumed. If YYYYMMDD is given then the first cycle (i.e. 00Z) of YYYYMMDD is assumed.
+- **-end_date**: The last forecast cycle to process (in YYYYMM, YYYYMMDD, or YYYYMMDDHH format (preferred), with no default). If YYYYMM is given then the last day and cycle of the month (i.e. lastday/23Z) is assumed. If YYYYMMDD is given then the last cycle (i.e. 23Z) of YYYYMMDD is assumed.
 - *-params_file*: The parameter list file containing parameter scalings, thresholds, etc. (default="verification/set_params.R"). **Note: if you are making use of the `models_to_scale` option in the parameter list file, it is best to create a new parameter list file and explicitly call this when you are running point_verif.R. Sharing a parameter list file with specific model scalings across different projects may be dangerous due to common models e.g. Model A is scaled for T2m in project X, but it is not scaled for T2m in project Y. Unfortunately creating new parameter lists for specific projects does introduce some code duplication.**
-- *-params_list*: Which parameters for verify (default="ALL"). This should be a comma separated string of parameters, for example "T2m,S10m,T,S". These parameters should exist in the parameter list file, otherwise they will be skipped. If `params_list` is not specified, all parameters in the parameter list file are considered in the verification (this is not recommended in general).
+- *-params_list*: Which parameters for verify (default="T2m"). This should be a comma separated string of parameters, for example "T2m,S10m,T,S". These parameters should exist in the parameter list file, otherwise they will be skipped. If `params_list` is not specified, it just defaults to "T2m". Note that for `params_list="All"` all parameters in the parameter list file are considered in the verification (this is NOT recommended in general).
 - *-dynamic_sid_gen*: A logical flag to generate SID lists corresponding to the `verif:domains` during the verification process (default=TRUE). Different `domain` options are defined in `fn_station_selection.pm`. This flag replaces the old methodology of reading SID lists from a static file (i.e. `verification/sid_lists.rds`). This old (now deprecated) method can be activated by switching this flag to "FALSE".
 - *-plot_dynamic_sid*: A logical flag to plot a map of the stations used for each domain and parameter (default=FALSE). This is only relevant when "dynamic_sid_gen=TRUE".
 - *-mod_def_rds*: A logical flag to prepend the project name to harp's default rds filenames (default=FALSE). Not generally required.
@@ -197,6 +202,8 @@ This script takes the following command line inputs (required arguments in **bol
 - *-rolling_verif*: A logcial flag to indicate "rolling" verification (default=FALSE). If TRUE, rolling verification will produce a reduced set of png files and will not produce rds files or scorecards. Generally rolling verification is restricted to a "short" (e.g. 7 days) near-real time period. This option is not compatible with `gen_sc_only=TRUE`. 
 - *-gen_sc_only*: A logical flag to run scorecard generation (and plotting) only (default=FALSE). This may be useful in cases where point verification results have already been generated. This option is not compatible with `rolling_verif=TRUE`. 
 - *-use_fixed_dates*: A logical flag to use the input `start_date` and `end_date` when naming the directories and png files associated with this verification (default=TRUE). If set to FALSE, the data generated will use start and end dates corresponding to the first and last `fcst_dttm`, respectively, used in the verification for a given parameter. Therefore if set to FALSE, data may be stored in different directories for different parameters if the first and last `fcst_dttm` differs (this can happen in particular for precipitation). This option does not change the start/end dates in the rds filenames. 
+- *-skip_sid_verif*: A logical flag to skip the SID verification used for generating map scores (default=FALSE). Useful for quick runs.
+- *-skip_thresh_verif*: A logical flag to skip the threshold verification (default=FALSE). This will override whatever is set for thresholds in your parameters file. Useful for quick runs.
 
 Alternatively, the script can be sourced directly from within R/RStudio. In this case, the arguments will be read from the `verification/source_options.R` file. This interactive mode is useful for interrogating the data. 
 
@@ -265,8 +272,52 @@ Note that you can have images for multiple projects in `plot_output` and switch 
 ``` r
 library(shiny)
 runApp("visapp")
-
 ```
+
+### Fixed colours for certain models
+
+In many cases you may want to associate a given forecast model with a fixed colour in the png plots e.g. "model_A" is always coloured red. To do this, search for `model_names` in `visualization/fn_plot_helpers.R`, which defaults to:
+
+
+``` r
+# Some fixed model names which the verification scripts know about.
+# The default below considers 20 known models, corresponding to the number
+# available from "trubetskoy" in the pals packages (less last two colours).
+# The number of colours available in RColorBrewer is typically less, while
+# pals offers more options. 
+model_names  <- c("c1",
+                  "c2",
+                  "c3",
+                  "c4",
+                  "c5",
+                  "c6",
+                  "c7",
+                  "c8",
+                  "c9",
+                  "c10",
+                  "c11",
+                  "c12",
+                  "c13",
+                  "c14",
+                  "c15",
+                  "c16",
+                  "c17",
+                  "c18",
+                  "c19",
+                  "c20")
+```
+
+Then take a look at your chosen colour pallete (as specfied by cmap in your config file) from the [pals](https://cran.r-project.org/web/packages/pals/vignettes/pals_examples.html) or [RColorBrewer](https://r-graph-gallery.com/38-rcolorbrewers-palettes.html) packages and replace "cX" by your model name for the colour you want. Note that the index of your model in `model_names` is assoicated with the colour for that index in the palette. For example, if you use `cmap:trubetskoy` in your config file and set:
+
+``` r
+model_names  <- c("model_A",
+                  "c2",
+                  "c3",
+                  "model_B",
+...
+```
+
+then "model_A" will be always be in red and "model_B" will always be in blue i.e. the 1st and 4th colours of the trubetskoy pallete. If some or all of your forecast models are not listed in `model_names`, the colours assoicated with these models will default to the first ones available in the palette. For example, suppose you have forecast models "model_A", "model_B", and "model_C" and `model_names` is set as per the example above. In this case "model_A" will be in red, "model_B" be in blue", and "model_C" will be in green (i.e. the 2nd colour of the trubetskoy pallete, as the 1st colour is already taken by "model_A"). 
 
 
 # Station selection
@@ -413,6 +464,13 @@ You can define SIDs which should always be removed from the verification process
   stations_param_rmv <- c(5678)
 ```
 Filtering for additional parameters can be added as required. 
+
+### Filtering based on elevation
+
+For a given domain/SID list, denoted as X, you can select stations which have elevation above or below a given height Y by using the following convention:
+- "X_ELEVA_Y": This will use all stations in domain/SID list X above (>) elevation Y m.
+- "X_ELEVB_Y": This will use all stations in domain/SID list X below (<=) elevation Y m.
+Note that stations with missing elevation (typically denoted as -99, which comes from the vobs files) will always be removed in this case. If no stations are found which meet the criteria "X_ELEVA/B_Y" then this domain will be skipped.
 
 ### Add a new domain/SID list
 

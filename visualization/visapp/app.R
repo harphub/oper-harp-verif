@@ -114,6 +114,7 @@ if (length(c_exps) > 0){
 
 # All possible surface parameters
 all_surface_params        <- list("MSLP"              = "Pmsl",
+                                  "Surface pressure"  = "Ps",
                                   "10m Wind"          = "S10m",
                                   "Wind Direction"    = "D10m",
                                   "Max Wind Gust"     = "Gmax",
@@ -253,6 +254,7 @@ all_ens_ssum_scores      <- list("Spread Skill"              = paste0("rmse",sco
 # Ensemble control member
 all_ensctrl_ssum_scores  <- list("Bias RMSE"            = paste0("bias",score_sep,"rmse-lt"),
                                  "Bias STDV"            = paste0("bias",score_sep,"stde-lt"),
+                                 "Bias MAE"             = paste0("bias",score_sep,"mae-lt"),
                                  "DailyVar"             = "dailyvar-vh",
                                  "Forecast Timeseries"  = "timeseries-vd",
                                  "Bias STDV Timeseries" = paste0("bias",score_sep,"stde-vd"),
@@ -266,6 +268,7 @@ all_ensctrl_ssum_scores  <- lapply(all_ensctrl_ssum_scores,function(x) paste0("c
 # Deterministic experiment 
 all_det_ssum_scores      <- list("Bias RMSE"            = paste0("bias",score_sep,"rmse-lt"),
                                  "Bias STDV"            = paste0("bias",score_sep,"stde-lt"),
+                                 "Bias MAE"             = paste0("bias",score_sep,"mae-lt"),
                                  "DailyVar"             = "dailyvar-vh",
                                  "Forecast Timeseries"  = "timeseries-vd",
                                  "Bias STDV Timeseries" = paste0("bias",score_sep,"stde-vd"),
