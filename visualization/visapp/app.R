@@ -530,8 +530,8 @@ server <- function(input, output, session) {
 
   observeEvent(input$folder, {
     parsed_dir <- shinyFiles::parseDirPath(roots, input$folder)
-    if (!is.null(parsed_dir) && nzchar(parsed_dir)) {
-      selected_dir(parsed_dir)  # Update only when a valid directory is selected
+    if (is.character(parsed_dir) && length(parsed_dir) == 1 && nzchar(parsed_dir)) {
+     selected_dir(parsed_dir)
     }
   })
 
