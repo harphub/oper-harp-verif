@@ -453,7 +453,7 @@ ui <- shiny::tags$html(
                           #                                 choices  = exps_for_tab,
                           #                                 selected = exps_for_tab[[1]],
                           #                                 outline = TRUE),
-                          shinyFiles::shinyDirButton("folder", "Browse", "Select a root directory containing verification 'projects' and presss 'Select': "),
+                          shiny::uiOutput("browseui"),
                           shiny::uiOutput("timetypeui"),
                           shiny::selectInput('expname',label='Experiment',
                                              choices = "Waiting..."),
@@ -516,6 +516,15 @@ ui <- shiny::tags$html(
 
 server <- function(input, output, session) {
   
+  # Render UI for browse button
+  output$browseui <- shiny::renderUI({
+    if (smr_ind){
+      # Just a dummy output
+      tagList()
+    } else {
+      shinyFiles::shinyDirButton("folder", "Browse", "Select a root directory containing verification 'projects' and presss 'Select': ")
+    }
+  })
   
   # Indicator for missing data
   mdi <- "No data"
@@ -527,6 +536,11 @@ server <- function(input, output, session) {
 
   # Reactive: Get selected directory
   selected_dir <- reactiveVal(img_dir)  # Initialize with img_dir
+  if (smr_ind) {
+    selected_dir <- shiny::reactive({
+      file.path(img_dir,input$timetype)
+    })
+  }
 
   observeEvent(input$folder, {
     parsed_dir <- shinyFiles::parseDirPath(roots, input$folder)
@@ -560,7 +574,7 @@ server <- function(input, output, session) {
     selected_path <- selected_dir()
     if (!is.null(selected_path)) {
       dl <- list.dirs(path = selected_path, full.names = FALSE, recursive = FALSE)
-      #dl <- setdiff(dl, c("Monthly", "Rolling", "Seasonal"))
+      dl <- setdiff(dl, c("Monthly", "Rolling", "Seasonal"))
       if (length(dl) > 0) {
         exps_for_tab1 <- all_exp_names[unlist(all_exp_names, use.names = FALSE) %in% dl]
         qwe <- dl[!(dl %in% unlist(all_exp_names, use.names = FALSE))]
