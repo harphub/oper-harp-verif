@@ -77,6 +77,27 @@ if (is.null(img_dir)){
 # Default value is FALSE
 smr_ind=FALSE
 
+# Include panelification tab?
+panelification_ind=FALSE
+
+# If panelification/ACCORD_VS_202406 folder exists, source in panel plot size function
+panel_ps_fun_root <- file.path(app_dir,"..","..")
+panel_ps_fun_ext  <- file.path("scripts","panel_plotting_functions.R")
+panel_ps_fun1     <- file.path(panel_ps_fun_root,
+                               "spatial_verif",
+                               "panelification",
+                               panel_ps_fun_ext)
+panel_ps_fun2     <- file.path(panel_ps_fun_root,
+                               "ACCORD_VS_202406",
+                               panel_ps_fun_ext)
+if (file.exists(panel_ps_fun1)) {
+  source(panel_ps_fun1)
+} else {
+  if (file.exists(panel_ps_fun2)) {
+    source(panel_ps_fun2)
+  }
+}
+
 #================================================#
 # DEFINE COMMON VARIABLES:
 # 1) EXPNAME (AND LABEL)
@@ -441,8 +462,9 @@ ui <- shiny::tags$html(
     } else {
       title = ""
     },
+    id = "maintab",
     windowTitle="harp-verif shiny app",
-    # Just one  panel: Point verif
+    # First panel: Point verif
     shiny::tabPanel("Point Verification",
                     shiny::fluidPage(
                       sidebarLayout(
@@ -505,8 +527,51 @@ ui <- shiny::tags$html(
                         ) # Fluid Row
                         ) # MainPanel
                       ) # Sidebar layout
-                    ) # Fluid Page
-    ) # Tab Panel
+                    ), # Fluid Page
+                    value = "tab_point_verif"
+    ), # Tab Panel
+    if (panelification_ind){
+    # Second panel: For panelification plots
+    shiny::tabPanel("Panelification",
+                    fluidRow(
+                      column(1,
+                             shiny::selectInput('panel_case',
+                                                label='Case',
+                                                choices = NULL)),
+                      column(1,
+                             shiny::selectInput('panel_year',
+                                                label='Year',
+                                                choices = NULL)),
+                      column(1,
+                             shiny::selectInput('panel_month',
+                                                label='Month',
+                                                choices = NULL)),
+                      column(2,
+                             shiny::selectInput('panel_param',
+                                                label='Parameter',
+                                                choices = NULL)),
+                      column(2,
+                             shiny::selectInput('panel_valid',
+                                                label='Valid date',
+                                                choices = NULL)),
+                      column(2,
+                             shinyWidgets::prettyRadioButtons('panel_forecast',
+                                                              label="Forecasts",
+                                                              choices = "NULL",
+                                                              outline = TRUE)),
+                      column(3,
+                             shinyWidgets::prettyRadioButtons('panel_model',
+                                                              label="Model combination",
+                                                              choices = "NULL",
+                                                              outline = TRUE)),
+                    ), # FluidRow
+                    fluidRow(
+                      hr(style = "border-top: 3px solid #82B8E7;"),
+                      shiny::imageOutput("panelImage")
+                    ),
+                    value = "tab_panelification"
+    )
+    }
   ) # tags$body
 ) # tags$html
 
@@ -516,6 +581,10 @@ ui <- shiny::tags$html(
 
 server <- function(input, output, session) {
   
+  observe({
+    
+  if (input$maintab == "tab_point_verif") {
+      
   # Render UI for browse button
   output$browseui <- shiny::renderUI({
     if (smr_ind){
@@ -574,7 +643,7 @@ server <- function(input, output, session) {
     selected_path <- selected_dir()
     if (!is.null(selected_path)) {
       dl <- list.dirs(path = selected_path, full.names = FALSE, recursive = FALSE)
-      dl <- setdiff(dl, c("Monthly", "Rolling", "Seasonal"))
+      dl <- setdiff(dl, c("Monthly", "Rolling", "Seasonal","panelification","Panelification"))
       if (length(dl) > 0) {
         exps_for_tab1 <- all_exp_names[unlist(all_exp_names, use.names = FALSE) %in% dl]
         qwe <- dl[!(dl %in% unlist(all_exp_names, use.names = FALSE))]
@@ -1307,6 +1376,322 @@ server <- function(input, output, session) {
          height = c_height,
          alt    = "Loading...if this message persists, the image file may be missing for the given selection.")
   },deleteFile = FALSE) # renderImage
+  
+  } else if (input$maintab == "tab_panelification") {
+    
+    mdi   <- "No data"
+    paneldir <- file.path(img_dir,"panelification")
+    if (!dir.exists(paneldir)) {
+      paneldir <- file.path(img_dir,"Panelification")
+    }
+    panel_cases <- shiny::reactive({
+      dl <- list.dirs(path=paneldir,full.names=FALSE,recursive=FALSE)
+      if (length(dl) > 0){
+        exp_display_names <- stringr::str_to_upper(gsub("_"," ",dl))
+        exps_for_tab      <- setNames(as.list(dl),exp_display_names)
+      } else {
+        exps_for_tab <- "Error: No experiments listed in the directory"
+      }
+      exps_for_tab
+    })
+    selected_case <- shiny::reactive({
+      sc_tmp <- NULL
+      if (!is.null(input$panel_case) && (input$panel_case %in% unlist(panel_cases(),use.names = FALSE))){
+        sc_tmp <- input$panel_case
+      } else if (panel_cases()[1] == mdi) {
+        sc_tmp <- mdi
+      }
+      sc_tmp
+    })
+    shiny::observe(
+      shiny::updateSelectInput(
+        session,
+        "panel_case",
+        choices = panel_cases(),
+        selected = selected_case()
+      )
+    )
+    
+    # Get the available years
+    c_years <- shiny::reactive({
+      req(input$panel_case)
+      dl <- list.dirs(path=file.path(paneldir,input$panel_case),full.names=FALSE,recursive=FALSE)
+      # Match only directories with YYYYMM
+      dl <- dl[str_detect(dl,'^[0-9]{6}$')]
+      if (!is.null(dl) && length(dl)>0) {
+        files_years <- data.frame(yyyymm = dl) %>%
+          dplyr::mutate(years = substr(.data$yyyymm,1,4)) %>%
+          dplyr::pull(.data$years) %>% sort(.,decreasing = TRUE) %>% unique(.)
+        files_years
+      } else {
+        mdi
+      }
+    })
+    selected_year <- shiny::reactive({
+      yc_tmp <- NULL
+      if (!is.null(input$panel_year) && (input$panel_year %in% unlist(c_years(),use.names = FALSE))){
+        yc_tmp <- input$panel_year
+      } else if (c_years()[1] == mdi) {
+        yc_tmp <- mdi
+      }
+      yc_tmp
+    })
+    shiny::observe(
+      shiny::updateSelectInput(
+        session,
+        "panel_year",
+        choices = c_years(),
+        selected = selected_year()
+      )
+    )
+    
+    # Get the available months
+    c_months <- shiny::reactive({
+      req(input$panel_year)
+      dl <- list.dirs(path=file.path(paneldir,input$panel_case),full.names=FALSE,recursive=FALSE)
+      # Match only directories with YYYYMM
+      dl <- dl[str_detect(dl,'^[0-9]{6}$')]
+      if (!is.null(dl) && length(dl)>0) {
+        files_months <- data.frame(yyyymm = dl) %>%
+          dplyr::mutate(years = substr(.data$yyyymm,1,4),
+                        months = substr(.data$yyyymm,5,6)) %>%
+          dplyr::filter(years == input$panel_year) %>%
+          dplyr::pull(.data$months) %>% sort(.,decreasing = TRUE)
+        req(length(files_months)>0)
+        files_months
+      } else {
+        mdi
+      }
+    })
+    selected_month <- shiny::reactive({
+      mc_tmp <- NULL
+      if (!is.null(input$panel_month) && (input$panel_month %in% unlist(c_months(),use.names = FALSE))){
+        mc_tmp <- input$panel_month
+      } else if (c_months()[1] == mdi) {
+        mc_tmp <- mdi
+      }
+      mc_tmp
+    })
+    shiny::observe(
+      shiny::updateSelectInput(
+        session,
+        "panel_month",
+        choices = c_months(),
+        selected = selected_month()
+      )
+    )
+    
+    # Based on panel case, year, and month define the directory where images are 
+    data_dirname <- shiny::reactive({
+      req(input$panel_case)
+      req(input$panel_year)
+      req(input$panel_month)
+      file.path(paneldir,input$panel_case,paste0(input$panel_year,input$panel_month))
+    })
+    # All images in this directory
+    all_files <- shiny::reactive({
+      raw_files <- list.files(path = data_dirname(),pattern="*.png")
+      # Remove "panel_" and panel_case
+      req(length(raw_files)>0)
+      raw_files <- gsub("panel-","",raw_files)
+      raw_files <- gsub(paste0(input$panel_case,"-"),"",raw_files)
+      raw_files
+    })
+    
+    # Available parameters
+    params_out <- shiny::reactive({
+      if (length(all_files())>0){
+        param_avail <- unique(unlist(lapply(strsplit(all_files(),"-"),'[',1)))
+        param_for_tab <- all_surface_params
+        cc <- param_for_tab[unlist(param_for_tab,use.names = FALSE) %in% param_avail]
+        if (length(cc)>0){
+          cc
+        } else {
+          mdi
+        }
+      } else{
+        mdi
+      }
+    })
+    selected_param <- shiny::reactive({
+      sp_tmp <- NULL
+      if (!is.null(input$panel_param) && (input$panel_param %in% unlist(params_out(),use.names = FALSE))){
+        sp_tmp <- input$panel_param
+      } else if (params_out()[1] == mdi) {
+        sp_tmp <- mdi
+      }
+      sp_tmp
+    })
+    shiny::observe(
+      shiny::updateSelectInput(
+        session,
+        "panel_param",
+        choices = params_out(),
+        selected = selected_param()
+      )
+    )
+    
+    # Now filter all_files to this parameter
+    rel_files <- shiny::reactive({ 
+      req(input$panel_param)
+      all_files()[unlist(lapply(strsplit(all_files(),"-"),'[',1)) == input$panel_param]
+    })
+    
+    # Available valid dates for this parameter
+    valid_out <- shiny::reactive({
+      if (length(rel_files())>0){
+        valid_avail <- unique(unlist(lapply(strsplit(rel_files(),"-"),'[',2)))
+        valid_avail <- data.frame(validstr = valid_avail) %>%
+          tidyr::separate(.data$validstr, c("dttm", "lt"), "\\+") %>%
+          dplyr::mutate(valid_dttm = harpCore::as_ymdhm(harpCore::as_dttm(dttm) + lubridate::hours(lt))) %>%
+          dplyr::mutate(year = substr(valid_dttm,1,4),
+                        month = substr(valid_dttm,5,6)) %>%
+          dplyr::filter(year == input$panel_year, month == input$panel_month) %>%
+          dplyr::pull(.data$valid_dttm) %>% unique(.) %>% rev(.)
+        req(length(valid_avail)>0)
+        valid_format <- purrr::map(valid_avail, ~format(lubridate::ymd_hm(.x[1]),"%Y/%m/%d %H:%M Z"))
+        stats::setNames(valid_avail,valid_format)
+      } else {
+        mdi
+      }
+    })
+    selected_valid <- shiny::reactive({
+      sv_tmp <- NULL
+      if (!is.null(input$panel_valid) && (input$panel_valid %in% unlist(valid_out(),use.names = FALSE))){
+        sv_tmp <- input$panel_valid
+      } else if (valid_out()[1] == mdi) {
+        sv_tmp <- mdi
+      }
+      sv_tmp
+    })
+    shiny::observe(
+      shiny::updateSelectInput(
+        session,
+        "panel_valid",
+        choices = valid_out(),
+        selected = selected_valid()
+      )
+    )
+    
+    # Available forecast dates for this valid time
+    forecast_out <- shiny::reactive({
+      req(input$panel_valid)
+      if (length(rel_files())>0){
+        forecast_avail <- unique(unlist(lapply(strsplit(rel_files(),"-"),'[',2)))
+        forecast_avail <- data.frame(validstr = forecast_avail) %>%
+          tidyr::separate(.data$validstr, c("dttm", "lt"), "\\+", remove = F) %>%
+          dplyr::mutate(valid_dttm = harpCore::as_dttm(dttm) + lubridate::hours(lt),
+                        forecast_format = paste0(format(lubridate::ymd_hm(dttm),"%Y/%m/%d %H Z")," + ",lt)) %>%
+          dplyr::filter(valid_dttm == harpCore::as_dttm(input$panel_valid))
+        req(nrow(forecast_avail)>0)
+        forecast_format <- forecast_avail %>% pull(forecast_format) %>% unique(.)
+        forecast_avail <- forecast_avail %>% pull(validstr) %>% unique(.)
+        stats::setNames(forecast_avail,forecast_format)
+      } else {
+        mdi
+      }
+    })
+    selected_forecast <- shiny::reactive({
+      sf_tmp <- NULL
+      if (!is.null(input$panel_forecast) && (input$panel_forecast %in% unlist(forecast_out(),use.names = FALSE))){
+        sf_tmp <- input$panel_forecast
+      } else if (forecast_out()[1] == mdi) {
+        sf_tmp <- mdi
+      }
+      sf_tmp
+    })
+    shiny::observe(
+      shinyWidgets::updatePrettyRadioButtons(
+        session,
+        "panel_forecast",
+        choices = forecast_out(),
+        prettyOptions = list(outline = TRUE),
+        selected = selected_forecast()
+      )
+    )
+    
+    # Now filter rel_files to this parameter and forecast date+lt
+    rell_files <- shiny::reactive({ 
+      rel_files()[unlist(lapply(strsplit(rel_files(),"-"),'[',2)) == input$panel_forecast]
+    })
+    
+    # And finally, available models
+    models_out <- shiny::reactive({
+      req(input$panel_param)
+      req(input$panel_forecast)
+      if (length(rell_files())>0){
+        model_avail <- unique(unlist(lapply(strsplit(rell_files(),
+                                                     split = paste0("-",input$panel_forecast,"-"),fixed=T),
+                                            '[',2)))
+        req(length(model_avail)>0)
+        model_avail  <- gsub(".png","",model_avail)
+        model_format <- gsub("-","+",model_avail)
+        stats::setNames(model_avail,model_format)
+      } else {
+        mdi
+      }
+    })
+    selected_model <- shiny::reactive({
+      sm_tmp <- NULL
+      if (!is.null(input$panel_model) && (input$panel_model %in% unlist(models_out(),use.names = FALSE))){
+        sm_tmp <- input$panel_model
+      } else if (models_out()[1] == mdi) {
+        sm_tmp <- mdi
+      }
+      sm_tmp
+    })
+    shiny::observe(
+      shinyWidgets::updatePrettyRadioButtons(
+        session,
+        "panel_model",
+        choices = models_out(),
+        prettyOptions = list(outline = TRUE),
+        selected = selected_model()
+      )
+    )
+    
+    # Now load the static image output
+    output$panelImage <- renderImage({
+      
+      req(input$panel_case)
+      req(input$panel_param)
+      req(input$panel_forecast)
+      req(input$panel_model)
+      
+      # Fig dimensions - use panelification fn if available
+      if (exists("set_plot_size")) {
+        models          <- strsplit(input$panel_model,"-")[[1]]
+        plot_window_all <- set_plot_size(models)
+        c_width  <- as.numeric(plot_window_all["width"])+10
+        c_height <- as.numeric(plot_window_all["height"])
+        scale_fac <- 3.78 # mm to px
+        c_width   <- c_width*scale_fac
+        c_height  <- c_height*scale_fac
+      } else {
+        c_width  <- 1200
+        c_height <- 450
+      }
+      
+      # Define the filename
+      fname_base <- paste("panel",
+                          input$panel_case,
+                          input$panel_param,
+                          input$panel_forecast,
+                          input$panel_model,
+                          sep = "-")
+      fname      <- paste0(fname_base,".png")
+      filename   <- file.path(data_dirname(),fname)
+      
+      # Return a list containing the filename
+      list(src    = filename,
+           width  = c_width,
+           height = c_height,
+           alt    = "Loading...if this message persists, the image file may be missing for the given selection.")
+    },deleteFile = FALSE) # renderImage
+    
+  } # if maintab
+  
+  }) # Observe
   
 } # End of server
 

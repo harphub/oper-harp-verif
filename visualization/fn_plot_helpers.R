@@ -1079,6 +1079,15 @@ fn_get_map_cbar <- function(map_cbar_d,c_min,c_max,score,param,par_unit){
   cmap_out <- cmap[bl_ind:(bu_ind-1)] 
   brks_out <- brks[bl_ind:bu_ind]
   
+  # If there is only one discrete bar i.e. bu_ind = bl_ind + 1, extend by one
+  # bar either side
+  if (bu_ind == (bl_ind+1)) {
+    bl_ind_extra <- max(1,bl_ind-1)
+    bu_ind_extra <- min(length(brks),bu_ind+1)
+    cmap_out     <- cmap[bl_ind_extra:(bu_ind_extra-1)]
+    brks_out     <- brks[bl_ind_extra:bu_ind_extra]
+  }
+
   # If we are outside the limits defined by brks, add in the extremes
   if (!is.null(bl_val) & (score %in% c("bias","mean_bias"))) {
     brks_out <- c(bl_val,brks_out)
