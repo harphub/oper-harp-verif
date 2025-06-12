@@ -410,6 +410,89 @@ fn_station_selection <- function(domain_choice = "All_Domains",
                "SID")
   all_station_lists[["NorthAmericaInland"]] <- NorthAmericaInland
   
+  # Define a list of all coastal stations for the DINI+IG domain
+  Coastal_DINI <- stats::setNames(tibble::as_tibble(
+    c(1001,1002,1003,1004,1006,1007,1008,1009,1011,1016,1017,1019,1020,
+      1062,1102,1105,1106,1107,1108,1112,1114,1115,1116,1117,1121,1139,
+      1141,1143,1144,1152,1153,1156,1160,1161,1200,1201,1203,1205,1210,
+      1212,1214,1217,1223,1224,1225,1228,1237,1240,1241,1259,1262,1282,
+      1300,1302,1304,1307,1308,1309,1310,1319,1399,1400,1401,1402,1403,
+      1404,1406,1407,1408,1411,1412,1414,1415,1416,1418,1426,1427,1428,
+      1430,1436,1448,1460,1464,1465,1467,1476,1478,1482,1495,1503,1508,
+      2091,2176,2183,2185,2186,2188,2191,2197,2269,2284,2287,2288,2297,
+      2355,2368,2378,2382,2450,2487,2488,2489,2492,2493,2496,2498,2499,
+      2500,2501,2503,2505,2516,2517,2518,2563,2567,2573,2575,2583,2584,
+      2587,2589,2590,2591,2598,2605,2611,2615,2616,2625,2628,2632,2644,
+      2646,2665,2667,2670,2679,2680,2721,2724,2743,2746,2750,2751,2752,
+      2757,2761,2780,2781,2790,2794,2795,2800,2831,2851,2852,2862,2863,
+      2872,2873,2874,2875,2876,2901,2907,2910,2920,2921,2931,2934,2943,
+      2950,2961,2964,2967,2968,2970,2971,2976,2978,2979,2980,2981,2982,
+      2984,2987,2988,2989,2991,2992,2993,2996,2998,3002,3005,3006,3007,
+      3008,3010,3011,3013,3014,3017,3019,3023,3026,3027,3034,3035,3037,
+      3040,3055,3062,3066,3068,3075,3077,3088,3092,3094,3100,3105,3111,
+      3120,3132,3136,3138,3153,3171,3174,3204,3210,3214,3240,3275,3292,
+      3302,3316,3318,3385,3392,3402,3405,3407,3469,3488,3502,3604,3605,
+      3609,3693,3696,3701,3716,3717,3791,3796,3797,3803,3807,3808,3809,
+      3810,3827,3837,3857,3866,3872,3874,3876,3894,3895,3896,3907,3914,
+      3916,3927,3928,3951,3952,3953,3963,3976,3978,3980,4005,4013,
+      4017,4018,4030,4031,4038,4045,4048,4051,4058,4059,4071,4072,4077,
+      4082,4083,4097,4101,4102,4103,4104,4106,4107,4108,4110,4111,4116,
+      4118,4120,4121,4122,4123,4124,4125,4128,4129,4130,4131,4144,4146,
+      4151,4155,4157,4159,4164,4165,4170,4171,4175,4183,4184,4187,4188,
+      4194,4196,4197,4198,4199,4202,4203,4205,4208,4211,4213,4214,4217,
+      4219,4220,4221,4224,4228,4234,4241,4242,4250,4253,4254,4260,4266,
+      4272,4273,4282,4283,4285,4301,4310,4312,4313,4320,4330,4339,4341,
+      4351,4360,4361,4373,4382,4390,4446,4490,4491,4802,4808,4809,4812,
+      4813,4818,4822,4824,4832,4833,4837,4838,4843,4848,4857,4868,4870,
+      4880,4883,4884,4886,4892,4895,4899,4908,4911,4913,4923,4926,4927,
+      4928,4930,4932,4934,4938,4949,4951,4953,4955,4956,4957,4959,4963,
+      4965,4970,4983,4986,4990,4992,4994,6005,6008,6009,6010,6011,6012,
+      6013,6016,6017,6021,6022,6024,6033,6041,6042,6043,6044,6051,6052,
+      6055,6058,6073,6079,6081,6088,6093,6096,6099,6118,6119,6123,6124,
+      6132,6136,6138,6143,6147,6149,6151,6158,6159,6165,6168,6169,6179,
+      6180,6181,6183,6184,6186,6187,6190,6193,6197,6201,6203,6204,6205,
+      6206,6207,6208,6209,6211,6212,6225,6229,6235,6239,6242,6248,6251,
+      6252,6253,6254,6255,6257,6258,6267,6277,6285,6308,6310,6311,6312,
+      6313,6315,6316,6320,6321,6323,6324,6330,6331,6400,6407,6408,6418,
+      7002,7003,7010,7020,7024,7028,7031,7040,7046,7100,7103,7107,7117,
+      7125,7200,7203,7205,7207,7217,7300,7314,7315,7316,7500,7503,7600,
+      7602,7641,7643,7661,7666,7667,7670,7684,7690,7749,7753,7754,7761,
+      7765,7770,7774,7775,7785,7790,8001,8011,8014,8021,8023,8027,8029,
+      8046,8081,8181,8543,8551,10004,10007,10015,10018,10020,10028,10042,
+      10043,10044,10055,10067,10089,10091,10093,10097,10113,10124,10127,
+      10130,10131,10152,10161,10169,10170,10184,10192,10204,12001,12100,
+      12115,12120,12135,12140,12145,12155,12200,13455,13457,13461,13464,
+      14105,14216,14307,14314,14317,14321,14323,14428,14438,14441,14443,
+      14444,14445,14447,14452,14454,14462,14472,14474,16101,16105,16110,
+      16120,16121,16123,16125,16127,16129,16141,16145,16146,16149,16150,
+      16153,16154,16155,16168,16190,16191,16197,16198,16210,16214,16215,
+      16232,16242,16245,16249,16266,16270,16271,16280,16281,16294,16295,
+      16310,16320,16325,16334,16336,16337,16342,16350,16351,16360,16362,
+      16415,16416,16420,16504,16522,16523,16550,20107,22897,26029,26045,
+      26058,26115,26116,26120,26128,26214,26215,26218,26226,26227,26229,
+      26313,26314,26324,26326,26403,26406,26502,26509,26603,71074,71082,
+      71090,71093,71094,71095,71096,71338,71355,71357,71358,71576,71872,
+      71971,71975,99090,3900185,3900199,3900275,3900509,3900542,3900775,
+      3900908,3901033,3901075,3901085,3901107,3901108,3901116,3901225,3901233,
+      3901332,3901544,3901575,3901585,3901616,3901733,3901785,3901909,3901925,
+      3901926,3901934,3901944,3902009,3902017,3902026,3902041,3902075,3902107,
+      3902117,3902126,3902207,3902221,3902226,3902241,3902275,3902307,3902321,
+      3902334,3902340,3902341,3902375,3902523,3902526,3902585,3902640,3902724,
+      3902734,3902736,3902802,3902824,3902834,3902885,3902936,3902985,3903040,
+      3903324,3903338,3903402,3903436,3903438,3903538,3903624,3903705,3903924,
+      3903936,3904024,3904085,3904105,3904124,3904235,3904385,3904404,3904485,
+      3904505,3904535,3904605,3904705,3904802,3904815,3905004,3905080,3905180,
+      3905205,3905280,3905285,3905305,3905380,3905480,3905580,3905680,3905702,
+      3905715,3905780,3905880,3905980,3906080,3906180,3906185,3906280,3906304,
+      3906380,3906480,3906485,3906580,3906680,3906685,3906780,3906985,3909223,
+      3909942,3962091,3962092,3962093,3962094,3962095)
+    ),
+    "SID")
+  
+  # Define a list of all coastal stations by combining the coastal lists above
+  Coastal_All <- bind_rows(Coastal_DINI) %>% unique()
+  all_station_lists[["Coastal_All"]] <- Coastal_All
+  
   if (return_defined_lists){
     cat("Just outputting the user-specified station lists\n")
     return(all_station_lists)
@@ -722,25 +805,47 @@ fn_station_selection <- function(domain_choice = "All_Domains",
 
     for (domain in domains_to_gen) {
       
-      read_poly <- FALSE
-      poly_file <- file.path(poly_dir,paste0(domain,".poly"))
+      read_poly   <- FALSE
+      skip_filter <- FALSE
+      poly_file   <- file.path(poly_dir,paste0(domain,".poly"))
       
-      # Check for ELEVA or ELEVB flags in domain name
-      elevl <- grepl("_ELEV",domain,fixed = T)
+      # Check for "_ELEVA", "_ELEVB", "_COASTAL", or "_INLAND" flags in domain name
+      elevl     <- grepl("_ELEV",domain,fixed = T)
+      coastal_l <- grepl("_COASTAL",domain,fixed = T)
+      land_l    <- grepl("_INLAND",domain,fixed = T)
+      # Cannot have multiple flags in the domain name!
+      sum_flags <- sum(elevl,coastal_l,land_l)
+      if (sum_flags>1) {
+        warning("Domain ",domain," has mutliple flags, skipping\n")
+        next
+      }
       if (elevl) {
         domain_o <- domain
         domain   <- strsplit(domain_o,"_ELEV")[[1]][1]
         elevab   <- strsplit(strsplit(domain_o,"_ELEV")[[1]][2],"_")[[1]][1]
         elevf    <- strsplit(strsplit(domain_o,"_ELEV")[[1]][2],"_")[[1]][2]
       }
+      if (coastal_l) {
+        domain_o <- domain
+        domain   <- strsplit(domain_o,"_COASTAL")[[1]][1]
+      }
+      if (land_l) {
+        domain_o <- domain
+        domain   <- strsplit(domain_o,"_INLAND")[[1]][1]
+      }
       
       if (domain %in% names(all_station_lists)){
         if (dynamic_gen) {
           cat("Domain",domain,"is already a user specified list, skipping dynamic gen loop\n")
-          next
+          # If flag is indicated, then continue the loop but skip the filtering
+          if (sum_flags > 0) {
+            skip_filter <- TRUE
+            fixed_list  <- all_station_lists[[domain]]
+          } else {
+            next
+          }
         } else {
-          stop("A user-specified stationlist name already exists in 
-              the pre-defined domain-generated stationlists")
+          stop("A user-specified stationlist name already exists in the pre-defined domain-generated stationlists")
         }
       } else {
         if (grepl("Synop",domain,fixed = TRUE)) { # Filter based on WMO SID range
@@ -785,7 +890,11 @@ fn_station_selection <- function(domain_choice = "All_Domains",
             next
           }
         } else {
-          df <- filter_stations(allstations,domain,slat,nlat,wlon,elon)
+          if (!skip_filter) {
+            df <- filter_stations(allstations,domain,slat,nlat,wlon,elon)
+          } else {
+            df <- allstations %>% filter(SID %in% fixed_list$SID)
+          }
         }
       } else {
         df <- allstations
@@ -846,12 +955,32 @@ fn_station_selection <- function(domain_choice = "All_Domains",
           }
           
           if (nrow(df) == 0) {
-            cat("No stations found for",domain," - skipping\n")
+            cat("No stations found for",domain,"- skipping\n")
             next
           }
         
         }
         
+      }
+      
+      # Apply coastal filtering if required
+      if (coastal_l) {
+        domain <- domain_o
+        df <- df %>% filter(SID %in% Coastal_All$SID)
+        if (nrow(df) == 0) {
+          cat("No stations found for",domain,"- skipping\n")
+          next
+        }
+      }
+      
+      # Apply land filtering if required
+      if (land_l) {
+        domain <- domain_o
+        df <- df %>% filter(!(SID %in% Coastal_All$SID))
+        if (nrow(df) == 0) {
+          cat("No stations found for",domain,"- skipping\n")
+          next
+        }
       }
       
       # Plot the maps if desired
@@ -940,9 +1069,7 @@ fn_station_selection <- function(domain_choice = "All_Domains",
   
   # Now pick out the relevant stationlist for the chosen domains and filter
   if (any(names(all_station_lists) %in% names(all_gen_domains))) {
-    
-    warning("A user-specified stationlist name already exists in 
-            the pre-defined domain-generated stationlists")
+    warning("A user-specified stationlist name already exists in the pre-defined domain-generated stationlists")
     stop("Aborting due to fn_station_selection error!")
     
   } else {
@@ -986,19 +1113,23 @@ fn_station_selection <- function(domain_choice = "All_Domains",
           if (!("lon" %in% names(psc))) { 
             psc <- allstations %>% filter(SID %in% psc$SID)
           }
-          p1        <- station_map(psc,dc)
-          if (dynamic_gen) {
-            png_fname <- paste0("dynamic_",param,"_",dc,"_stationmap.png")
+          if (nrow(psc) > 0){
+            p1 <- station_map(psc,dc)
+            if (dynamic_gen) {
+              png_fname <- paste0("dynamic_",param,"_",dc,"_stationmap.png")
+            } else {
+              png_fname <- paste0("sample-",dc,"-stationmap.png")
+            }
+            ggplot2::ggsave(p1,
+                            filename = png_fname,
+                            path     = png_path,
+                            width    = 10,
+                            height   = 4.5,
+                            units    = "in",
+                            dpi      = 200)
           } else {
-            png_fname <- paste0("sample-",dc,"-stationmap.png")
+            cat("Warning: Cannot plot domain",dc,"as no data found\n")
           }
-          ggplot2::ggsave(p1,
-                          filename = png_fname,
-                          path     = png_path,
-                          width    = 10,
-                          height   = 4.5,
-                          units    = "in",
-                          dpi      = 200)
         }
         
         if (nrow(stationlist_choice) > 0) {

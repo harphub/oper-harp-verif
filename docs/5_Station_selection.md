@@ -45,6 +45,7 @@ The current specific lists available are (see the function for SIDs used):
 - RussiaCoast
 - RussiaInland
 - NorthAmericaInland
+- Coastal_All
 
 To use any of these in your config file, simply use e.g.
 
@@ -53,6 +54,8 @@ domains:
  - "DKlist"
  - "EWGLAM"
 ```
+
+**Note:The Coastal_All list is indicative only and should be changed by users based on their needs. At the moment it only contains stations pertinent to UWC-W.**
 
 #### Domains based on lat/lon bounding boxes
 
@@ -150,6 +153,13 @@ For a given domain/SID list, denoted as X, you can select stations which have el
 - "X_ELEVB_Y": This will use all stations in domain/SID list X below (<=) elevation Y m.
 Note that stations with missing elevation (typically denoted as -99, which comes from the vobs files) will always be removed in this case. If no stations are found which meet the criteria "X_ELEVA/B_Y" then this domain will be skipped.
 
+### Filtering to coastal and inland stations
+
+For a given domain/SID list, denoted as X, you can filter to coastal and inland stations by using the following convention:
+- "X_COASTAL": This will use all stations in domain/SID list X which are found in the "Coastal_All" SID list (see function for SIDs used).
+- "X_INLAND": This will use all stations in domain/SID list X which are not found in the "Coastal_All" SID list.
+If no stations are found which meet the "X_COASTAL" condition then domain "X_COASTAL" will be skipped. 
+
 ### Add a new domain/SID list
 
 You can add a new domain/SID list definition by editing `fn_station_selection.R` as follows. **Note that the name of your new domain should not conflict with any existing domain/list name!**
@@ -177,6 +187,9 @@ A new domain based on a polygon file can be used simply by adding the polygon de
 When this methodology is used, the SID lists used for each parameter will be saved to files in the `verification` directory with names "dynamic_param_sid_lists.rds". This allows users to see exactly what stations were used in the verification process. You can also plot a map of the stations used for each variable by using the option "-plot_dynamic_sid TRUE" when running `point_verif.R`. These will also be stored in the `verification` directory under the names "dynamic_param_domain_stationmap.png".
 
 ## Read SID lists from a static file (no longer recommended)
+
+**WARNING: ALL INFORMATION HENCEFORTH IS DEPRECATED**
+
 ### Default domains/lists
 
 To view the default stationlists available, use:
