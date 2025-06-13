@@ -4,6 +4,7 @@ verif:
     - model_1
     - model_2
   lead_time: seq(0,24,3)
+  lead_time_UA: NULL
   by_step: "6h"
   fcst_type: "eps"                          # det or eps
   domains:                                  # what domains to verify ("All" will use all stations available)
@@ -12,11 +13,12 @@ verif:
     - c(0)
   lags:                                     # How to lag the members for each ensemble. Include a list if the lags differ between fcst_model. Set to "0h" for no lagging.
     - "0h"
+  shifts:                                   # Experimental: Used to shift forecasts forward/backward in time using "shift_forecast". Follows the same format as members/lags. Set to NULL in most cases.
+    - NULL
   num_ref_members: "Inf"                    # Number of reference members to use when computing fair scores for an ensemble (e.g. "Inf"). Not used for det runs.
   ua_fcst_cycle: FALSE                      # For upper air variables, do you want to group by fcst_cycle? Either TRUE or FALSE
   force_valid_thr: FALSE                    # Set to TRUE if you really want threshold scores over valid times/hours
-  models_to_scale:                          # Use this to scale the forecast from certain fcst_model only (e.g models with diff units). NULL applies same scaling to all.
-    - NULL
+  lt_split: FALSE                           # Split some auxiliary scores (e.g. scatterplots, freq hist) between short (<=24), long (>24), and all leadtimes
   fcst_path: "/path/to/FCTABLE"
   obs_path: "/path/to/OBSTABLE"
   verif_path: "/path/to/rds_output"
@@ -61,7 +63,10 @@ pre:
 post:
   plot_output: "/path/to/png_output"        # Can set to "default" to use verif_path/archive
   create_png: TRUE
+  save_vofp: TRUE                           # Save the verification object used for plotting pngs
   cmap: "trubetskoy"                        # A palette from RColorBrewer or trubetskoy (in pals). Defaults to Set2
+  cmap_hex: "magma"                         # Colour pallete for scatterplots (one of "paired", "magma", "viridis", or a scico pallette). Defaults to magma
+  map_cbar_d: FALSE                         # Use discrete breaks instead of a continuous colourbar for the station map plots
 scorecards:
   create_scrd: TRUE                         # Flag to run scorecard generation or not
   ref_model: model_1

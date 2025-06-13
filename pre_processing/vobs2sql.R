@@ -14,41 +14,78 @@ suppressPackageStartupMessages({
   library(here)
   library(yaml)
 })
+source(here::here("verification/fn_verif_helpers.R"))
 
 #================================================#
 # READ COMMAND LINE ARGUMENTS
 #================================================#
 
-parser <- argparse::ArgumentParser()
-parser$add_argument("-start_date",
-                    type    = "character",
-                    default = "None",
-                    help    = "First date to process [default %(default)s]",
-                    metavar = "String")
-parser$add_argument("-end_date",
-                    type    = "character",
-                    default = "None",
-                    help    = "Last date to process [default %(default)s]",
-                    metavar = "String")
-parser$add_argument("-config_file",
-                    type    = "character",
-                    default = "None",
-                    help    = "Config file to use [default %(default)s]",
-                    metavar = "String")
+if (!interactive()) {
+  
+  parser <- argparse::ArgumentParser()
+  parser$add_argument("-start_date",
+                      type    = "character",
+                      default = "None",
+                      help    = "First date to process [default %(default)s]",
+                      metavar = "String")
+  parser$add_argument("-end_date",
+                      type    = "character",
+                      default = "None",
+                      help    = "Last date to process [default %(default)s]",
+                      metavar = "String")
+  parser$add_argument("-config_file",
+                      type    = "character",
+                      default = "None",
+                      help    = "Config file to use [default %(default)s]",
+                      metavar = "String")
+  
+  args        <- parser$parse_args()
+  start_date  <- args$start_date
+  end_date    <- args$end_date
+  config_file <- args$config_file
 
-args        <- parser$parse_args()
-start_date  <- args$start_date
-end_date    <- args$end_date
-config_file <- args$config_file
+} else {
+  
+  start_date     <- "2025010100"
+  end_date       <- "2025010123"
+  config_file    <- "config_files/config_det_example.yml"
+  
+}
+
+# Check if required arguments are missing
+if (any(c(start_date,end_date,config_file) == "None")) {
+  stop("You need to provide start_date, end_date, and a config file")
+}
+
+# Check if config_file exists
+if (!file.exists(here::here(config_file))) {
+  stop("Cannot find config file",here::here(config_file))
+}
+
+# Check start/end dates
+sedate     <- check_sedate(start_date,end_date)
+start_date <- sedate$start_date
+end_date   <- sedate$end_date
 
 #================================================#
 # READ OPTIONS FROM THE CONFIG FILE
 #================================================#
 
 CONFIG     <- yaml::yaml.load_file(here::here(config_file))
-vobs_path  <- CONFIG$pre$vobs_path
-obs_path   <- CONFIG$verif$obs_path
-by_val     <- CONFIG$pre$vobs_by
+vobs_path  <- check_config_input(CONFIG,"pre","vobs_path")
+obs_path   <- check_config_input(CONFIG,"verif","obs_path")
+by_val     <- check_config_input(CONFIG,"pre","vobs_by")
+
+#================================================#
+# OPTION CHECKS
+#================================================#
+
+check_dirs_exist(c(vobs_path,obs_path))
+
+if (!(by_val %in% paste0(seq(0,200),"h"))) {
+  cat("vobs_by =",by_val,"is not valid - use e.g. 1h\n")
+  stop("Aborting")
+}
 
 #================================================#
 # VOBS CONVERT

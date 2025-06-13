@@ -12,7 +12,88 @@ suppressPackageStartupMessages({
   library(tidyr)
   library(stringr)
   library(RSQLite)
+  library(lubridate)
 })
+
+#================================================#
+# CHECK IF START AND END DATE ARE OKAY
+#================================================#
+
+check_sedate <- function(start_date,end_date) {
+  
+  sdate <- NULL
+  edate <- NULL
+  
+  if (nchar(start_date) == 10) {
+    sdate <- start_date
+  }
+  if (nchar(end_date) == 10) {
+    edate <- end_date
+  }
+  if (nchar(start_date) == 8) {
+    # i.e. YYYYMMDD format - assume the first cycle of the day
+    sdate <- paste0(start_date,"00")
+  }
+  if (nchar(end_date) == 8) {
+    # i.e. YYYYMMDD format - assume the last possible cycle of the day
+    edate <- paste0(end_date,"23")
+  }
+  if (nchar(start_date) == 6) {
+    # i.e. YYYYMM format - assume the first day and cycle of the month
+    sdate <- paste0(start_date,"0100")
+  }
+  if (nchar(end_date) == 6) {
+    # i.e. YYYYMM format - assume the last day and possible cycle of the month
+    lastday <- lubridate::days_in_month(harpCore::as_dttm(paste0(end_date,"01"))) %>%
+      unname()
+    edate <- paste0(end_date,lastday,"23")
+  }
+  
+  if ((!is.null(sdate)) & (!is.null(edate))) {
+    cat("Looking at date range",sdate,"-",edate,"\n")
+  } else {
+    stop("The input start/end_date should be 6, 8, or 10 characters!")
+  }
+  
+  return(list("start_date" = sdate,
+              "end_date"   = edate))
+}
+
+#================================================#
+# CHECK IF CONFIG FILE OPTIONS EXIST
+#================================================#
+
+check_config_input <- function(config,x,y,default="None") {
+  
+  val <- config[[x]][[y]]
+  
+  if (is.null(val)) {
+    cat("Could not find",x,":",y,"in the config\n")
+    if (default == "None") {
+      stop("No default value set for ",y,", aborting")
+    } else {
+      cat("Setting",y,"=",default[[1]],"\n")
+      val <- default
+    }
+  }
+  
+  return(val)
+  
+}
+
+#================================================#
+# CHECK IF DIRECTORIES EXIST
+#================================================#
+
+check_dirs_exist <- function(dir_vec) {
+  
+  for (cdir in dir_vec) {
+    if (!dir.exists(cdir)) {
+      stop(cdir," does not exist")
+    }
+  }
+  
+}
 
 #================================================#
 # CREATE A NAMED LIST ASSOCIATING fcst_model WITH A
@@ -36,7 +117,7 @@ get_named_list <- function(input_str,
   for (ii in seq(1,length(input_str),1)) {
     if (!is.null(input_str[[ii]])) {
       # Deal with case where lags is specified as "0h" etc, not in c() format
-      if (any(input_str[[ii]] %in% paste0(seq(0,6),"h"))) {
+      if (any(input_str[[ii]] %in% paste0(seq(0,23),"h"))) {
         out[[ii]] <- input_str[[ii]]
       } else {
         out[[ii]] <- eval(parse(text = input_str[[ii]]))
@@ -71,6 +152,306 @@ conv_allsynop <- function(input_list){
   synop_list  <- tibble::as_tibble(synop_c)
   rm(synop,synop_n,synop_c)
   return(synop_list)
+}
+
+
+#================================================#
+# MODIFY THE STATION ELEVATION IN THE STATIONS FILE
+# TO THE ACTUAL ELEVATION FROM THE OBSERVATIONS
+#================================================#
+
+modify_station_elev <- function(stations_rf,
+                                obs_path,
+                                start_date,
+                                output_diag = FALSE) {
+  
+  # Read in the obstable
+  yyyy <- substr(start_date,0,4)
+  sql_file <- file.path(obs_path,paste0("OBSTABLE_",yyyy,".sqlite"))
+  
+  if (!file.exists(sql_file)) {
+    
+    cat("Could not find OBSTABLE for correcting station elev, skipping\n")
+    return(stations_rf)
+    
+  } else {
+    
+    con        <- DBI::dbConnect(drv    = RSQLite::SQLite(),
+                                 dbname = sql_file)
+    sql_synop  <- DBI::dbGetQuery(conn      = con,
+                                  statement = "SELECT SID,elev FROM SYNOP") %>%
+      as_tibble() %>% distinct() %>% filter(elev != -99) %>%
+      group_by(SID) %>% summarise(obs_elev = mean(elev))
+    DBI::dbDisconnect(con)
+    
+    # Join and update elev with OBSTABLE elev if it exists
+    onames      <- colnames(stations_rf)
+    stations_rf <- left_join(stations_rf,sql_synop,by = "SID") %>%
+      mutate(obs_elev_filtered = case_when(
+        is.na(obs_elev) ~ elev,
+        .default = obs_elev),
+        asl_elev = elev) %>% 
+      mutate(elev_diff = abs(asl_elev - obs_elev_filtered)) %>%
+      mutate(elev = obs_elev_filtered)
+    
+    if (output_diag) {
+      out_name <- "asl_corrected_elev.rds"
+      cat("Saving",out_name,"with updated station elev info\n")
+      saveRDS(stations_rf, file = here("pre_processing/",out_name))
+    }
+    
+    stations_rf <- stations_rf %>% select(all_of(onames))
+    return(stations_rf)
+  }
+  
+}
+
+#================================================#
+# CALL THE VERIFICATION FUNCTION FOR DIFFERENT
+# GROUPINGS
+#================================================#
+
+fn_run_verif_groups <- function(fcst = "",
+                                prm_name = "",
+                                vertical_coordinate = "",
+                                fcst_type = "",
+                                num_ref_members = "",
+                                grps_param = "",
+                                grps_threshold = "",
+                                grps_SID = "",
+                                all_station_groups = "",
+                                thresholds_param = "",
+                                create_png = "",
+                                force_valid_thr = "",
+                                t_s_str = "",
+                                run_sid = T){
+  
+  # Initialise output
+  verif        <- NULL
+  verif_tpplot <- NULL
+  verif_sid    <- NULL
+  
+  #================================================#
+  # FIRST SET VERIF OPTIONS 
+  #================================================#
+  
+  # Generate verification options
+  if (fcst_type == "eps") {
+    verif_fn              <- "ens_verify"
+    verif_options_list_nm <- list(parameter       = {{prm_name}},
+                                  num_ref_members = num_ref_members,
+                                  verify_members  = FALSE,
+                                  rank_hist       = FALSE,
+                                  crps            = FALSE,
+                                  brier           = FALSE,
+                                  hexbin          = FALSE)
+    verif_options_list    <- list(parameter       = {{prm_name}},
+                                  num_ref_members = num_ref_members,
+                                  verify_members  = TRUE,
+                                  hexbin          = FALSE)
+  } else if (fcst_type == "det") {
+    verif_fn              <- "det_verify"
+    verif_options_list    <- list(parameter = {{prm_name}},
+                                  hexbin    = FALSE)
+    verif_options_list_nm <- verif_options_list
+  }
+  
+  # Get units
+  par_unit <- unique(fcst[[1]][["units"]])
+  
+  #================================================#
+  # RUN STANDARD VERIFICATION
+  #================================================#
+  
+  num_fcst_cycles <- length(unique(fcst[[1]][["fcst_cycle"]]))
+  if (num_fcst_cycles == 1) {
+    warning("Only one fcst_cycle exits, removing it as a group")
+    grps_param     <- lapply(grps_param,function(x) x[x != "fcst_cycle"])
+    grps_param     <- grps_param[lapply(grps_param,length) > 0]
+    grps_param     <- unique(grps_param)
+    grps_threshold <- list("station_group")
+  }
+  
+  cat("Running standard verification...\n")
+  # Do not compute threshold score for valid_hour/dttm unless explicitly requested
+  if (is.null(thresholds_param)) {
+    # Threshold scores not considered in this case
+    grps_1 <- grps_param
+  } else {
+    if (force_valid_thr) {
+      cat("Using all groups (including valid_dttm/hour) for threshold scores\n")
+      grps_1 <- grps_param
+    } else {
+      cat("Only grouping over lead_time for threshold scores\n")
+      grps_1 <- grps_param[grepl("lead_time",grps_param)]
+    }
+  }
+  verif <- do.call(
+    get(verif_fn),
+    c(list(.fcst      = fcst,
+           thresholds = thresholds_param,
+           groupings  = grps_1),
+      verif_options_list)
+  ) %>% fn_verif_rename(.,par_unit)
+  
+  # Then compute summary scores for valid_dttm/hour
+  # Only required if:
+  # 1) threshold scores are activated
+  # 2) valid_dttm/hour have not been used above i.e. force_valid_thr=F
+  if ((!is.null(thresholds_param)) & (!force_valid_thr)) {
+    # First store the threshold type in verif
+    vttype <- typeof(verif[[2]]$threshold[[1]])
+    
+    verif_others <- do.call(
+      get(verif_fn),
+      c(list(.fcst      = fcst,
+             thresholds = NULL,
+             groupings  = grps_param[!grepl("lead_time",grps_param)]),
+        verif_options_list)
+    ) %>% fn_verif_rename(.,par_unit)
+    verif <- bind_point_verif(verif,verif_others) %>%
+      select_list(-parameter)
+    # Add in valid_hour and valid_dttm = All 
+    verif[[2]] <- verif[[2]] %>% mutate(valid_hour = "All",
+                                        valid_dttm = "All")
+    
+    # After binding, it may be necesssary to switch "threshold" back to it's
+    # original type (e.g. changed from dbl to "chr")
+    nvttype <- typeof(verif[[2]]$threshold[[1]])
+    if (nvttype != vttype){
+      cat("After bpverif, threshold type changed from",vttype,"to",nvttype,"\n")
+      if (vttype == "double") {
+        verif[[2]] <- verif[[2]] %>% mutate(threshold  = as.double(threshold))
+      } else if (vttype == "character") {
+        verif[[2]] <- verif[[2]] %>% mutate(threshold  = as.character(threshold))
+      } else if (vttype == "integer") {
+        verif[[2]] <- verif[[2]] %>% mutate(threshold  = as.integer(threshold))
+      } else {
+        stop("Why are we here?")
+      }
+    }
+    
+    # par_unit missing after binding
+    attr(verif,"par_unit") <- par_unit
+  }
+  
+  # Save object to one used for plotting and manipulate as required
+  verif_toplot <- verif
+  if (!is.null(verif_toplot[[t_s_str]])) {
+    verif_toplot[[t_s_str]][["lead_time"]] <- 
+      as.character(verif_toplot[[t_s_str]][["lead_time"]])
+  }
+  
+  # Add all lead times used as an attribute
+  attr(verif_toplot,"all_lts_avail") <- as.character(sort(unique(fcst[[1]]$lead_time)))
+  
+  #================================================#
+  # RUN SID AND ALL THRESHOLD VERIFICATION FOR
+  # SURFACE PARAMS
+  #================================================#
+  
+  if (is.na(vertical_coordinate) & (create_png)) {
+    
+    #================================================#
+    # SID/MAP SCORES
+    #================================================#
+    
+    if (run_sid){
+      
+      cat("Running verification over individual stations...\n")
+      # Reduce the number of valid_hours as computing map scores is intense
+      # Generally looks at valid hours 00-21:3, but only do this filtering 
+      # if all of these hours exist in the data
+      avail_vhours <- unique(fcst[[1]][["valid_hour"]]) %>% as.integer()
+      if (all(seq(0,21,3) %in% avail_vhours)) {
+        cat("Using valid hours 0-21:3 when computing map scores\n")
+        fcst_sid_tmp <- fcst %>% 
+          harpPoint::filter_list(valid_hour %in% sprintf("%02d",seq(0,21,3)))
+      } else {
+        # In this case just use whatever is available
+        cat("Using valid hours",avail_vhours,"when computing maps scores\n")
+        fcst_sid_tmp <- fcst
+      }
+      # Check if we should remove valid_hour as a group if only one is present
+      num_valid_hours <- length(unique(fcst_sid_tmp[[1]][["valid_hour"]]))
+      if (num_valid_hours == 1) {
+        warning("Only one valid hour exits, removing it as a group")
+        grps_SID <- list("SID")
+      }
+      
+      verif_sid <- do.call(
+        get(verif_fn),
+        c(list(.fcst      = fcst_sid_tmp,
+               thresholds = NULL,
+               groupings  = grps_SID),
+          verif_options_list_nm)
+      ) %>% fn_verif_rename(.,par_unit)
+      # Add all lead times used as an attribute 
+      attr(verif_sid,"all_lts_avail") <- as.character(sort(unique(fcst_sid_tmp[[1]]$lead_time)))
+      rm(fcst_sid_tmp)
+      
+      # Need to add lat/lon to the SIDs
+      verif_sid <- fn_sid_latlon(verif_sid,fcst)
+      
+      # Join station_groups to verif object
+      for (vn in names(verif_sid)) {
+        verif_sid[[vn]] <- dplyr::inner_join(verif_sid[[vn]],
+                                             all_station_groups,
+                                             by = "SID",
+                                             relationship = "many-to-many")
+      }
+      
+    } else {
+      
+      cat("Skipping verification over individual stations...\n")
+      
+    }
+    
+    #================================================#
+    # THRESHOLD SCORES OVER ALL LEAD TIMES
+    #================================================#
+    
+    # Compute the standard threshold scores over all lead_times and add
+    if (!(is.null(thresholds_param))) {
+      cat("Running all threshold verification...\n")
+      verif_alllt <- do.call(
+        get(verif_fn),
+        c(list(.fcst      = fcst,
+               thresholds = thresholds_param,
+               groupings  = grps_threshold),
+          verif_options_list_nm)
+      ) %>% fn_verif_rename(.,par_unit)
+      
+      if (!is.null(verif_alllt[[t_s_str]])) {
+        verif_alllt[[t_s_str]] <- dplyr::mutate(verif_alllt[[t_s_str]],
+                                                lead_time  = "All",
+                                                valid_hour = "All",
+                                                valid_dttm = "All") %>%
+          dplyr::select(names(verif_toplot[[t_s_str]]))
+        cat("Adding threshold scores over all lead_times\n")
+        verif_toplot[[t_s_str]] <- dplyr::bind_rows(verif_toplot[[t_s_str]],
+                                                    verif_alllt[[t_s_str]])
+      }
+    } # threshold flag
+    
+    # Filter threshold scores to cases where we have a significant number of cases
+    min_thr_cases <- 20
+    if (!is.null(verif_toplot[[t_s_str]])) {
+      if (fcst_type == "det") {
+        verif_toplot[[t_s_str]] <- verif_toplot[[t_s_str]] %>% 
+          dplyr::filter(num_cases_for_threshold_observed >= min_thr_cases)
+      } else if (fcst_type == "eps") {
+        verif_toplot[[t_s_str]] <- verif_toplot[[t_s_str]] %>% 
+          dplyr::filter(num_cases_total >= min_thr_cases)
+      }
+    }
+    
+  } # is.na(vertical_coordinate)
+  
+  return(list("verif"        = verif,
+              "verif_toplot" = verif_toplot,
+              "verif_sid"    = verif_sid))
+  
 }
 
 #================================================#
@@ -110,6 +491,74 @@ fn_verif_rename <- function(df,par_unit){
   return(df)
 }
 
+#================================================#
+# SPLIT THRESHOLD INTO VALS AND COMPARATOR
+# (TO ACCOMMODATE HARP VERSIONS 0.2 - 0.3)
+#================================================#
+
+fn_split_thr <- function(vo){
+  
+  if (any(grepl("threshold",names(vo),fixed=T))) {
+    
+    vttype <- typeof(vo[[2]]$threshold[[1]])
+    # If character, then check if we have to split 
+    if (vttype == "character") {
+      
+      # Use numbers only to see if comparator is in there
+      comp_exists <- numbers_only(vo[[2]]$threshold[[1]])
+      if (!comp_exists) {
+        
+        # Str split by "_"
+        len_split <- length(str_split(vo[[2]]$threshold,"_")[[1]])
+        if (len_split == 2) {
+          comp_val  <- unique(unlist(lapply(str_split(vo[[2]]$threshold,"_"),"[",1)))
+          thr_vals  <- as.double(unlist(lapply(str_split(vo[[2]]$threshold,"_"),"[",2)))
+          thr_brks  <- unique(thr_vals)
+        } else if (len_split == 4) {
+          comp_vals1 <- unique(unlist(lapply(str_split(vo[[2]]$threshold,"_"),"[",1)))
+          thr_vals1  <- as.double(unlist(lapply(str_split(vo[[2]]$threshold,"_"),"[",2)))
+          comp_vals2 <- unique(unlist(lapply(str_split(vo[[2]]$threshold,"_"),"[",3)))
+          thr_vals2  <- as.double(unlist(lapply(str_split(vo[[2]]$threshold,"_"),"[",4)))
+          # Use midpoint as thr_vals
+          thr_vals   <- (thr_vals1 + thr_vals2)/2
+          thr_brks   <- unique(thr_vals1,thr_vals2)
+          if (comp_vals1 == "ge") {
+            comp_val <- "between"
+          } else if (comp_vals1 == "le") {
+            comp_val <- "outside"
+          } else {
+            stop("Threshold split issue")
+          }
+        } else {
+          stop("Threshold split issue")
+        }
+        
+        vo[[2]]$threshold_val <- thr_vals
+        
+      } else {
+        # No comparator, so assumed gt (which was the default before "comparator" 
+        # argument was introduced). Can convert straight to double
+        vo[[2]]  <- vo[[2]] %>% mutate(threshold_val = as.double(threshold))
+        comp_val <- "gt"
+        thr_brks <- unique(vo[[2]]$threshold_val)
+      }
+    } else {
+      # No comparator, so assumed gt (which was the default before "comparator" 
+      # argument was introduced).
+      vo[[2]] <- vo[[2]] %>% mutate(threshold_val = threshold)
+      comp_val <- "gt"
+      thr_brks <- unique(vo[[2]]$threshold_val)
+    }
+    
+    # Finally, add attributes
+    attr(vo,"thr_brks") <- sort(thr_brks)
+    attr(vo,"comp_val") <- comp_val
+    
+  }
+  
+  return(vo)
+  
+}
 
 #================================================#
 # GET LAT/LONS FROM HARP FCST OBJECT
@@ -197,7 +646,8 @@ fn_sid_latlon <- function(df,
 # Filter verif object dataframe
 filter_verif <- function(verif_o,
                          fts,
-                         cf){
+                         cf,
+                         force_vh = FALSE){
   
   # Only filter cases for lead_time, not valid_dttm or valid_hour
   verif_out <- verif_o
@@ -207,6 +657,18 @@ filter_verif <- function(verif_o,
       TRUE ~ num_cases >= 1)
     )
   
+  # Force valid_hour filtering
+  if (force_vh) {
+    max_vh_cases <- verif_f[[paste0(fts,"_summary_scores")]] %>%
+      filter(lead_time == "All")
+    max_vh_cases <- max(max_vh_cases$num_cases)
+    verif_f  <- verif_f %>%
+      harpPoint::filter_list(dplyr::case_when(
+        lead_time == "All" ~ num_cases >= round(max_vh_cases/4),
+        TRUE ~ num_cases >= 1)
+      )
+  }
+    
   # Check the filtered object
   qwe <- verif_f[[paste0(fts,"_summary_scores")]] %>% 
     dplyr::filter(lead_time != "All") 
@@ -230,7 +692,7 @@ filter_verif <- function(verif_o,
 #================================================#
 
 create_station_filter <- function(dttm,
-                                  fcst_models,
+                                  fcst_model,
                                   param,
                                   fctable_dir,
                                   station_list_dir){
@@ -270,7 +732,8 @@ create_station_filter <- function(dttm,
       db         <- DBI::dbConnect(RSQLite::SQLite(), dbase)
       num_sids   <- tbl(db, "FC") %>% 
                     dplyr::pull(SID) %>%
-                    unique()
+                    unique() %>%
+                    as.double()
       # Compare to default synop list
       num_sids   <- base::intersect(num_sids,synop_list$SID) %>%
                     length() 
@@ -340,16 +803,47 @@ try_rpforecast <- function(start_date,
       cat("Finished FCTABLE reading\n")
     }
   )
-  
+   
+  # Add a check to test if read_forecast returned a named list
+  # (where the names are the forecast models)
+  # Also deals with converting to a harp list for a single forecast model
   if (!is.null(fcst)) {
     
-    # In the case of only one forecast model, convert fcst to a harp_list
-    if (length(fcst_model) == 1) {
+    # If fcst has at least one of fcst_model, then we are fine. 
+    # If not, then only a single model was found
+    if (!(any(names(fcst) %in% fcst_model))) {
+      
+      avail_model <- unique(fcst$fcst_model)
+      if (length(avail_model) > 1) {
+        stop("Investigation required!")
+      }
       fcst        <- harpCore::as_harp_list(placeholder = fcst)
-      names(fcst) <- fcst_model
+      names(fcst) <- avail_model
     }
     
   }
+  
+  # Add a check on the number of rows (e.g. FCTABLE could exist, but it may not
+  # include the leadtimes requested)
+  if (!is.null(fcst)) {
+    nrow_rolling <- 0
+    for (ii in names(fcst)) {
+      if (is.data.frame(fcst[[ii]])) {
+        nrow_rolling <- max(nrow_rolling,nrow(fcst[[ii]]))
+      } else {
+        nrow_rolling <- max(nrow_rolling,length(fcst[[ii]]))
+      }
+    }
+    if (nrow_rolling == 0){
+      cat("Did not find any forecast data after reading the FCTABLEs\n")
+      cat("This may be due to missing leadtime data in the sqlite files\n")
+      cat("Parameter",param,"will be skipped\n")
+      fcst <- NULL
+    }
+  }
+  
+  # Convert SID column from integer to double to protect against integer64
+  fcst <- fcst %>% mutate_list(SID = as.double(SID))
 
   return(fcst)
 
@@ -655,10 +1149,18 @@ gen_sc <- function(sc_data,
                    param,
                    domain,
                    CONFIG,
-                   verif_fn,
+                   fcst_type,
                    vc,
                    all_UA_vars,
                    num_ref_members){
+  
+  if (fcst_type == "eps") {
+    verif_fn <- "ens_verify"
+  } else if (fcst_type == "det") {
+    verif_fn <- "det_verify"
+  } else {
+    stop("Why did this happen?")
+  }
 
   if (!is.na(vc)) {
     

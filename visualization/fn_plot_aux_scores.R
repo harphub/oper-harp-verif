@@ -20,6 +20,8 @@ fn_plot_aux_scores <- function(fcst_input,
                                     mbr_plots = FALSE,
                                     rolling_verif = FALSE,
                                     cmap_hex = "magma",
+                                    lt_split = FALSE,
+                                    plot_fd = FALSE,
                                     fsd = NA_character_,
                                     fed = NA_character_){
   
@@ -122,19 +124,33 @@ fn_plot_aux_scores <- function(fcst_input,
   
   lt_to_use   <- seq(3,48,3) # What lead_times to use?
   all_lts     <- sort(unique(fcst[["lead_time"]]))
-  lt_filter   <- intersect(all_lts,lt_to_use)
-  if (length(lt_filter) > 0) {
-    cat("Using lead times",paste(lt_filter,collapse = ","),"in aux plots\n")
+  lt_to_use   <- intersect(all_lts,lt_to_use)
+  if (length(lt_to_use) > 0) {
+    cat("Using lead times",paste(lt_to_use,collapse = ","),"in aux plots\n")
   } else {
     cat("Only found lead times",paste(all_lts,collapse = ","),"\n")
     cat("Do not filter lead times in aux plotting\n")
     lt_to_use <- all_lts
   }
-  cycles_oi   <- c("All") # What cycles to plot for?
+  # Introduce a split between "short" and "long" leadtimes
+  if ((max(lt_to_use) > 24) & (lt_split)) {
+    lt_to_use_short <- lt_to_use[lt_to_use <= 24]
+    lt_to_use_long  <- lt_to_use[lt_to_use > 24]
+    lt_to_use_list  <- list("lt_all"   = lt_to_use,
+                            "lt_short" = lt_to_use_short,
+                            "lt_long"  = lt_to_use_long)
+  } else {
+    lt_to_use_list  <- list("lt_all" = lt_to_use)
+  }
+  cycles_oi   <- c("All","00","12") # What cycles to plot for?
   if (rolling_verif) {
     cycles_oi <- c("All","00","12")
   }
   cycles_oi   <- base::intersect(cycles_oi,c("All",cycles))
+  # If there is only one cycle in the forecast data, then just use "All" (to avoid double jobs)
+  if (length(cycles) == 1) {
+    cycles_oi <- "All"
+  }
   stations_oi <- unique(stations)
   fd_adjust   <- 1  # Adjust parameter in freq dist plotting
   
@@ -153,11 +169,24 @@ fn_plot_aux_scores <- function(fcst_input,
     cpal_hex    <- "A"
   } else if (cmap_hex == "viridis") {
     cpal_hex    <- "D"
+  } else if (cmap_hex %in% scico::scico_palette_names()) {
+    cpal_hex    <- cmap_hex
   } else {
     warning("cmap_hex ",cmap_hex," is not available, reverting to default\n")
     cpal_hex    <- "A"
   }
   scat_bins   <- 50
+  # Specific single leadtimes to plot for a scatterplot
+  scat_single_lts <- seq(24,48,12)
+  if (any(scat_single_lts %in% lt_to_use)) {
+    scat_single_lts <- lt_to_use[lt_to_use %in% scat_single_lts]
+    # Extra check in the case of a single leadtime
+    if (length(lt_to_use) == 1){
+      scat_single_lts <- NULL
+    }
+  } else {
+    scat_single_lts <- NULL
+  }
   
   #=================================================#
   # END OF USER INTERACTION 
@@ -190,18 +219,26 @@ fn_plot_aux_scores <- function(fcst_input,
   # Define various themes
   ptheme_l <- ggplot2::theme_bw() + 
     ggplot2::theme(
-      plot.title      = ggplot2::element_text(size = 10),
-      plot.subtitle   = ggplot2::element_text(size = 8),
-      axis.text       = ggplot2::element_text(size = 10),
-      axis.title      = ggplot2::element_text(size = 10),
-      strip.text      = ggplot2::element_text(size = 10),
-      legend.text     = ggplot2::element_text(size = 10),
+      plot.title      = ggplot2::element_text(size = 10, margin = margin(1,0,1,0)),
+      plot.subtitle   = ggplot2::element_text(size = 8, margin = margin(1,0,0,0)),
+      axis.text       = ggplot2::element_text(size = 8),
+      axis.title      = ggplot2::element_text(size = 8, margin = margin(0,0,0,0)),
+      strip.text      = ggplot2::element_text(size = 8),
+      legend.text     = ggplot2::element_text(size = 8),
+      legend.box.spacing   = unit(0,"pt"),
+      legend.margin        = margin(0,0,0,0),
+      legend.box.margin    = margin(0,0,0,0),
       legend.position = "top"
     )
+  # legend.key.spacing.x only available for ggplot2 version 3.5.0
+  if (as.numeric(gsub(".","",packageVersion("ggplot2"),fixed=T)) >= 350) {
+    ptheme_l <- ptheme_l +
+      ggplot2::theme(legend.key.spacing.x = unit(1,"lines"))
+  }
   ptheme_nc <- ggplot2::theme_bw() + 
     ggplot2::theme(
-      axis.text       = ggplot2::element_text(size = 10),
-      axis.title      = ggplot2::element_text(size = 10),
+      axis.text       = ggplot2::element_text(size = 8),
+      axis.title      = ggplot2::element_text(size = 8, margin = margin(0,0,0,0)),
       legend.position = "none"
     )
   
@@ -241,8 +278,18 @@ fn_plot_aux_scores <- function(fcst_input,
   # COMPUTE VARIOUS AUX SCORES
   #=================================================#
   
-  fcst      <- dplyr::filter(fcst,lead_time %in% lt_to_use)
+  fcst_all <- fcst
+  # Add a loop over leadtime combinations
+  for (jj in seq(1,length(lt_to_use_list))) {
+    
+  lt_jj     <- lt_to_use_list[[jj]]
+  fcst      <- dplyr::filter(fcst_all,lead_time %in% lt_jj)
   leadtimes <- sort(unique(fcst[["lead_time"]]))
+  if (length(leadtimes) > 1) {
+    lt_used <- paste0(leadtimes[1],"_",leadtimes[length(leadtimes)])
+  } else {
+    lt_used <- leadtimes[1]
+  }
   
   if (length(leadtimes) > 5) {
     lt_used_fig <- c(leadtimes[1],
@@ -251,6 +298,14 @@ fn_plot_aux_scores <- function(fcst_input,
                      leadtimes[length(leadtimes)])
   } else {
     lt_used_fig <- leadtimes
+  }
+  
+  # If jj=1 (i.e. lt_to_use), then set lt_used to "All" and add in scatterplots at single leadtimes
+  if (jj == 1) {
+    scat_lts <- scat_single_lts
+    lt_used  <- "All"
+  } else {
+    scat_lts <- NULL
   }
   
   for (cycle in cycles_oi) {
@@ -263,12 +318,24 @@ fn_plot_aux_scores <- function(fcst_input,
       c_fcst       <- fcst %>% dplyr::filter(fcst_cycle == cycle)
     }
     
+    # Extra check in case leadtimes are not consistent over cycles
+    if (nrow(c_fcst) == 0) {
+      cat("Skipping aux plots for cycle",cycle,"and leadtimes",lt_used,"as no data found\n")
+      next
+    }
+    
     num_cycles <- length(unique(c_fcst[["fcst_dttm"]])) 
     title_str = paste0(title_date_str," (",num_cycles," cycles)")
     
     for (station in stations_oi) {
     
       cc_fcst <- c_fcst %>% dplyr::filter(get(station_group_var) == station)
+      
+      # Extra check in case leadtimes+cycles are not consistent over stations
+      if (nrow(cc_fcst) == 0) {
+        cat("Skipping aux plots for cycle",cycle,"leadtimes",lt_used,"and station",station,"as no data found\n")
+        next
+      }
       
       subtitle_str  <- paste0("Used {",paste0(cyc_used_fig,collapse = ","),
                               "} +",paste0(lt_used_fig,collapse = ", ")," : ",
@@ -278,10 +345,12 @@ fn_plot_aux_scores <- function(fcst_input,
       vroption_list <- list("xgroup"   = "xgroup",
                             "score"    = "score",
                             "cycle"    = cycle,
+                            "lt_used"  = lt_used,
                             "station"  = station,
                             "c_typ"    = "summary",
                             "c_ftyp"   = fxoption_list$c_ftyp,
                             "xg_str"   = "xg_str", 
+                            "scat_lts" = scat_lts,
                             "p_breaks" = "p_breaks",
                             "log_ind"  = FALSE)
       
@@ -294,7 +363,8 @@ fn_plot_aux_scores <- function(fcst_input,
                subtitle_str,
                fxoption_list,
                vroption_list,
-               rolling_verif)
+               rolling_verif,
+               plot_fd = plot_fd)
           
       } else if (fcst_type == "ens") {
         
@@ -306,7 +376,8 @@ fn_plot_aux_scores <- function(fcst_input,
                subtitle_str,
                fxoption_list,
                vroption_list,
-               rolling_verif)
+               rolling_verif,
+               plot_fd = plot_fd)
         
         # Compute scores for the control members
         if (compare_mbr000) {
@@ -317,7 +388,8 @@ fn_plot_aux_scores <- function(fcst_input,
                  subtitle_str,
                  fxoption_list,
                  vroption_list,
-                 rolling_verif)
+                 rolling_verif,
+                 plot_fd = plot_fd)
         }
         
         # Member scores (not really required)
@@ -345,14 +417,16 @@ fn_plot_aux_scores <- function(fcst_input,
                      fxoption_list,
                      vroption_list)
           
-          vroption_list$xgroup <- "NA"
-          vroption_list$score  <- "mbrfreqdist"
-          vroption_list$xg_str <- "NA";
-          fn_freqdist(cc_fcst,
-                      title_str,
-                      subtitle_str,
-                      fxoption_list,
-                      vroption_list)
+          if (plot_fd) {
+            vroption_list$xgroup <- "NA"
+            vroption_list$score  <- "mbrfreqdist"
+            vroption_list$xg_str <- "NA";
+            fn_freqdist(cc_fcst,
+                        title_str,
+                        subtitle_str,
+                        fxoption_list,
+                        vroption_list)
+          }
           
         }
         
@@ -361,5 +435,7 @@ fn_plot_aux_scores <- function(fcst_input,
     } # station
     
   } # cycle
+  
+  } # Loop over leadtime lists
   
 } # End of function

@@ -12,6 +12,9 @@
 # STANDARD DEVIATIONS (FOR check_obs_against_fcst)
 # ARE INCLUDED
 #
+# models_to_scale CAN BE MISSING, NULL, OR
+# TAKE THE FORM c("Model_A","Model_B",etc.)
+#
 #================================================#
 
 params <- list(
@@ -22,7 +25,8 @@ params <- list(
       scale_obs  = list(scaling = -273.15, new_units = "degC"),
       obsmin_val = 273.15 - 30,
       obsmax_val = 273.15 + 50,
-      error_sd   = 6  
+      error_sd   = 6,
+      models_to_scale = NULL
     ),
     Td2m = list(
       thresholds = c(-20, -10, seq(-5, 25, 5)),
@@ -67,8 +71,13 @@ params <- list(
       thresholds = NULL,
       obsmin_val = 90000/100,
       obsmax_val = 106000/100,
-      error_sd   = 6,
-      use_models_to_scale = FALSE
+      error_sd   = 6
+    ),
+    Ps = list(
+      thresholds = NULL,
+      obsmin_val = 60000/100,
+      obsmax_val = 110000/100,
+      error_sd   = 6
     ),
     S10m = list(
       thresholds = c(2.5,5,7.5,10,15,20,25,30),
@@ -161,17 +170,20 @@ params <- list(
       error_sd   = 6
     ),
     Cbase = list(
-      thresholds = c(100,300,1000,2000,3000,5000),
+      thresholds = c(100,500,1000,1500,2000,3000,5000,7000,10000,15000,20000),
       scale_fcst = list(scaling = 3.281, new_units = "ft", mult = TRUE),
       scale_obs  = list(scaling = 3.281, new_units = "ft", mult = TRUE),
       error_sd   = 6,
       obsmin_val = 0,
-      obsmax_val = 24000,
-      fctmax_val = 24000
+      obsmax_val = 24000/3.281, # As filtering is done before scaling
+      fctmax_val = 24000 # Done after scaling (note Harmonie Cbase limited to 7500m)
     ),
     vis = list(
-      thresholds = c(200,500,1000,4000),
-      error_sd   = 6
+      thresholds = c(1000,2000,3000,4000,5000,7500,10000,15000,20000,25000,30000,40000),
+      error_sd   = 6,
+      obsmin_val = 0,
+      obsmax_val = 45000,
+      fctmax_val = 45000 # Note Harmonie vis limited to 50km
     ),
     # Upper-air parameters
     S = list(

@@ -9,12 +9,13 @@ To install packages required by this repo, you can use:
 pkg_list <- c("here","argparse","yaml","dplyr","tidyr",
               "purrr","forcats","stringr","RColorBrewer","grid",
               "gridExtra","pracma","RSQLite","scales","pals",
-              "shiny","shinyWidgets","lubridate")
+              "shiny","shinyWidgets","lubridate","scico","cowplot","sf")
 for (pkg in pkg_list) {
   install.packages(pkg)
 }
 ```
 
+Note that installation of the package `sf` can sometimes be problematic. These scripts only require `sf` for polygon station filtering. If you do not require polygon filtering, then `sf` does not have to be installed. If you try to use polygon filtering and `sf` is not found, polygon filtering will simply be skipped.
 In order to install the latest version of harp from the main branch in github, you can use:
 ``` r
 install.packages("remotes")
