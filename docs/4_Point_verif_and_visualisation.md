@@ -148,6 +148,35 @@ model_names  <- c("model_A",
 ...
 ```
 
+
 then "model_A" will be always be in red and "model_B" will always be in blue i.e. the 1st and 4th colours of the trubetskoy pallete. If some or all of your forecast models are not listed in `model_names`, the colours assoicated with these models will default to the first ones available in the palette. For example, suppose you have forecast models "model_A", "model_B", and "model_C" and `model_names` is set as per the example above. In this case "model_A" will be in red, "model_B" be in blue", and "model_C" will be in green (i.e. the 2nd colour of the trubetskoy pallete, as the 1st colour is already taken by "model_A"). 
 
+### Visualizing the results direcly in atos
+It is possible to run the shiny web server directly on atos and open a local browser
+to visualized the results `img_dir` using the `launch_visapp_atos.R` script.
 
+1. Soft link the path with the image results in the `sample_images` directory.
+```
+cd visapp/sample_images/
+ln -sf some_path_somewhere local_name_of_the_path
+cd ../..
+module load R #mind the version where you installed harp
+Rscript launch_visapp_atos.R
+```
+
+2. Open a new terminal and ssh to one of the atos login nodes
+```
+ssh -L 9999:localhost:9999 ac6-102
+```
+
+3. Open the browser on `http://127.0.0.1:9999/` that should show up after doing step 1.
+ 
+or simply click on the link displayed in the terminal.
+
+This will open a local browser in your local pc showing the shiny app there
+while the png files are in the remote server.
+
+Yo might need to install the `shinyWidgets` app.
+
+The same is valid for visualizing the results interactively using the `rds` files.
+In this case use the `launch_dynamicapp_atos.R` instead of `launch_visapp_atos.R` in step 1.
