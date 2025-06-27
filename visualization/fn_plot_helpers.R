@@ -945,7 +945,7 @@ fn_plot_map <- function(verif,
                                                 ylim = c(min_lat-0.2,max_lat+0.2))
     }
     
-    if (map_cbar_d) {
+    if ((map_cbar_d) & (!is.null(cbar_opts$brks[1]))) {
       p_map <- p_map + ggplot2::binned_scale(
         scale_name = "map_plot",
         name = paste0("(",par_unit,")"),
@@ -975,76 +975,20 @@ fn_plot_map <- function(verif,
 
 fn_get_map_cbar <- function(map_cbar_d,c_min,c_max,score,param,par_unit){
   
-  if (map_cbar_d){
-    
-  # First define the breaks based on the parameter
-  # Largely following those in Monitor
-  if (param %in% c("Pmsl")) {
-    if (score %in% c("bias","mean_bias")) {
-      brks <- seq(-5,-0.5,0.5)
-      brks <- c(brks,-0.25,0.25,-rev(brks))
-    } else {
-      brks <- seq(0,5,0.5)
-    }
-  } else if (param %in% c("Ps")) {
-    if (score %in% c("bias","mean_bias")) {
-      brks <- seq(-20,-2,2)
-      brks <- c(brks,-1,1,-rev(brks))
-    } else {
-      brks <- seq(0,15,1)
-    }
-  } else if (param %in% c("T2m","Td2m","Q2m","Tmax","Tmin")) {
-    if (score %in% c("bias","mean_bias")) {
-      brks <- seq(-6,-1,1)
-      brks <- c(brks,-0.5,0.5,-rev(brks))
-    } else {
-      brks <- seq(0,10,1)
-    }
-  } else if (param %in% c("S10m","Gmax","Smax","G10m")) {
-    if (score %in% c("bias","mean_bias")) {
-      brks <- seq(-10,-1,1)
-      brks <- c(brks,-0.5,0.5,-rev(brks))
-    } else {
-      brks <- seq(0,15,1)
-    }
-  } else if (param %in% c("D10m")){
-    if (score %in% c("bias","mean_bias")){
-      brks <- seq(-180,-30,30)
-      brks <- c(brks,-15,15,-rev(brks))
-    } else {
-      brks <- seq(0,180,30)
-    }
-  } else if (param %in% c("RH2m")){
-    if (score %in% c("bias","mean_bias")) {
-      brks <- seq(-25,-5,5)
-      brks <- c(brks,-2.5,2.5,-rev(brks))
-    } else {
-      brks <- seq(0,100,10)
-    }
-  } else if (param %in% c("vis","Cbase")){
-    if (score %in% c("bias","mean_bias")) {
-      brks <- c(-40000,-30000,-20000,-10000,-5000,-2500,-1000)
-      brks <- c(brks,-rev(brks))
-    } else {
-      brks <- c(0,2500,5000,10000,15000,20000,25000,30000,40000,50000)
-    }
-  } else if (param %in% c("CCtot","CClow","CCmed","CChigh","N75")){
-    if (score %in% c("bias","mean_bias")) {
-      brks <- seq(-8,-2,2)
-      brks <- c(brks,-1,1,-rev(brks))
-    } else {
-      brks <- seq(0,8,1)
-    }
-  } else if (grepl("Pcp",param,fixed=T)) {
-    if (score %in% c("bias","mean_bias")) {
-      brks <- seq(-20,-2.5,2.5)
-      brks <- c(brks,-1,1,-rev(brks))
-    } else {
-      brks <- c(seq(0,10,2),12.5,15,17.5,20,25,30,35)
-    }
-  } else {
-    stop("Need to add this param in cmap defs!")
+  # Get breaks from this function
+  gpc      <- get_param_classes(param,par_unit,score = score)
+  brks     <- gpc$brks
+  plot_ind <- gpc$plot_ind
+  log_ind  <- gpc$log_ind
+  
+  # If plot_ind is FALSE, it means that param+par_unit is not recognised above.
+  # Hence you need to use a default continuous scale.
+  if (!plot_ind) {
+    cat("No breaks found for",param,"with units",par_unit,". Switching off discrete cbar.\n")
+    map_cbar_d <- F
   }
+  
+  if (map_cbar_d){
   
   # Then get the cmap
   if (score %in% c("bias","mean_bias")) {
@@ -1059,7 +1003,7 @@ fn_get_map_cbar <- function(map_cbar_d,c_min,c_max,score,param,par_unit){
                        direction = scico_dir)
   
   # Then filter the cmap to just the colours which cover the range cmin-cmax
-  bl <- brks[brks<=c_min]
+  bl <- brks[brks<c_min]
   if (length(bl) > 1){
     bl_ind <- which(brks == tail(bl,1))
     bl_val <- NULL
@@ -1067,7 +1011,7 @@ fn_get_map_cbar <- function(map_cbar_d,c_min,c_max,score,param,par_unit){
     bl_ind <- 1
     bl_val <- round(c_min,1)
   }
-  bu <- brks[brks>=c_max]
+  bu <- brks[brks>c_max]
   if (length(bu) > 1){
     bu_ind <- which(brks == bu[1])
     bu_val <- NULL
@@ -1692,6 +1636,7 @@ fn_freqhist <- function(fc,
   title_scores <- gsub("_"," ",str_to_title(title_scores)) 
   ptitle       <- paste0(paste0(title_scores,collapse = ", ")," : ",title_str)
   param        <- fxoption_list$param;
+  par_unit     <- fxoption_list$par_unit
   if (grepl("Mbr000",title_str)) {
     cprefix <- "ctrl"
   } else {
@@ -1699,8 +1644,8 @@ fn_freqhist <- function(fc,
   }
   
   # Define the breaks to be used in histogram plotting
-  gpc      <- get_param_classes(param)
-  p_breaks <- gpc$p_breaks
+  gpc      <- get_param_classes(param,par_unit,score = "freq")
+  p_breaks <- gpc$brks
   plot_ind <- gpc$plot_ind
   log_ind  <- gpc$log_ind
   
@@ -1804,47 +1749,330 @@ fn_freqhist <- function(fc,
 }
 
 #================================================#
-# DEFINE PARAMETER CLASESS (FOR FREQUENCY HISTS)
+# DEFINE PARAMETER CLASESS/BREAKS
 #================================================#
 
-get_param_classes <- function(param) {
-
-  plot_ind <- TRUE
-  log_ind  <- FALSE
-  if ((param %in% c("T2m","Td2m")) || (grepl("T2m",param,fixed=TRUE))) {
-    p_breaks <- seq(-50,50,2.5)
-  } else if (param == "Q2m") {
-    p_breaks <- seq(0.5,20,0.5)
-  } else if (param  == "RH2m") {
-    p_breaks <- seq(25,100,5)
-  } else if ((param %in% c("S10m","Gmax")) || (grepl("S10m",param,fixed=TRUE))) {
-    p_breaks <- c(1,2.5,5,7.5,10,12.5,15,17.5,20,22.5,25,30,35,40,50,60,70,80)
-  } else if (param == "Cbase") {
-    p_breaks <- c(0,100,500,1000,1500,2000,3000,5000,7000,10000,15000,20000)
-    log_ind <- TRUE
-  } else if (param %in% c("AccPcp1h","AccPcp3h","AccPcp6h",
-                          "AccPcp12h","AccPcp24h")) {
-    p_breaks <- c(0.1,0.25,0.5,1,2.5,5,7.5,10,12.5,15,17.5,20,25,30,40,50,75,100,125,150)
-    log_ind <- TRUE
-  } else if (param == "vis") {
-    p_breaks <- c(0,1000,2000,3000,4000,5000,7500,10000,15000,
-                  20000,25000,30000,40000)
-    log_ind <- TRUE
-  } else if (param %in% c("CClow","CCmed","CChigh","CCtot")) {
-    p_breaks <- seq(-0.5,8.5,1)
-  } else if (param == "Pmsl") {
-    p_breaks <- seq(900,1060,2.5)
-  } else if (param == "Ps") {
-    p_breaks <- seq(600,1100,10)
+get_param_classes <- function(param,par_unit,score = "freq") {
+  
+  # A function to define all parameter breaks for bias/rmse maps and freq hist.
+  # For bias/rmse breaks we largely following those in Monitor.
+  
+  # Set defaults
+  brks        <- NULL
+  scale_fac   <- NULL
+  scale_mult  <- NULL
+  scale_round <- NULL
+  plot_ind    <- TRUE
+  log_ind     <- FALSE
+  par_unit    <- tolower(par_unit)
+  
+  if (param %in% c("Pmsl")) {
+    
+    # Assuming hPa as default
+    if (score %in% c("bias","mean_bias")) {
+      brks <- seq(-5,-0.5,0.5)
+      brks <- c(brks,-0.25,0.25,-rev(brks))
+    } else if (score == "freq"){
+      brks <- seq(900,1060,2.5)
+    } else {
+      brks <- seq(0,5,0.5)
+    }
+    
+    if (par_unit %in% c("hpa")) {
+      scale_fac   <- 1
+      scale_mult  <- T
+      scale_round <- 0
+    } else if (par_unit %in% c("pa")) {
+      scale_fac   <- 100
+      scale_mult  <- T
+      scale_round <- 0
+    }
+    
+  } else if (param %in% c("Ps")) {
+    
+    # Assuming hPa as default
+    if (score %in% c("bias","mean_bias")) {
+      brks <- seq(-20,-2,2)
+      brks <- c(brks,-1,1,-rev(brks))
+    } else if (score == "freq") {
+      brks <- seq(600,1100,10)
+    } else {
+      brks <- seq(0,15,1)
+    }
+    
+    if (par_unit %in% c("hpa")) {
+      scale_fac   <- 1
+      scale_mult  <- T
+      scale_round <- 0
+    } else if (par_unit %in% c("pa")) {
+      scale_fac   <- 100
+      scale_mult  <- T
+      scale_round <- 0
+    }
+    
+  } else if ((param %in% c("T2m","Td2m","Tmax","Tmin")) || (grepl("T2m",param,fixed=TRUE))) {
+    
+    # Assuming degC as default
+    if (score %in% c("bias","mean_bias")) {
+      brks <- seq(-6,-1,1)
+      brks <- c(brks,-0.5,0.5,-rev(brks))
+    } else if (score == "freq") {
+      brks <- seq(-50,50,2.5)
+    } else {
+      brks <- seq(0,10,1)
+    }
+    
+    if (par_unit %in% c("degc","dc","c")) {
+      scale_fac   <- 1
+      scale_mult  <- T
+      scale_round <- 0
+    } else if (par_unit %in% c("k")) {
+      # Only need to scale for freq plots
+      if (score == "freq") {
+        scale_fac   <- 273.15
+        scale_mult  <- F
+        scale_round <- 2
+      } else {
+        scale_fac   <- 1
+        scale_mult  <- T
+        scale_round <- 0
+      }
+    }
+    
+  } else if (param %in% c("Q2m")) {
+    
+    # Assuming g/kg as default
+    if (score %in% c("bias","mean_bias")) {
+      brks <- seq(-6,-1,1)
+      brks <- c(brks,-0.5,0.5,-rev(brks))
+    } else if (score == "freq") {
+      brks <- seq(0.5,20,0.5)
+    } else {
+      brks <- seq(0,10,1)
+    }
+    
+    if (par_unit %in% c("g/kg","g kg-1")) {
+      scale_fac   <- 1
+      scale_mult  <- T
+      scale_round <- 0
+    } else if (par_unit %in% c("kg/kg","kg kg-1")) {
+      scale_fac   <- 1/1000
+      scale_mult  <- T
+      scale_round <- 4
+    }
+    
+  } else if ((param %in% c("S10m","Gmax","Smax","G10m")) || (grepl("S10m",param,fixed=TRUE))) {
+    
+    # Assuming m/s as default
+    if (score %in% c("bias","mean_bias")) {
+      brks <- seq(-10,-1,1)
+      brks <- c(brks,-0.5,0.5,-rev(brks))
+    } else if (score == "freq") {
+      brks <- c(1,2.5,5,7.5,10,12.5,15,17.5,20,22.5,25,30,35,40,50,60,70,80)
+    } else {
+      brks <- seq(0,15,1)
+    }
+    
+    if (par_unit %in% c("m/s","m s-1")) {
+      scale_fac   <- 1
+      scale_mult  <- T
+      scale_round <- 0
+    } else if (par_unit %in% c("km/h","km h-1")) {
+      scale_fac   <- 3.6
+      scale_mult  <- T
+      scale_round <- 1
+    } else if (par_unit %in% c("kts")) {
+      scale_fac   <- 1.94384
+      scale_mult  <- T
+      scale_round <- 1
+    }
+    
+  } else if (param %in% c("D10m")){
+    
+    # Assuming degrees as default
+    if (score %in% c("bias","mean_bias")){
+      brks <- seq(-180,-30,30)
+      brks <- c(brks,-15,15,-rev(brks))
+    } else if (score == "freq") {
+      brks <- seq(-10,350,20)
+    } else {
+      brks <- seq(0,180,30)
+    }
+    
+    # No alternative units
+    if (par_unit %in% c("degrees","deg")) {
+      scale_fac   <- 1
+      scale_mult  <- T
+      scale_round <- 0
+    }
+    
+  } else if (param %in% c("RH2m")){
+    
+    # Assuming percent as default
+    if (score %in% c("bias","mean_bias")) {
+      brks <- seq(-25,-5,5)
+      brks <- c(brks,-2.5,2.5,-rev(brks))
+    } else if (score == "freq") {
+      brks <- seq(25,100,5)
+    } else {
+      brks <- seq(0,100,10)
+    }
+    
+    # No alternative units
+    if (par_unit %in% c("percent","%")) {
+      scale_fac   <- 1
+      scale_mult  <- T
+      scale_round <- 0
+    }
+    
+  } else if (param %in% c("Cbase")) {
+    
+    # Assuming ft is default
+    if (score %in% c("bias","mean_bias")) {
+      brks <- c(-40000,-30000,-20000,-10000,-5000,-2500,-1000)
+      brks <- c(brks,-rev(brks))
+    } else if (score == "freq") {
+      brks <- c(0,100,500,1000,1500,2000,3000,5000,7000,10000,15000,20000)
+      log_ind <- TRUE
+    } else {
+      brks <- c(0,2500,5000,10000,15000,20000,25000,30000,40000,50000)
+    }
+    
+    if (par_unit %in% c("ft","feet")) {
+      scale_fac   <- 1
+      scale_mult  <- T
+      scale_round <- 0
+    } else if (par_unit %in% c("m")) {
+      scale_fac   <- 0.3048
+      scale_mult  <- T
+      scale_round <- 0
+    } else if (par_unit %in% c("km")) {
+      scale_fac   <- 0.0003048
+      scale_mult  <- T
+      scale_round <- 2
+    }
+    
+  } else if (param %in% c("vis")){
+    
+    # Assuming m is default
+    if (score %in% c("bias","mean_bias")) {
+      brks <- c(-40000,-30000,-20000,-10000,-5000,-2500,-1000)
+      brks <- c(brks,-rev(brks))
+    } else if (score == "freq") {
+      brks <- c(0,1000,2000,3000,4000,5000,7500,10000,15000,20000,25000,30000,40000)
+      log_ind <- TRUE
+    } else {
+      brks <- c(0,2500,5000,10000,15000,20000,25000,30000,40000,50000)
+    }
+    
+    if (par_unit %in% c("m")) {
+      scale_fac   <- 1
+      scale_mult  <- T
+      scale_round <- 0
+    } else if (par_unit %in% c("km")) {
+      scale_fac   <- 1/1000
+      scale_mult  <- T
+      scale_round <- 0
+    } else if (par_unit %in% c("ft","feet")) {
+      scale_fac   <- 3.28084
+      scale_mult  <- T
+      scale_round <- 0
+    }
+    
+  } else if (param %in% c("CCtot","CClow","CCmed","CChigh","N75")){
+    
+    # Assuming default is oktas
+    if (score %in% c("bias","mean_bias")) {
+      brks <- seq(-8,-2,2)
+      brks <- c(brks,-1,1,-rev(brks))
+    } else if (score == "freq") {
+      brks <- seq(-0.5,8.5,1)
+    } else {
+      brks <- seq(0,8,1)
+    }
+    
+    if (par_unit %in% c("oktas","0-8")) {
+      scale_fac   <- 1
+      scale_mult  <- T
+      scale_round <- 0
+    } else if (par_unit %in% c("percent","%")) {
+      scale_fac   <- 12.5
+      scale_mult  <- T
+      scale_round <- 2
+    }
+    
+  } else if (grepl("Pcp",param,fixed=T)) {
+    
+    # Assuming mm/acc period (kg/m^2)
+    if (score %in% c("bias","mean_bias")) {
+      brks <- seq(-20,-2.5,2.5)
+      brks <- c(brks,-1,1,-rev(brks))
+    } else if (score == "freq") {
+      brks <- c(0.1,0.25,0.5,1,2.5,5,7.5,10,12.5,15,17.5,20,25,30,40,50,75,100,125,150)
+      log_ind <- TRUE
+    } else {
+      brks <- c(seq(0,10,2),12.5,15,17.5,20,25,30,35)
+    }
+    
+    if (par_unit %in% c("kg/m^2","kg m-2")) {
+      scale_fac   <- 1
+      scale_mult  <- T
+      scale_round <- 0
+    }
+    
   } else {
-    warning("Do not produce freq hist plots for ",param)
-    plot_ind <- FALSE
-    p_breaks <- "NA"
+    
+    cat("Need to add this parameter",param,"in break definitions. Some plots will be skipped.\n")
+    plot_ind <- F
+    
   }
   
-  return(list("p_breaks" = p_breaks,
+  # Then scale the breaks
+  if ((is.null(brks)) || (is.null(scale_fac)) || (is.null(scale_mult)) || (is.null(scale_round))) {
+    cat("Did not recognise parameter",param,"with units",par_unit,". Some plots will be skipped.\n")
+    plot_ind <- F
+  } else {
+    brks <- scale_param_classes(brks,
+                                scale_fac = scale_fac,
+                                scale_mult = scale_mult,
+                                scale_round = scale_round)
+  }
+  
+  return(list("brks"     = brks,
               "plot_ind" = plot_ind,
               "log_ind"  = log_ind))
+  
+}
+
+scale_param_classes <- function(brks,
+                                scale_fac = 1,
+                                scale_mult = T,
+                                scale_round = 0) {
+
+  if ((is.null(brks)) || (is.null(scale_fac)) || (is.null(scale_mult)) || (is.null(scale_round))) {
+    stop("NULL passed to scale_param_classes")
+  }
+      
+  # No need to scale in these cases
+  if ((scale_fac == 1) & (scale_mult)) {
+    return(brks)
+  }
+  if ((scale_fac == 0) & (!scale_mult)) {
+    return(brks)
+  }
+  
+  if (scale_mult) {
+    nbrks <- brks*scale_fac
+  } else {
+    nbrks <- brks + scale_fac
+  }
+  nbrks <- unique(nbrks)
+  
+  if (scale_round > 0) {
+    nbrks <- unique(round(nbrks,scale_round))
+  }
+  
+  return(nbrks)
   
 }
 

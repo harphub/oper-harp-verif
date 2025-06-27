@@ -614,13 +614,13 @@ run_verif <- function(prm_info, prm_name) {
       for (cm in prm_info$models_to_scale) {
         cat("Scaling the forecast for model",cm,"\n")
         if (!(cm %in% names(fcst))) {
-          cat("You are tying to scale model",cm,"but it was not found!\n")
-          stop("Exiting!")
+          cat("Warning: You are trying to scale model",cm,"but it was not found in the data\n")
+        } else {
+          fcst[[cm]] <- do.call(
+            harpCore::scale_param,
+            c(list(x = fcst[[cm]]), 
+              prm_info$scale_fcst))
         }
-        fcst[[cm]] <- do.call(
-          harpCore::scale_param,
-          c(list(x = fcst[[cm]]), 
-            prm_info$scale_fcst))
       }
     }
   }
