@@ -164,6 +164,7 @@ fn_plot_point_verif <- function(harp_verif_input,
                     paste0("mean_bias",score_sep,"stde"),
                     paste0("rmse",score_sep,"spread"),
                     "crps",
+                    "spread",
                     "fair_crps",
                     "spread_skill_ratio")
     
