@@ -245,6 +245,14 @@ all_stations             <- list("All stations"      = "All",
                                  "Spain Synop"       = "SpainSynop",
                                  "Switzerland Synop" = "SwitzerlandSynop"
 ) 
+# Corresponding coastal and inland display names. Elevations above/greater
+# than threshold will appear but will not have a nice display name.
+coastal_names <- paste0(unlist(all_stations),"_COASTAL")
+coastal_names <- setNames(coastal_names,paste0(names(all_stations)," (coastal)"))
+inland_names  <- paste0(unlist(all_stations),"_INLAND")
+inland_names  <- setNames(inland_names,paste0(names(all_stations)," (inland)"))
+all_stations  <- c(all_stations,coastal_names,inland_names)
+all_stations  <- all_stations[order(names(all_stations))]
 
 # Score separator
 score_sep="AND"
@@ -254,8 +262,10 @@ score_sep="AND"
 all_ens_ssum_scores      <- list("Spread Skill"              = paste0("rmse",score_sep,"spread-lt"),
                                  "Mean Bias RMSE"            = paste0("mean_bias",score_sep,"rmse-lt"),
                                  "Mean Bias STDV"            = paste0("mean_bias",score_sep,"stde-lt"),
+                                 "Mean Bias MAE"             = paste0("mean_bias",score_sep,"mae-lt"),
                                  "Spread Skill Ratio"        = "spread_skill_ratio-lt",
                                  "CRPS"                      = "crps-lt",
+                                 "Spread"                    = "spread-lt",
                                  "Fair CRPS"                 = "fair_crps-lt",
                                  "Member Bias"               = "mbrbias-lt",
                                  "Member RMSE"               = "mbrrmse-lt",
@@ -381,6 +391,7 @@ all_ens_prof_scores      <- list("Mean Bias RMSE" = paste0("mean_bias",score_sep
                                  "Mean Bias STDV" = paste0("mean_bias",score_sep,"stde"),
                                  "Spread Skill"   = paste0("rmse",score_sep,"spread"),
                                  "CRPS"           = "crps",
+                                 "Spread"         = "spread",
                                  "Fair CRPS"      = "fair_crps")
 all_ens_prof_scores      <- lapply(all_ens_prof_scores,function(x) paste0(x,"-pr"))
 
@@ -841,7 +852,11 @@ server <- function(input, output, session) {
       } else if (input$vartype == "Scorecards"){
         param_for_tab <- all_scorecard_params
       }
-      cc <- param_for_tab[unlist(param_for_tab,use.names = FALSE) %in% param_avail]
+      # If param does not exist in "param_for_tab", set default
+      qwe <- param_avail[!(param_avail %in% unlist(param_for_tab,use.names = FALSE))]
+      qwe_display_names <- stringr::str_to_title(gsub("_"," ",qwe))
+      display_params <- c(param_for_tab,setNames(as.list(qwe),qwe_display_names))
+      cc <- display_params[unlist(display_params,use.names = FALSE) %in% param_avail]
       if (length(cc)>0){
         cc
       } else {
@@ -882,7 +897,11 @@ server <- function(input, output, session) {
   stations_out <- shiny::reactive({
     if (length(rel_files())>0){
       stations_avail <- unique(unlist(lapply(strsplit(rel_files(),"-"),'[',8)))
-      all_stations[unlist(all_stations,use.names = FALSE) %in% stations_avail]
+      # If the domain name is not in "all_stations", create a default
+      qwe <- stations_avail[!(stations_avail %in% unlist(all_stations,use.names = FALSE))]
+      qwe_display_names <- stringr::str_to_title(gsub("_"," ",qwe))
+      display_stations <- c(all_stations,setNames(as.list(qwe),qwe_display_names))
+      display_stations[unlist(display_stations,use.names = FALSE) %in% stations_avail]
     } else {
       mdi
     }

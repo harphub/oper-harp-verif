@@ -1388,8 +1388,10 @@ station_map <- function(df,domain,polygon = NULL){
       .default = elevmap
     ))
     p_map <- df %>% ggplot2::ggplot(aes(lon,lat,fill = elevmap),size = 3)
+  } else if ("diff" %in% names(df)) {
+    p_map <- df %>% ggplot2::ggplot(aes(lon,lat,fill = diff),size = 3)
   } else {
-    p_map <- df %>% ggplot2::ggplot(aes(lon,lat,fill = "0: Missing"),size = 3)
+    p_map <- df %>% ggplot2::ggplot(aes(lon,lat,fill = "red"),size = 3)
   }
   p_map <- p_map + 
     ggplot2::geom_polygon(data        = ggplot2::map_data("world"),
@@ -1410,9 +1412,16 @@ station_map <- function(df,domain,polygon = NULL){
                    legend.position  = "right", 
                    strip.background = ggplot2::element_rect(fill = "white"),
                    strip.text       = ggplot2::element_text(size = 14)) +
-    ggplot2::scale_fill_brewer("Elevation",palette = "YlOrBr") +
     ggplot2::labs(title = paste0(domain,": ",num_stations," stations")) +
     ggplot2::guides(size = "none") # Remove size label from legend
+  
+  if ("elevmap" %in% names(df)) {
+    p_map <- p_map + ggplot2::scale_fill_brewer("Elevation",palette = "YlOrBr")
+  } else if ("diff" %in% names(df)) {
+    p_map <- p_map + ggplot2::scale_fill_gradient2("Diff",low=muted("blue"),high=muted("red"))
+  } else {
+    p_map <- p_map + ggplot2::guides(fill = "none") 
+  }
   
   if (!is.null(polygon)) {
     p_map <- p_map + 
