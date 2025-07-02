@@ -58,27 +58,30 @@ rm(list=ls()) # clear all
 #================================================#
 
 # Point to the app directory
-app_dir <- here::here("visualization/visapp")
+app_dir <- shiny::getShinyOption("app_dir",
+                                 default = here::here("visualization/visapp"))
 if ((is.null(app_dir)) || (!dir.exists(app_dir))){
-  stop("Error: Please set app_dir to the visapp directory on your system")
+  stop("Error: Please set app_dir to the visapp directory on your system.")
 }
 
 # Point to where the image files are stored
-img_dir <- NULL
-if (is.null(img_dir)){
-  # Look a default image dirctory in the app directory
-  img_dirname <- "sample_images" # Relative to the app_dir
-  img_dir     <- file.path(app_dir,img_dirname)
+img_dir <- shiny::getShinyOption("img_dir",
+                                 default = file.path(app_dir,"sample_images"))
+
+if ((is.null(img_dir)) || (!dir.exists(img_dir))){
+  stop("Error: Please set img_dir to an existing directory.")
 }
 
 # Seasonal/Monthly/Rolling switch for date display in the app.
 # To be use in oper context, assumes that Seasonal/Monthly/Rolling directories
 # exist under img_dir. Then search for exps in e.g. img_dir/Monthly
 # Default value is FALSE
-smr_ind=FALSE
+smr_ind <- shiny::getShinyOption("smr_ind",
+                                 default = FALSE)
 
 # Include panelification tab?
-panelification_ind=FALSE
+panelification_ind <- shiny::getShinyOption("panelification_ind",
+                                            default = FALSE)
 
 # If panelification/ACCORD_VS_202406 folder exists, source in panel plot size function
 panel_ps_fun_root <- file.path(app_dir,"..","..")
@@ -112,7 +115,10 @@ if (file.exists(panel_ps_fun1)) {
 # New labels should be added as appropriate for new options
 
 # Display name of experiments
-source(file.path(app_dir,"all_experiment_names.R"))
+exp_name_list <- file.path(app_dir,"all_experiment_names.R")
+if (file.exists(exp_name_list)) {
+  source(exp_name_list)
+}
 
 #================================================#
 # END OF USER INTERACTION
