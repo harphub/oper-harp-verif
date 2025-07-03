@@ -396,6 +396,7 @@ The current specific lists available are (see the function for SIDs used):
 - RussiaCoast
 - RussiaInland
 - NorthAmericaInland
+- AirportSynop
 - Coastal_All
 
 To use any of these in your config file, simply use e.g.
