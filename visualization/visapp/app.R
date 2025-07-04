@@ -205,7 +205,14 @@ all_available_UApl      <- setNames(as.list(all_available_UApl),all_available_UA
 all_UA_params_signif    <- all_available_UApl
 
 # All possible scorecard parameter combinations
-all_scorecard_params     <- list("All available"    = "All")
+all_scorecard_params    <- list("All available"    = "All")
+
+# Now concatenate these into a vector of all known parameters
+all_knowns_params <- unique(unlist(c(all_surface_params,
+                                     all_UA_params,
+                                     all_UA_params_signif,
+                                     all_scorecard_params),
+                                   use.names = F)) 
 
 # All possible station selections
 all_stations             <- list("All stations"      = "All",
@@ -858,8 +865,10 @@ server <- function(input, output, session) {
       } else if (input$vartype == "Scorecards"){
         param_for_tab <- all_scorecard_params
       }
-      # If param does not exist in "param_for_tab", set default
-      qwe <- param_avail[!(param_avail %in% unlist(param_for_tab,use.names = FALSE))]
+      # If param does not exist in "all_known_params", set default. Using 
+      # "param_for_tab" is not optimal as then all parameters will appear in
+      # surface/temp/scorecard groupings.
+      qwe <- param_avail[!(param_avail %in% all_knowns_params)]
       qwe_display_names <- stringr::str_to_title(gsub("_"," ",qwe))
       display_params <- c(param_for_tab,setNames(as.list(qwe),qwe_display_names))
       cc <- display_params[unlist(display_params,use.names = FALSE) %in% param_avail]
