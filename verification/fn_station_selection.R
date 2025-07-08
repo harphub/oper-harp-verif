@@ -108,6 +108,7 @@ fn_station_selection <- function(domain_choice = "All_Domains",
     # Add in filtering of French stations, poor-quality Irish and high-altitude UK stations
     stations_param_rmv <- c(3039,3065,3072,3148,3227,3410,
                             3971,3979,
+                            seq(4800,4999,1),
                             6009,6012,
                             seq(7001,7998,1))
   } else if (param == "T2m") {
