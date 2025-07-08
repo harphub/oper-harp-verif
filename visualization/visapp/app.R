@@ -86,6 +86,7 @@ panelification_ind <- shiny::getShinyOption("panelification_ind",
 # If panelification/ACCORD_VS_202406 folder exists, source in panel plot size function
 panel_ps_fun_root <- file.path(app_dir,"..","..")
 panel_ps_fun_ext  <- file.path("scripts","panel_plotting_functions.R")
+panel_help        <- file.path("Panel_INTERPRETATION.md")
 panel_ps_fun1     <- file.path(panel_ps_fun_root,
                                "spatial_verif",
                                "panelification",
@@ -93,13 +94,30 @@ panel_ps_fun1     <- file.path(panel_ps_fun_root,
 panel_ps_fun2     <- file.path(panel_ps_fun_root,
                                "ACCORD_VS_202406",
                                panel_ps_fun_ext)
+panel_help_path1  <- file.path(panel_ps_fun_root,
+                               "spatial_verif",
+                               "panelification",
+                               panel_help)
+panel_help_path2  <- file.path(panel_ps_fun_root,
+                               "ACCORD_VS_202406",
+                               panel_help)
+panel_help_exists <- F
 if (file.exists(panel_ps_fun1)) {
   source(panel_ps_fun1)
+  if (file.exists(panel_help_path1)) {
+    panel_help_exists <- T
+    panel_help_path <- panel_help_path1
+  }
 } else {
   if (file.exists(panel_ps_fun2)) {
     source(panel_ps_fun2)
+    if (file.exists(panel_help_path2)) {
+      panel_help_exists <- T
+      panel_help_path <- panel_help_path2
+    }
   }
 }
+
 
 #================================================#
 # DEFINE COMMON VARIABLES:
@@ -472,6 +490,11 @@ ui <- shiny::tags$html(
                        });
                        ')
     ),
+  # Expand modal box
+  shiny::tags$style(
+    type = 'text/css',
+    '.modal-dialog { width: fit-content !important; }'
+  ),
   
   # Start
   shiny::includeCSS("sample_style.css"),
@@ -592,6 +615,10 @@ ui <- shiny::tags$html(
                     fluidRow(
                       hr(style = "border-top: 3px solid #82B8E7;"),
                       shiny::imageOutput("panelImage")
+                    ),
+                    fluidRow(
+                      column(2,
+                             actionButton("panel_help","Panelification help"))
                     ),
                     value = "tab_panelification"
     )
@@ -1683,6 +1710,21 @@ server <- function(input, output, session) {
         selected = selected_model()
       )
     )
+    
+    # Panel help
+    observeEvent(input$panel_help, {
+      if (panel_help_exists) {
+        showModal(modalDialog(
+          title = "Panelification information from the repo:",
+          HTML(markdown::markdownToHTML(panel_help_path,fragment.only = T))
+        ))
+      } else {
+        showModal(modalDialog(
+          title = "Did not find Panel_INTERPRETATION.md!",
+          ""
+        ))
+      }
+    },ignoreInit = T)
     
     # Now load the static image output
     output$panelImage <- renderImage({

@@ -202,6 +202,7 @@ fcst_path       <- check_config_input(CONFIG,"verif","fcst_path")
 obs_path        <- check_config_input(CONFIG,"verif","obs_path")
 verif_path      <- check_config_input(CONFIG,"verif","verif_path")
 domains         <- check_config_input(CONFIG,"verif","domains",default="All")
+domains_UA      <- check_config_input(CONFIG,"verif","domains_UA",default=list(NULL))
 members         <- CONFIG$verif$members
 lags            <- check_config_input(CONFIG,"verif","lags")
 shifts          <- check_config_input(CONFIG,"verif","shifts",default=list(NULL))
@@ -212,6 +213,7 @@ force_valid_thr <- check_config_input(CONFIG,"verif","force_valid_thr",default=F
 plot_output     <- check_config_input(CONFIG,"post","plot_output",default="default")
 create_png      <- check_config_input(CONFIG,"post","create_png",default=T)
 save_vofp       <- check_config_input(CONFIG,"post","save_vofp",default=F)
+save_sidrds     <- check_config_input(CONFIG,"post","save_sidrds",default=F)
 cmap            <- check_config_input(CONFIG,"post","cmap",default="Set2")
 cmap_hex        <- check_config_input(CONFIG,"post","cmap_hex",default="magma")
 map_cbar_d      <- check_config_input(CONFIG,"post","map_cbar_d",default=F)
@@ -459,13 +461,13 @@ run_verif <- function(prm_info, prm_name) {
       grps_param <- unique(grps_param)
     }
     
-    # Only run for certain "large" domains
-    domains_to_run <- unique(c(base::intersect(domains,
-                             c("All","Alps","IE_EN","NL_OP","SCD","FR","DE","Baltex"))))
-    if (length(domains_to_run) == 0) {
-      cat("For parameter",prm_name,", verify over All stations only\n")
-      domains_to_run <- "All"
+    # If domains_UA was specified, use this. Otherwise use domains
+    if (!is.null(domains_UA[[1]])) {
+      domains_to_run <- domains_UA
+    } else {
+      domains_to_run <- domains
     }
+    cat("Using domains",domains_to_run,"for UA variables\n")
     
   } else {
     domains_to_run <- domains
@@ -734,6 +736,22 @@ run_verif <- function(prm_info, prm_name) {
   # HANDLE THE STATION GROUPING
   #================================================#
   
+  # Add a check to see if a domain choice is a single station
+  all_station_groups <- NULL
+  
+  if (any(domains_to_run %in% harpCore::unique_stations(fcst))) {
+    single_sids <- harpCore::unique_stations(fcst)[harpCore::unique_stations(fcst) %in% domains_to_run]
+    for (qwe in single_sids) {
+      qwee               <- data.frame(qwe,as.character(qwe)) %>% tidyr::as_tibble()
+      names(qwee)        <- c("SID","station_group")
+      all_station_groups <- dplyr::bind_rows(all_station_groups,qwee)
+    }
+    rm(qwe,qwee)
+    # Remove this from domains_to_run as it does not need to be generated
+    domains_to_run <- setdiff(domains_to_run,single_sids)
+    cat("Adding single stations",single_sids,"to domains list\n")
+  }
+  
   # Dynamic generation of station lists
   if (dynamic_sid_gen){
     cs_list <- fn_station_selection(domain_choice = domains_to_run,
@@ -751,8 +769,6 @@ run_verif <- function(prm_info, prm_name) {
                                     param       = prm_name,
                                     domain_file = sid_lists_fname)
   }
-  
-  all_station_groups <- NULL
   
   # Convert into suitable format and add
   avail_domains <- base::intersect(names(cs_list),domains_to_run)
@@ -875,6 +891,13 @@ run_verif <- function(prm_info, prm_name) {
                                  map_cbar_d = map_cbar_d,
                                  fsd  = fsd,
                                  fed  = fed)
+        # Save the verification object used for SIDs if desired
+        if (save_sidrds) {
+          sidname <- paste(project_name,prm_name,"SID",start_date,end_date,sep = "_")
+          saveRDS(object = verif_sid,
+                  file   = file.path(plot_output,
+                                     paste0(sidname,".rds")))
+        }
       }
   
     }

@@ -90,7 +90,8 @@ Create a configuration file for your project using the structure provided in the
 | verif | lead_time_UA | If you want to use specific lead times for upper-air variables. The default is NULL, which means that upper-air variables will use lead times specfied by `verif:lead_time`. Useful if you are verifying a list of surface and upper-air parameters, e.g. "T2m,T,Pmsl", and want to change the lead times used without having to change the config. | Default: <br> lead_time_UA: NULL <br> <br> Use hours 0-24 in steps of 1 for upper-air variables <br> lead_time_UA: seq(0,24,1) | 
 | verif | by_step      | Interval (in hours) between cycles to be used for verification i.e. cycles considered are `start_date` to `end_date` in steps of `verif:by_step`. | by_step: "6h" |
 | verif | fcst_type    | Forecast type, either `det` or `eps`. | fcst_type: "det" |
-| verif | domains      | What SID lists to verify (equivalent to SURFSELECTION/TEMPSELECTION in monitor, where the station lists are defined in scr/selection.pm). The choice "All" will use all stations available in the data. SID lists, either defined explicitly or based on a geographic area, can be defined in `fn_station_selection` (see the documentation below for more information). | domains: <br> -"All" <br> <br> domains: <br> - "IRL" <br> - "IE_EN" | 
+| verif | domains      | What SID lists to verify (equivalent to SURFSELECTION/TEMPSELECTION in monitor, where the station lists are defined in scr/selection.pm). The choice "All" will use all stations available in the data. SID lists, either defined explicitly or based on a geographic area, can be defined in `fn_station_selection` (see the documentation below for more information). Alternatively you can select a single SID by using it's SID number as a domain. | domains: <br> -"All" <br> <br> domains: <br> - "IRL" <br> - "IE_EN" <br> <br> Verify domain "IRL" and a single station (SID=3953): <br> domains: <br> - "IRL" <br> - "3953" |
+| verif | domains_UA   | What SID lists to verify for upper-air parameters (following same convention as "domains" above). This may be useful if you want to use only certain domains for upper-air verification e.g. a large region containing more radiosondes. If this option is missing or set to NULL then it will default to "domains". | To use "domains" for "domains_UA": <br> domains_UA: <br> - NULL <br> <br> To verify surface parameters over multiple domains but upper-air parameters over one: <br> domains: <br> - "IRL" <br> - "IE_EN" <br> <br> domains_UA: <br> - "IE_EN" | 
 | verif | members      | What ensemble members to use in the verification for each `verif:fcst_model`. Set to NULL to use all the members available in each ensemble. Include a list here if the members to be used differ for each of the `verif:fcst_model`. | For a deterministic model or to read all memeber in an ensemble: <br> members: <br> - NULL <br> <br> Specific members from different ensembles: <br> members: <br> - c(1,2,3) <br> - c(4,5,6) |
 | verif | lags         | How to lag the ensemble members for each ensemble. Include a list if the lags differ for each of the `verif:fcst_model`. Set to “0h” for no lagging. The parent cycles for lagging are determined by the `start date`, `end date`, and `verif:by_step`. See `harpIO::read_point_forecast` for more information. | For a deterministic model: <br> lags: <br> - "0h" <br> <br> For 3hr lagging in the first ensemble, no lagging in the second: <br> lags: <br> - c("0h","3h") <br> - "0h" |
 | verif | shifts       |  Experimental and for deterministic models only! How to shift forecasts forwards/backards in time for each model. Include a list if the shifts differ for each of the `verif:fcst_model`. Set to NULL to do nothing (i.e. default behaviour, equivalent to shifting by zero hours). Use digits only, where the shift is assumed to be in hours. Positive values shift forward in time, negative values backwards. | Default: <br> shifts: <br> - NULL <br> <br> Do not shift first model, but shift second by 6h forward in time: <br> shifts: <br> - "0" <br> - "6" |
@@ -114,7 +115,8 @@ Create a configuration file for your project using the structure provided in the
 | pre   | params       | Which parameters to consider when generating the sqlite tables from vfld. See `harpIO::show_harp_parameters` and `harpIO::harp_params` for recognised vfld parameters in harp. Set to NULL to convert everything found. | params: <br> - T2m <br> - Td2m <br> - T <br> <br> To convert everything found in the vfld: <br> params: <br> - NULL |
 | post  | plot_output | A root directory indicating where to save the png files generated during the verification process. For a given project, the png files will be stored in `post:plot_output`/`verif:project_name`. Set to "default" to use `verif:verif_path`/archive. | plot_output: "/path/to/png" |
 | post  | create_png  | Flag to indicate if png files should be generated. | create_png: TRUE | 
-| post  | save_vofp   | Flag to indicate if the verification object used for creating pngs should be saved. Useful for generating images at a later stage. Files will be stored in `post:plot_output`/`verif:project_name`. | save_vofp: TRUE |
+| post  | save_vofp   | Flag to indicate if the verification object used for creating pngs should be saved. Useful for generating images at a later stage. Files will be stored in `post:plot_output`/`verif:project_name`. Default is FALSE. | save_vofp: TRUE |
+| post  | save_sidrds | Flag to indicate if the verification object used for SID scores (i.e. maps) should be saved. May be useful for investigating issues with certain stations. Files will be store in `post:plot_output`/`verif:project_name`. Default is FALSE. | save_sidrds: TRUE | 
 | post  | cmap        | What palette to use for the line plots. Choose from a palette in "RColorBrewer" or a function from the "pals" package e.g. "trubetskoy". Defaults to "Set2" from RColorBrewer if not specified. | cmap: "trubetskoy" |
 | post  | cmap_hex    | What pallete to use for scatterplots. Choose from "paired" (RColorBrewer), "magma", "viridis", or a scico pallette (see scico::scico_pallete_names). Defaults to magma. | cmap_hex: "bukavu" |
 | post  | map_cbar_d  | Logcial flag to indicate if a discrete colourbar (with fixed breaks and bounds) should be used in the station map plots as opposed to a continuous one where the bounds change depending on the data. Defaults to "FALSE" if not specified. | map_cbar_discrete: TRUE |
@@ -123,7 +125,7 @@ Create a configuration file for your project using the structure provided in the
 | scorecards | fcst_model  | The “new” model for the scorecards (i.e. score differences are `scorecards:fcst_model` - `scorecards:ref_model`). | fcst_model: "new_model" | 
 | scorecards | parameters  | Which parameters to plot in the scorecards (parameters appear as ordered here). For upper-air variables, if variable “X” is included in the verification, then you can include individual pressure levels in the scorecard plots by using “X750”, etc. . | parameters: <br> - T2m <br> - Td2m <br> - T925 <br> - T700 |
 | scorecards | scores      | Which of the deterministic or ensemble summary scores to plot in the scorecard. These appear from left to right in the scorecard. | Deterministic: <br> scores: <br> - "bias" <br> - "rmse" <br> <br> Ensemble: <br> scores: <br> - "mean_bias" <br> - "spread" |
-| scorecards | domains     | Construct scorecards for these domains only (provided they exist in `verif:domains`). | domains: <br> - "All" |
+| scorecards | domains     | Construct scorecards for these domains only (provided they exist in `verif:domains` or `verif:domains_UA`). | domains: <br> - "All" |
 | scorecards | pooled_by   | How to pool the data for bootstrapping. See `harpPoint:bootstrap_verify` for more details. | pooled_by: fcst_dttm |
 | scorecards | numboot     | Number of bootstrap replicates. See `harpPoint:bootstrap_verify` for more details. Should be “large”. | numboot: 1000 | 
 | scorecards | parallel    | Use parallel processing when performing the bootstrapping. | parallel: FALSE | 
@@ -195,7 +197,7 @@ This script takes the following command line inputs (required arguments in **bol
 - **-end_date**: The last forecast cycle to process (in YYYYMM, YYYYMMDD, or YYYYMMDDHH format (preferred), with no default). If YYYYMM is given then the last day and cycle of the month (i.e. lastday/23Z) is assumed. If YYYYMMDD is given then the last cycle (i.e. 23Z) of YYYYMMDD is assumed.
 - *-params_file*: The parameter list file containing parameter scalings, thresholds, etc. (default="verification/set_params.R"). **Note: if you are making use of the `models_to_scale` option in the parameter list file, it is best to create a new parameter list file and explicitly call this when you are running point_verif.R. Sharing a parameter list file with specific model scalings across different projects may be dangerous due to common models e.g. Model A is scaled for T2m in project X, but it is not scaled for T2m in project Y. Unfortunately creating new parameter lists for specific projects does introduce some code duplication.**
 - *-params_list*: Which parameters for verify (default="T2m"). This should be a comma separated string of parameters, for example "T2m,S10m,T,S". These parameters should exist in the parameter list file, otherwise they will be skipped. If `params_list` is not specified, it just defaults to "T2m". Note that for `params_list="All"` all parameters in the parameter list file are considered in the verification (this is NOT recommended in general).
-- *-dynamic_sid_gen*: A logical flag to generate SID lists corresponding to the `verif:domains` during the verification process (default=TRUE). Different `domain` options are defined in `fn_station_selection.pm`. This flag replaces the old methodology of reading SID lists from a static file (i.e. `verification/sid_lists.rds`). This old (now deprecated) method can be activated by switching this flag to "FALSE".
+- *-dynamic_sid_gen*: A logical flag to generate SID lists corresponding to the `verif:domains` or `verif:doamins_UA` during the verification process (default=TRUE). Different `domains` options are defined in `fn_station_selection.pm`. This flag replaces the old methodology of reading SID lists from a static file (i.e. `verification/sid_lists.rds`). This old (now deprecated) method can be activated by switching this flag to "FALSE".
 - *-plot_dynamic_sid*: A logical flag to plot a map of the stations used for each domain and parameter (default=FALSE). This is only relevant when "dynamic_sid_gen=TRUE".
 - *-mod_def_rds*: A logical flag to prepend the project name to harp's default rds filenames (default=FALSE). Not generally required.
 - *-add_proj_png*: A logical flag to prepend the project name to the default png filenames (default=FALSE). Not generally required. 
@@ -226,7 +228,7 @@ The following QC checks of the forecast and observation data are carried out by 
 
 By default the script assumes the following verificaiton for surface and upper-air variables (see `harpCore::make_verif_groups()` for more information):
 - Surface: Data is grouped by `fcst_cycle` and the SID grouping specified by the `verif:domains` option in the config file (this is stored under the variable `station_group` in the scripts). Verification scores are then computed as a function of leadtime, valid date, and valid hour.
-- Upper air: Data is group by the SID grouping specified by the `verif:domains` option and scores computed as a function of leadtime and valid hour. 
+- Upper air: Data is group by the SID grouping specified by the `verif:domains_UA` option and scores computed as a function of leadtime and valid hour. If `verif:domains_UA` is missing from the config (or set ot NULL), then `verif:domains` will be used for the SID grouping.
 
 ### Output
 
@@ -234,7 +236,7 @@ By default the script assumes the following verificaiton for surface and upper-a
 ```
 {verif:verif_path}/{verif:project_name}/harpPointVerif.harp.{parameter}.harp.{start_date}-{end_date}.harp.{forecast_model_1}.model.{forecast_model_2).model...{forecast_model_N}.rds
 ```
-Typically the filenames for the harp rds files should not be changed as the harp shiny app assumes a set format. Note that while the filenames do not contain information about the `verif:domains` considered, the domain selection is included in the rds files under the `station_group` variable. 
+Typically the filenames for the harp rds files should not be changed as the harp shiny app assumes a set format. Note that while the filenames do not contain information about the `verif:domains` or `verif:doamins_UA` considered, the domain selection is included in the rds files under the `station_group` variable. 
 
 If `post:create_png: TRUE`, then a suite of standard verification scores are plotted as png files for local visualisation. These local files will also include plots which are not available in harp's shiny app, such as forecast timeseries and station bias/rmse maps. These files should appear in:
 ```
@@ -351,12 +353,18 @@ The same is valid for visualizing the results interactively using the `rds` file
 In this case use the `launch_dynamicapp_atos.R` instead of `launch_visapp_atos.R` in step 1.
 # Station selection
 
-The SID lists used during verification are controlled by the `verif:domains` option in the config file. This `domains` variable is essentially equivalent to `SURFSELECTION` and `TEMPSELECTION` in monitor. Setting:
+The SID lists used during verification are controlled by the `verif:domains` and `verif:domains_UA` options in the config file (the latter applying to upper-air variables only if specified). These `domains` variables are essentially equivalent to `SURFSELECTION` and `TEMPSELECTION` in monitor. Setting:
 ```
 domains:                                  
   - "All"
 ```
-will use all stations available in your data, and this will generally be sufficient for most cases. However there may be cases where verification over a specific subset of SIDs is desired. In monitor, various SID lists are defined in `scr/selection.pm`, whereas here the SID lists are controlled by `verification/fn_station_selection`. Information regarding the default domains/station lists available, and how to add new ones, is given below.
+will use all stations available in your data, and this will generally be sufficient for many cases. However there may be cases where verification over a specific subset of SIDs is desired. In monitor, various SID lists are defined in `scr/selection.pm`, whereas here the SID lists are controlled by `verification/fn_station_selection`. Information regarding the default domains/station lists available, and how to add new ones, is given below. Note that you can verify a single station by simply passing it's SID as an option to `verif:domains` or `verif:domains_UA` e.g. using
+```
+domains:
+  - "3953"
+  - "3969"
+```
+will verify the individual stations 3953 (Valentia) and 3969 (Dublin Airport). **Passing a list of stations e.g. c("3953","3969") directly in `verif:domains` will not work - you should add this SID list to `verification/fn_station_selection` as per the instructions below.**
 
 **Note: A new method to handle station selection has been added in which SID lists are generated on the fly during the verification process. The old methodology read SID lists from a static file, however this method is no longer recommended and is now deprecated. The documentation below cover both methodologies, starting with the new recommended method.**
 
@@ -364,7 +372,7 @@ will use all stations available in your data, and this will generally be suffici
 
 ### Default domains/lists
 
-There are a number of default domains/lists already available in `fn_station_selection.R` which can be used for the option `verif:domains`. These are categorised as follows:
+There are a number of default domains/lists already available in `fn_station_selection.R` which can be used for the option `verif:domains` or `verif:domains_UA`. These are categorised as follows:
 
 #### User-defined specific SID lists
 
