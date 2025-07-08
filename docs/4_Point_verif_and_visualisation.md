@@ -26,7 +26,7 @@ This script takes the following command line inputs (required arguments in **bol
 - **-end_date**: The last forecast cycle to process (in YYYYMM, YYYYMMDD, or YYYYMMDDHH format (preferred), with no default). If YYYYMM is given then the last day and cycle of the month (i.e. lastday/23Z) is assumed. If YYYYMMDD is given then the last cycle (i.e. 23Z) of YYYYMMDD is assumed.
 - *-params_file*: The parameter list file containing parameter scalings, thresholds, etc. (default="verification/set_params.R"). **Note: if you are making use of the `models_to_scale` option in the parameter list file, it is best to create a new parameter list file and explicitly call this when you are running point_verif.R. Sharing a parameter list file with specific model scalings across different projects may be dangerous due to common models e.g. Model A is scaled for T2m in project X, but it is not scaled for T2m in project Y. Unfortunately creating new parameter lists for specific projects does introduce some code duplication.**
 - *-params_list*: Which parameters for verify (default="T2m"). This should be a comma separated string of parameters, for example "T2m,S10m,T,S". These parameters should exist in the parameter list file, otherwise they will be skipped. If `params_list` is not specified, it just defaults to "T2m". Note that for `params_list="All"` all parameters in the parameter list file are considered in the verification (this is NOT recommended in general).
-- *-dynamic_sid_gen*: A logical flag to generate SID lists corresponding to the `verif:domains` during the verification process (default=TRUE). Different `domain` options are defined in `fn_station_selection.pm`. This flag replaces the old methodology of reading SID lists from a static file (i.e. `verification/sid_lists.rds`). This old (now deprecated) method can be activated by switching this flag to "FALSE".
+- *-dynamic_sid_gen*: A logical flag to generate SID lists corresponding to the `verif:domains` or `verif:doamins_UA` during the verification process (default=TRUE). Different `domains` options are defined in `fn_station_selection.pm`. This flag replaces the old methodology of reading SID lists from a static file (i.e. `verification/sid_lists.rds`). This old (now deprecated) method can be activated by switching this flag to "FALSE".
 - *-plot_dynamic_sid*: A logical flag to plot a map of the stations used for each domain and parameter (default=FALSE). This is only relevant when "dynamic_sid_gen=TRUE".
 - *-mod_def_rds*: A logical flag to prepend the project name to harp's default rds filenames (default=FALSE). Not generally required.
 - *-add_proj_png*: A logical flag to prepend the project name to the default png filenames (default=FALSE). Not generally required. 
@@ -57,7 +57,7 @@ The following QC checks of the forecast and observation data are carried out by 
 
 By default the script assumes the following verificaiton for surface and upper-air variables (see `harpCore::make_verif_groups()` for more information):
 - Surface: Data is grouped by `fcst_cycle` and the SID grouping specified by the `verif:domains` option in the config file (this is stored under the variable `station_group` in the scripts). Verification scores are then computed as a function of leadtime, valid date, and valid hour.
-- Upper air: Data is group by the SID grouping specified by the `verif:domains` option and scores computed as a function of leadtime and valid hour. 
+- Upper air: Data is group by the SID grouping specified by the `verif:domains_UA` option and scores computed as a function of leadtime and valid hour. If `verif:domains_UA` is missing from the config (or set ot NULL), then `verif:domains` will be used for the SID grouping.
 
 ### Output
 
@@ -65,7 +65,7 @@ By default the script assumes the following verificaiton for surface and upper-a
 ```
 {verif:verif_path}/{verif:project_name}/harpPointVerif.harp.{parameter}.harp.{start_date}-{end_date}.harp.{forecast_model_1}.model.{forecast_model_2).model...{forecast_model_N}.rds
 ```
-Typically the filenames for the harp rds files should not be changed as the harp shiny app assumes a set format. Note that while the filenames do not contain information about the `verif:domains` considered, the domain selection is included in the rds files under the `station_group` variable. 
+Typically the filenames for the harp rds files should not be changed as the harp shiny app assumes a set format. Note that while the filenames do not contain information about the `verif:domains` or `verif:doamins_UA` considered, the domain selection is included in the rds files under the `station_group` variable. 
 
 If `post:create_png: TRUE`, then a suite of standard verification scores are plotted as png files for local visualisation. These local files will also include plots which are not available in harp's shiny app, such as forecast timeseries and station bias/rmse maps. These files should appear in:
 ```

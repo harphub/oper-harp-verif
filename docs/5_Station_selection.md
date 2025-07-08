@@ -1,11 +1,17 @@
 # Station selection
 
-The SID lists used during verification are controlled by the `verif:domains` option in the config file. This `domains` variable is essentially equivalent to `SURFSELECTION` and `TEMPSELECTION` in monitor. Setting:
+The SID lists used during verification are controlled by the `verif:domains` and `verif:domains_UA` options in the config file (the latter applying to upper-air variables only if specified). These `domains` variables are essentially equivalent to `SURFSELECTION` and `TEMPSELECTION` in monitor. Setting:
 ```
 domains:                                  
   - "All"
 ```
-will use all stations available in your data, and this will generally be sufficient for most cases. However there may be cases where verification over a specific subset of SIDs is desired. In monitor, various SID lists are defined in `scr/selection.pm`, whereas here the SID lists are controlled by `verification/fn_station_selection`. Information regarding the default domains/station lists available, and how to add new ones, is given below.
+will use all stations available in your data, and this will generally be sufficient for many cases. However there may be cases where verification over a specific subset of SIDs is desired. In monitor, various SID lists are defined in `scr/selection.pm`, whereas here the SID lists are controlled by `verification/fn_station_selection`. Information regarding the default domains/station lists available, and how to add new ones, is given below. Note that you can verify a single station by simply passing it's SID as an option to `verif:domains` or `verif:domains_UA` e.g. using
+```
+domains:
+  - "3953"
+  - "3969"
+```
+will verify the individual stations 3953 (Valentia) and 3969 (Dublin Airport). **Passing a list of stations e.g. c("3953","3969") directly in `verif:domains` will not work - you should add this SID list to `verification/fn_station_selection` as per the instructions below.**
 
 **Note: A new method to handle station selection has been added in which SID lists are generated on the fly during the verification process. The old methodology read SID lists from a static file, however this method is no longer recommended and is now deprecated. The documentation below cover both methodologies, starting with the new recommended method.**
 
@@ -13,7 +19,7 @@ will use all stations available in your data, and this will generally be suffici
 
 ### Default domains/lists
 
-There are a number of default domains/lists already available in `fn_station_selection.R` which can be used for the option `verif:domains`. These are categorised as follows:
+There are a number of default domains/lists already available in `fn_station_selection.R` which can be used for the option `verif:domains` or `verif:domains_UA`. These are categorised as follows:
 
 #### User-defined specific SID lists
 

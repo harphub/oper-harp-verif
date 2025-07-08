@@ -9,6 +9,8 @@ verif:
   fcst_type: "eps"                          # det or eps
   domains:                                  # what domains to verify ("All" will use all stations available)
     - "All"
+  domains_UA:                               # what domains to verify for UA variables. Defaults to "domains" if NULL or missing.
+    - NULL
   members:                                  # What members to verify for each ensemble. Include a list if the members differ between fcst_model. Set to NULL to use all available members in an ensemble.
     - NULL
   lags:                                     # How to lag the members for each ensemble. Include a list if the lags differ between fcst_model. Set to "0h" for no lagging.
@@ -64,7 +66,8 @@ pre:
 post:
   plot_output: "/path/to/png_output"        # Can set to "default" to use verif_path/archive
   create_png: TRUE
-  save_vofp: TRUE                           # Save the verification object used for plotting pngs
+  save_vofp: TRUE                           # Save the verification object used for plotting pngs (over station groups)
+  save_sidrds: FALSE                        # Save the verification object used for individual SID scores (i.e. maps)
   cmap: "trubetskoy"                        # A palette from RColorBrewer or trubetskoy (in pals). Defaults to Set2
   cmap_hex: "magma"                         # Colour pallete for scatterplots (one of "paired", "magma", "viridis", or a scico pallette). Defaults to magma
   map_cbar_d: FALSE                         # Use discrete breaks instead of a continuous colourbar for the station map plots
