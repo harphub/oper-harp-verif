@@ -205,6 +205,12 @@ fn_station_selection <- function(domain_choice = "All_Domains",
                  4320,4351,4373)),
                "SID")
   all_station_lists[["Greenland"]] <- Greenland
+  
+  # Iceland roads
+  IcelandRoads <- stats::setNames(tibble::as_tibble(
+               seq(4800,4999,1)),
+               "SID")
+  all_station_lists[["IcelandRoads"]] <- IcelandRoads
 
   # NorthSea (sea stations only)
   NorthSea <- stats::setNames(tibble::as_tibble(
@@ -411,7 +417,6 @@ fn_station_selection <- function(domain_choice = "All_Domains",
               ),
                "SID")
   all_station_lists[["NorthAmericaInland"]] <- NorthAmericaInland
- 
  
   # Global Airport Synop list based on WMO catalogue from 2014
   AirportSynop   <- stats::setNames(tibble::as_tibble(
@@ -1315,47 +1320,48 @@ filter_stations <- function(df,
       dplyr::filter(between(lat,slat,nlat)) %>%
       dplyr::filter(between(lon,wlon,elon))
   } else {
-    if (grepl("France",domain,fixed = "TRUE")) {
+    domain_str <- gsub("Synop","",domain)
+    if (domain_str == "France") {
       SID_min <- 7001
       SID_max <- 7998
-    } else if (grepl("Germany",domain,fixed = "TRUE")) {
+    } else if (domain_str == "Germany") {
       SID_min <- 10001
       SID_max <- 10998
-    } else if (grepl("Ireland",domain,fixed = "TRUE")) {
+    } else if (domain_str == "Ireland") {
       SID_min <- 3950
       SID_max <- 3990
-    } else if (grepl("Norway",domain,fixed = "TRUE")) {
+    } else if (domain_str == "Norway") {
       SID_min <- 1001
       SID_max <- 1499
-    } else if (grepl("Sweden",domain,fixed = "TRUE")) {
+    } else if (domain_str == "Sweden") {
       SID_min <- 2001
       SID_max <- 2699
-    } else if (grepl("Finland",domain,fixed = "TRUE")) {
+    } else if (domain_str == "Finland") {
       SID_min <- 2700
       SID_max <- 2998
-    } else if (grepl("Iceland",domain,fixed = "TRUE")) {
+    } else if (domain_str == "Iceland") {
       SID_min <- 4001
       SID_max <- 4199
-    } else if (grepl("Greenland",domain,fixed = "TRUE")) {
+    } else if (domain_str == "Greenland") {
       SID_min <- 4200
       SID_max <- 4499
-    } else if (grepl("Denmark",domain,fixed = "TRUE")) {
+    } else if (domain_str == "Denmark") {
       SID_min <- 6001
       SID_max <- 6199
-    } else if (grepl("Netherlands",domain,fixed = "TRUE")) {
+    } else if (domain_str == "Netherlands") {
       SID_min <- 6200
       SID_max <- 6399
-    } else if (grepl("Spain",domain,fixed = "TRUE")) {
+    } else if (domain_str == "Spain") {
       SID_min <- 8001
       SID_max <- 8494
-    } else if (grepl("Switzerland",domain,fixed = "TRUE")) {
+    } else if (domain_str == "Switzerland") {
       SID_min <- 6600
       SID_max <- 6998
-    } else if (grepl("UnitedKingdom",domain,fixed = "TRUE")) {
+    } else if (domain_str == "UnitedKingdom") {
       SID_min <- 3001
       SID_max <- 3949
     } else {
-      stop("Domain",domain,"not recognised")
+      stop("Domain ",domain," not recognised")
     }
     df_out <- df %>% dplyr::filter(between(SID,SID_min,SID_max))
   }
