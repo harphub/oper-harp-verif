@@ -208,6 +208,7 @@ lags            <- check_config_input(CONFIG,"verif","lags")
 shifts          <- check_config_input(CONFIG,"verif","shifts",default=list(NULL))
 num_ref_members <- check_config_input(CONFIG,"verif","num_ref_members",default="Inf")
 ua_fcst_cycle   <- check_config_input(CONFIG,"verif","ua_fcst_cycle",default=F)
+ua_restrict_vh  <- check_config_input(CONFIG,"verif","ua_restrict_vh",default=T)
 lt_split        <- check_config_input(CONFIG,"verif","lt_split",default=F)
 force_valid_thr <- check_config_input(CONFIG,"verif","force_valid_thr",default=F)
 plot_output     <- check_config_input(CONFIG,"post","plot_output",default="default")
@@ -675,7 +676,8 @@ run_verif <- function(prm_info, prm_name) {
   cat("Finished the forecast and obs reading\n")
 
   #================================================#
-  # QUALITY CHECKS, ADD VALID_HOUR
+  # QUALITY CHECKS, ADD VALID_HOUR, IF UA THEN ONLY
+  # LOOK AT CERTAIN HOURS
   #================================================#
   
   fcst <- fcst_qc(fcst,
@@ -693,6 +695,21 @@ run_verif <- function(prm_info, prm_name) {
   fcst <- harpCore::expand_date(fcst,valid_dttm)
   fcst <- harpPoint::mutate_list(fcst,
                                  valid_hour = sprintf("%02d",valid_hour))
+  
+  # If UA variable, restrict to main valid hours i.e. 00, 06, 12, 18 Z
+  if (!is.na(vertical_coordinate)) {
+    if (ua_restrict_vh) {
+      tgvh      <- c("00","06","12","18")
+      availvh  <- intersect(unique(fcst[[1]]$valid_hour),
+                            tgvh) %>% sort()
+      if (length(availvh) > 0) {
+        fcst <- fcst %>% filter_list(valid_hour %in% availvh)
+        cat("Restricting UA variable",prm_name,"to valid hours",availvh,"Z\n")
+      } else {
+        cat("Did not find any valid hours",tgvh,"in the data, skipping restriction\n")
+      }
+    }
+  }
   
   #================================================#
   # HANDLE CASE OF ONE MEMBER FROM ENSEMBLES
@@ -1075,7 +1092,7 @@ if ((create_scrd) & (sc_data_exists)) {
                              plot_output,
                              significance = 0.95,
                              png_projname = png_projname,
-                             leadtimes = seq(3,66,3),
+                             leadtimes = seq(0,66,3),
                              fsd  = fsd,
                              fed  = fed)
     }

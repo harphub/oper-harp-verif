@@ -20,6 +20,7 @@ verif:
     - NULL
   num_ref_members: "Inf"                    # Number of reference members to use when computing fair scores for an ensemble (e.g. "Inf"). Not used for det runs.
   ua_fcst_cycle: FALSE                      # For upper air variables, do you want to group by fcst_cycle? Either TRUE or FALSE
+  ua_restrict_vh: TRUE                      # For upper air variables, restict forecast-observation data to valid hours 00, 06, 12, 18Z. 
   force_valid_thr: FALSE                    # Set to TRUE if you really want threshold scores over valid times/hours
   lt_split: FALSE                           # Split some auxiliary scores (e.g. scatterplots, freq hist) between short (<=24), long (>24), and all leadtimes
   fcst_path: "/path/to/FCTABLE"
