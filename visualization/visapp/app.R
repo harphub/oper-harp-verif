@@ -496,6 +496,27 @@ ui <- shiny::tags$html(
     '.modal-dialog { width: fit-content !important; }'
   ),
   
+  # Automatic scaling of image width and height, using natural aspect ratio
+  # Set max height to 75% of viewing screen
+  shiny::tags$head(
+    shiny::tags$style(HTML("
+      #pngImage img {
+        max-width: 100%;
+        max-height: 75vh;
+        height: auto;
+      }
+    "))
+  ),
+  shiny::tags$head(
+    shiny::tags$style(HTML("
+      #panelImage img {
+        max-width: 100%;
+        max-height: 75vh;
+        height: auto;
+      }
+    "))
+  ),
+  
   # Start
   shiny::includeCSS("sample_style.css"),
   
@@ -517,11 +538,6 @@ ui <- shiny::tags$html(
                       sidebarLayout(
                         sidebarPanel(
                           width = 3,
-                          #shinyWidgets::prettyRadioButtons('expname',label='Experiment',
-                          #                                 #choices = stats::setNames(dir_names,all_exp_names),
-                          #                                 choices  = exps_for_tab,
-                          #                                 selected = exps_for_tab[[1]],
-                          #                                 outline = TRUE),
                           shiny::uiOutput("browseui"),
                           shiny::uiOutput("timetypeui"),
                           shiny::selectInput('expname',label='Experiment',
@@ -580,49 +596,47 @@ ui <- shiny::tags$html(
     if (panelification_ind){
     # Second panel: For panelification plots
     shiny::tabPanel("Panelification",
-                    fluidRow(
-                      column(1,
-                             shiny::selectInput('panel_case',
-                                                label='Case',
-                                                choices = NULL)),
-                      column(1,
-                             shiny::selectInput('panel_year',
-                                                label='Year',
-                                                choices = NULL)),
-                      column(1,
-                             shiny::selectInput('panel_month',
-                                                label='Month',
-                                                choices = NULL)),
-                      column(2,
-                             shiny::selectInput('panel_param',
-                                                label='Parameter',
-                                                choices = NULL)),
-                      column(2,
-                             shiny::selectInput('panel_valid',
-                                                label='Valid date',
-                                                choices = NULL)),
-                      column(2,
-                             shinyWidgets::prettyRadioButtons('panel_forecast',
-                                                              label="Forecasts",
-                                                              choices = "NULL",
-                                                              outline = TRUE)),
-                      column(3,
-                             shinyWidgets::prettyRadioButtons('panel_model',
-                                                              label="Model combination",
-                                                              choices = "NULL",
-                                                              outline = TRUE)),
-                    ), # FluidRow
-                    fluidRow(
-                      hr(style = "border-top: 3px solid #82B8E7;"),
-                      shiny::imageOutput("panelImage")
-                    ),
-                    fluidRow(
-                      column(2,
-                             actionButton("panel_help","Panelification help"))
-                    ),
+                    shiny::fluidPage(
+                      sidebarLayout(
+                        sidebarPanel(
+                          width = 3,
+                          shiny::selectInput('panel_case',
+                                             label='Case',
+                                             choices = NULL),
+                          shiny::selectInput('panel_year',
+                                             label='Year',
+                                             choices = NULL),
+                          shiny::selectInput('panel_month',
+                                             label='Month',
+                                             choices = NULL),
+                          shiny::selectInput('panel_param',
+                                             label='Parameter',
+                                             choices = NULL),
+                          shiny::selectInput('panel_valid',
+                                             label='Valid date',
+                                             choices = NULL),
+                          shinyWidgets::prettyRadioButtons('panel_forecast',
+                                             label="Forecasts",
+                                             choices = "NULL",
+                                             outline = TRUE),
+                          shinyWidgets::prettyRadioButtons('panel_model',
+                                             label="Model combination",
+                                             choices = "NULL",
+                                             outline = TRUE),
+                          shiny::actionButton("panel_help",
+                                              "Panelification help!",
+                                              width = '100%',
+                                              icon  = shiny::icon("question"))
+                          ),
+                        mainPanel(fluidRow(
+                          shiny::imageOutput("panelImage")
+                          ) # Fluid Row
+                          ) # MainPanel
+                        ) # Sidebar layout
+                      ), # Fluid Page
                     value = "tab_panelification"
-    )
-    }
+                    )
+      }
   ) # tags$body
 ) # tags$html
 
@@ -642,7 +656,11 @@ server <- function(input, output, session) {
       # Just a dummy output
       tagList()
     } else {
-      shinyFiles::shinyDirButton("folder", "Browse", "Select a root directory containing verification 'projects' and presss 'Select': ")
+      shinyFiles::shinyDirButton("folder",
+                                 "Browse directories",
+                                 "Select a root directory containing verification 'projects' and presss 'Select': ",
+                                 style = "width: 100%;",
+                                 icon  = shiny::icon("folder-open"))
     }
   })
   
@@ -1377,9 +1395,9 @@ server <- function(input, output, session) {
     req(input$dates)
     req(input$station)
     req(data_dirname())
-
     
     # Fixed dimensions
+    # No longer used as fig scaling is dynamic
     scale_f  <- 0.95
     c_width  <- 700*scale_f
     c_height <- 450*scale_f
@@ -1407,7 +1425,6 @@ server <- function(input, output, session) {
       c_height <- 800*scale_f
     }
     
-    
     if (is_ens_scores()){
       mty <- "ens"  
     } else {
@@ -1422,19 +1439,18 @@ server <- function(input, output, session) {
       fname <- paste0(input$expname,"-",fname)
     }
 
-     # Ensure data_dirname() is valid
-     dirname <- data_dirname()
-     if (is.null(dirname) || dirname == "") {
-       stop("Error: data_dirname() returned NULL or empty.")
-     }
-
+    # Ensure data_dirname() is valid
+    dirname <- data_dirname()
+    if (is.null(dirname) || dirname == "") {
+      stop("Error: data_dirname() returned NULL or empty.")
+    }
 
     filename <- file.path(data_dirname(),fname)
  
     # Return a list containing the filename
     list(src    = filename,
-         width  = c_width,
-         height = c_height,
+         #width  = c_width,  # Use CSS scaling
+         #height = c_height,
          alt    = "Loading...if this message persists, the image file may be missing for the given selection.")
   },deleteFile = FALSE) # renderImage
   
@@ -1735,7 +1751,8 @@ server <- function(input, output, session) {
       req(input$panel_model)
       
       # Fig dimensions - use panelification fn if available
-      if (exists("set_plot_size")) {
+      # No longer relevant as fig scaling is dynamic
+      if ((exists("set_plot_size")) & (1 == 0)) {
         models          <- strsplit(input$panel_model,"-")[[1]]
         plot_window_all <- set_plot_size(models)
         c_width  <- as.numeric(plot_window_all["width"])+10
@@ -1757,11 +1774,10 @@ server <- function(input, output, session) {
                           sep = "-")
       fname      <- paste0(fname_base,".png")
       filename   <- file.path(data_dirname(),fname)
-      
       # Return a list containing the filename
       list(src    = filename,
-           width  = c_width,
-           height = c_height,
+           #width  = c_width,  # Use CSS scaling
+           #height = c_height,
            alt    = "Loading...if this message persists, the image file may be missing for the given selection.")
     },deleteFile = FALSE) # renderImage
     
