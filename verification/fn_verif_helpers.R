@@ -243,7 +243,7 @@ fn_run_verif_groups <- function(fcst = "",
                                   verify_members  = FALSE,
                                   rank_hist       = FALSE,
                                   crps            = FALSE,
-                                  brier           = FALSE,
+                                  crps_decomp     = FALSE,
                                   hexbin          = FALSE)
     verif_options_list    <- list(parameter       = {{prm_name}},
                                   num_ref_members = num_ref_members,
@@ -442,7 +442,7 @@ fn_run_verif_groups <- function(fcst = "",
           dplyr::filter(num_cases_for_threshold_observed >= min_thr_cases)
       } else if (fcst_type == "eps") {
         verif_toplot[[t_s_str]] <- verif_toplot[[t_s_str]] %>% 
-          dplyr::filter(num_cases_total >= min_thr_cases)
+          dplyr::filter(num_cases_observed >= min_thr_cases)
       }
     }
     
@@ -773,6 +773,14 @@ try_rpforecast <- function(start_date,
                            stations,
                            vc){
   
+  # With harp v0.3+ it's best to use merge lags directly when reading. Confirmed
+  # that this works fine for surface and UA variables.
+  if (as.numeric(substr(packageVersion("harpIO"),1,3)) >= 0.3) {
+    ml <- T
+  } else {
+    ml <- F
+  }
+  
   fcst <- tryCatch(
     {
       harpIO::read_point_forecast(
@@ -788,7 +796,7 @@ try_rpforecast <- function(start_date,
         file_path           = fcst_path,
         stations            = stations,
         get_lat_and_lon     = TRUE, # Useful when lat/lon missing from vobs files
-        merge_lags          = FALSE, # Explicitly do the lagging
+        merge_lags          = ml,
         vertical_coordinate = vc
       )
     },
@@ -839,11 +847,65 @@ try_rpforecast <- function(start_date,
       cat("This may be due to missing leadtime data in the sqlite files\n")
       cat("Parameter",param,"will be skipped\n")
       fcst <- NULL
+      return(fcst)
     }
   }
   
+  # In harp0.3 lead_time includes units. Check if lead_time is a character
+  # and extract numeric if required.
+  lt_units <- NULL
+  for (ii in names(fcst)) {
+    # Make sure all models have the same units and type (could this happen?)
+    if (is.character(fcst[[ii]][["lead_time"]])) {
+      clt_units <- unique(regmatches(fcst[[ii]][["lead_time"]],
+                                     regexpr("[a-z]*$",fcst[[ii]][["lead_time"]])))
+      if (is.null(lt_units)) {
+        lt_units <- clt_units
+      } else {
+        lt_units <- c(lt_units,clt_units)
+      }
+    }
+  }
+  # If lt_units is null, nothing is required (assumed to be hourly). If not null,
+  # check that it has the correct length and is unique
+  if (is.null(lt_units)) {
+    lt_unit_attr <- "h"
+  } else {
+    if (length(lt_units) != length(names(fcst))) {
+      stop("Looks like models have different lead time types, aborting.")
+    }
+    if (length(unique(lt_units)) != 1) {
+      stop("Model have different lead time units, aborting.")
+    }
+    lt_unit_attr <- unique(lt_units)
+    fcst <- fcst %>% harpPoint::mutate_list(lead_time = harpCore::extract_numeric(lead_time))
+  }
+  # Add lt_untis as an attribute
+  attributes(fcst)$lt_unit <- lt_unit_attr
+  attributes(fcst)$ml      <- ml
+  
   # Convert SID column from integer to double to protect against integer64
   fcst <- fcst %>% mutate_list(SID = as.double(SID))
+  
+  # Finally, check if lat/lon = NA and replace if so (something to do with
+  # vfld processing of Pcp, not clear why)
+  if (grepl("Pcp",param,fixed=T)) {
+    for (cm in names(fcst)) {
+      df <- fcst[[cm]]
+      llna <- filter(df, is.na(lat) | is.na(lon))
+      if (nrow(llna) > 0) {
+        cat("NA lat/lon found after read_point_forecast - replace these with correct values.\n")
+        vsids <- df %>% select(SID,lat,lon) %>% group_by(SID) %>%
+          summarise(lat = min(lat,na.rm = T),lon = min(lon,na.rm = T))
+        if (nrow(vsids) != length(unique(df$SID))) {
+          stop("Lat/lon are missing for some stations, abort!")
+        }
+        df <- df %>% select(-lat,-lon)
+        df <- inner_join(df,vsids,relationship = "many-to-many",by = "SID")
+        fcst[[cm]] <- df
+      }
+    }
+  }
 
   return(fcst)
 

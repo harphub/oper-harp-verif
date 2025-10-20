@@ -909,7 +909,7 @@ fn_plot_point_verif <- function(harp_verif_input,
                                    fxoption_list,
                                    vroption_list)
                 
-                if (is.list(p_c)) {
+                if (is.object(p_c)) {
                   fn_save_png(p_c           = p_c,
                               fxoption_list = fxoption_list,
                               vroption_list = vroption_list,
