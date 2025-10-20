@@ -122,7 +122,10 @@ fn_plot_aux_scores <- function(fcst_input,
   # USER INTERACTION
   #=================================================#
   
-  lt_to_use   <- seq(3,48,3) # What lead_times to use?
+  lt_to_use   <- seq(3,48,3) # What lead_times to use (hours)?
+  if (attr(fcst_input,"lt_unit") != "h") {
+    stop("Lead time generalisation required - raise an issue!")
+  }
   all_lts     <- sort(unique(fcst[["lead_time"]]))
   lt_to_use   <- intersect(all_lts,lt_to_use)
   if (length(lt_to_use) > 0) {

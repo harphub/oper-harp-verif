@@ -552,13 +552,16 @@ run_verif <- function(prm_info, prm_name) {
             ", moving on to the next parameter")
     return(missing_data)
   }
+  # Save lt_unit attribute before it is dropped by other operations.
+  lt_unit <- attr(fcst,"lt_unit")
   
   #================================================#
   # LAG THE FORECAST FOR EPS EXPERIMENTS
   #================================================#
   
-  if (fcst_type == "eps") {
+  if ((fcst_type == "eps") && (!isTRUE(attr(fcst,"ml")))) {
     
+    message("Caution: Doing explicit lagging. With harp v0.3 this will be done as part of read_point_forecast.")
     fcst <- try_epslag(fcst,
                        fcst_model,
                        parent_cycles,
@@ -819,6 +822,9 @@ run_verif <- function(prm_info, prm_name) {
       return(missing_data)
     }
   }
+  
+  # Add back in lt_unit
+  attributes(fcst)[["lt_unit"]] <- lt_unit
   
   # Define a list to store the sc data for this parameter over all domains
   list_scrd_data <- list()

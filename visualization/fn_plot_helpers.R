@@ -14,7 +14,7 @@ numbers_only <- function(x) !grepl("\\D", x)
 
 fn_nc_combine <- function(p,p_nc,h1=4,h2=1) {
   
-  if (all(is.na(p)) || all(is.null(p)) || all(is.na(p_nc)) || all(is.null(p_nc))) {
+  if (!is.object(p) || !is.object(p_nc)) {
     
     p_c <- NA_character_
     
@@ -104,7 +104,7 @@ fn_save_png <- function(p_c           = "",
                            vth = vth,
                            projectname = fxoption_list$png_projname)
   
-  if (all(is.na(p_c)) || all(is.null(p_c))) {
+  if (!is.object(p_c)){
   
     cat("The figure for",png_fname,"does not exist\n") 
     
@@ -129,6 +129,7 @@ fn_save_png <- function(p_c           = "",
                   height   = fh,
                   units    = fxoption_list$fig_units,
                   dpi      = fxoption_list$fig_dpi,
+                  bg       = "white",
                   device   = 'png')
   
   }
@@ -515,6 +516,8 @@ fn_plot_point <- function(verif,
     
   } else {
     
+    add_colour_lab   <- F
+    add_linetype_lab <- F
     if (num_scores == 1) {
       # Remove Inf/-Inf values which may appear for ens skill scores
       df    <- df[!is.infinite(df[[all_scores]]),]
@@ -531,6 +534,7 @@ fn_plot_point <- function(verif,
                             stroke = stroke_size,
                             size   = point_size)
       tsns  <- 8
+      add_colour_lab <- T
     } else if (num_scores == 2) {
       # Remove Inf/-Inf values which may appear for ens skill scores
       df    <- df[!is.infinite(df[[all_scores[1]]]),]
@@ -555,6 +559,8 @@ fn_plot_point <- function(verif,
                             stroke = stroke_size,
                             size   = point_size)
       tsns  <- 6
+      add_colour_lab <- T
+      add_linetype_lab <- T
     } else {
       stop("Number of scores=",num_scores," is not considered in plot_point")
     }
@@ -562,12 +568,16 @@ fn_plot_point <- function(verif,
     p_out <- p_out + 
       ggplot2::labs(x        = xl,
                     y        = yl,
-                    color    = "",
-                    linetype = "",
                     title    = ptitle,
                     subtitle = subtitle_str) +
       ptheme_l + 
       ggplot2::scale_color_manual(values = mcolors)
+    if (add_colour_lab) {
+      p_out <- p_out + ggplot2::labs(color = "")
+    }
+    if (add_linetype_lab) {
+      p_out <- p_out + ggplot2::labs(linetype = "")
+    }
     
     if (!is.null(ylims[1])) {
       p_out <- p_out + ggplot2::scale_y_continuous(limits = ylims)
@@ -755,8 +765,7 @@ fn_plot_numcases <- function(verif,
                         size   = point_size) +
     ggplot2::labs(x     = " ",
                   y     = ylabel,
-                  color = " ",
-                  shape = " ") +
+                  color = " ") +
     ptheme_nc +
     ggplot2::scale_color_manual(values = mcolors)
   
@@ -1129,7 +1138,15 @@ fn_plot_profile <- function(verif,
   # Plot title
   ptitle <- paste0(paste0(title_scores,collapse = ", ")," : ",title_str)
   
+  # A check on the type of p (in case of character type)
+  if ("p" %in% names(df)){
+    if (is.character(df[["p"]])){
+      df[["p"]] <- as.numeric(df[["p"]])
+    }
+  }
+  
   # Note: No member plotting considered here 
+  add_linetype_lab <- F
   if (num_scores == 1) {
     p_out <- df %>% 
       ggplot2::ggplot(aes(y     = p,
@@ -1140,6 +1157,7 @@ fn_plot_profile <- function(verif,
                           stroke = stroke_size,
                           size   = point_size)
   } else if (num_scores == 2) {
+    add_linetype_lab <- T
     p_out <- df %>% 
       ggplot2::ggplot(aes(y     = p,
                           color = forcats::fct_inorder(fcst_model))) +
@@ -1168,10 +1186,12 @@ fn_plot_profile <- function(verif,
     ggplot2::scale_y_reverse() +
     ggplot2::labs(y        = p_label,
                   x        = par_unit,
-                  color    = "",
-                  linetype = "") + 
+                  color    = "") + 
     ptheme_l +
     ggplot2::scale_color_manual(values = mcolors)
+  if (add_linetype_lab) {
+    p_out <- p_out + ggplot2::labs(linetype = "")
+  }
   
   # Add zero line if relevant
   cp_xlim <- ggplot2::layer_scales(p_out)$x$range$range
@@ -1209,8 +1229,7 @@ fn_plot_profile <- function(verif,
                           size   = point_size) +
       ggplot2::labs(y     = " ",
                     x     = ylabel,
-                    color = " ",
-                    shape = " ") +
+                    color = " ") +
       ptheme_nc +
       ggplot2::scale_color_manual(values = mcolors) +
       ggplot2::scale_y_reverse() + 

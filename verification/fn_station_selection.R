@@ -1448,11 +1448,11 @@ station_map <- function(df,domain,polygon = NULL){
       is.na(elevmap) ~ "0: Missing",
       .default = elevmap
     ))
-    p_map <- df %>% ggplot2::ggplot(aes(lon,lat,fill = elevmap),size = 3)
+    p_map <- df %>% ggplot2::ggplot(aes(lon,lat,fill = elevmap))
   } else if ("diff" %in% names(df)) {
-    p_map <- df %>% ggplot2::ggplot(aes(lon,lat,fill = diff),size = 3)
+    p_map <- df %>% ggplot2::ggplot(aes(lon,lat,fill = diff))
   } else {
-    p_map <- df %>% ggplot2::ggplot(aes(lon,lat,fill = "red"),size = 3)
+    p_map <- df %>% ggplot2::ggplot(aes(lon,lat,fill = "red"))
   }
   p_map <- p_map + 
     ggplot2::geom_polygon(data        = ggplot2::map_data("world"),
@@ -1460,7 +1460,7 @@ station_map <- function(df,domain,polygon = NULL){
                           fill        = "grey100",
                           colour      = "black",
                           inherit.aes = FALSE) +  
-    ggplot2::geom_point(colour = 'grey40',pch = 21) + 
+    ggplot2::geom_point(colour = 'grey40',pch = 21,size = 2) + 
     ggplot2::theme(panel.background = ggplot2::element_rect(fill = "grey95"),
                    panel.grid       = ggplot2::element_blank(),
                    axis.text        = ggplot2::element_blank(),
