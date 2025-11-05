@@ -18,7 +18,8 @@ fn_plot_point_verif <- function(harp_verif_input,
                                      fsd = NA_character_,
                                      fed = NA_character_,
                                      fylims = NULL,
-                                     plevel_filter = TRUE){
+                                     plevel_filter = TRUE,
+                                     n_stations = NULL){
  
   #=================================================#
   # INITIAL CHECKS
@@ -641,6 +642,11 @@ fn_plot_point_verif <- function(harp_verif_input,
           } else {
             num_stations <- max(verif_II[[1]][["num_stations"]])
           }
+          # If n_stations exists and has the correct info, then overwrite with this instead 
+          ns_val <- fn_get_n_stations(n_stations,station_group_var,station,cycle,"All")
+          if (!is.null(ns_val)) {
+            num_stations <- ns_val
+          }
           if (numbers_only(station)) {
             subtitle_str <- paste0("Station ",station," (",num_stations,") : ",cy_str)
           } else {
@@ -903,6 +909,15 @@ fn_plot_point_verif <- function(harp_verif_input,
                 if (nrow(verif_III[[c_tstr]]) == 0) {
                   next
                 }
+                
+                # Replace number of stations with correct one for this vhour
+                ns_val <- fn_get_n_stations(n_stations,station_group_var,station,cycle,vhour)
+                if (!is.null(ns_val)) {
+                  c_subtitle <- gsub("*\\(.*?\\) *",
+                                     paste0("(",ns_val,")"),
+                                     c_subtitle)
+                }
+                
                 p_c <- fn_plot_map(verif_III,
                                    c_title_str,
                                    c_subtitle,

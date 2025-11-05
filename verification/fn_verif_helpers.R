@@ -363,10 +363,13 @@ fn_run_verif_groups <- function(fcst = "",
       # Generally looks at valid hours 00-21:3, but only do this filtering 
       # if all of these hours exist in the data
       avail_vhours <- unique(fcst[[1]][["valid_hour"]]) %>% as.integer()
+      run_average  <- F
       if (all(seq(0,21,3) %in% avail_vhours)) {
         cat("Using valid hours 0-21:3 when computing map scores\n")
         fcst_sid_tmp <- fcst %>% 
           harpPoint::filter_list(valid_hour %in% sprintf("%02d",seq(0,21,3)))
+        run_average  <- T
+        grps_SID     <- list(c("SID","valid_hour")) # Remove the group over SID only
       } else {
         # In this case just use whatever is available
         cat("Using valid hours",avail_vhours,"when computing maps scores\n")
@@ -375,10 +378,22 @@ fn_run_verif_groups <- function(fcst = "",
       # Check if we should remove valid_hour as a group if only one is present
       num_valid_hours <- length(unique(fcst_sid_tmp[[1]][["valid_hour"]]))
       if (num_valid_hours == 1) {
-        warning("Only one valid hour exits, removing it as a group")
+        warning("Only one valid hour exists, removing it as a group")
         grps_SID <- list("SID")
       }
       
+      # Compute average scores using the entire dataset if fcst_sid_tmp != fcst_sid
+      if (run_average) {
+        verif_sid_average <- do.call(
+          get(verif_fn),
+          c(list(.fcst      = fcst,
+                 thresholds = NULL,
+                 groupings  = list("SID")),
+            verif_options_list_nm)
+        ) %>% fn_verif_rename(.,par_unit)
+        # Need to add in valid_hour afterwards
+        verif_sid_average[[1]][["valid_hour"]] <- "All"
+      }
       verif_sid <- do.call(
         get(verif_fn),
         c(list(.fcst      = fcst_sid_tmp,
@@ -386,6 +401,9 @@ fn_run_verif_groups <- function(fcst = "",
                groupings  = grps_SID),
           verif_options_list_nm)
       ) %>% fn_verif_rename(.,par_unit)
+      if (run_average) {
+        verif_sid[[1]] <- bind(verif_sid_average[[1]],verif_sid[[1]])
+      }
       # Add all lead times used as an attribute 
       attr(verif_sid,"all_lts_avail") <- as.character(sort(unique(fcst_sid_tmp[[1]]$lead_time)))
       rm(fcst_sid_tmp)

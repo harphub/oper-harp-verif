@@ -826,6 +826,23 @@ run_verif <- function(prm_info, prm_name) {
   # Add back in lt_unit
   attributes(fcst)[["lt_unit"]] <- lt_unit
   
+  # Calculate the number of stations in each station group for each cycle and valid hour.
+  # This ensures that the number of stations appearing in the subtitle is more
+  # accurate and consistent!
+  n_stations_1 <- fcst[[1]] %>% dplyr::group_by(station_group) %>%
+    dplyr::summarise(num_stations = length(unique(SID))) %>%
+    dplyr::mutate(fcst_cycle = "All", valid_hour = "All")
+  n_stations_2  <- fcst[[1]] %>% dplyr::group_by(station_group,fcst_cycle) %>%
+    dplyr::summarise(num_stations = length(unique(SID)))  %>%
+    dplyr::mutate(valid_hour = "All")
+  n_stations_3  <- fcst[[1]] %>% dplyr::group_by(station_group,valid_hour) %>%
+    dplyr::summarise(num_stations = length(unique(SID)))  %>%
+    dplyr::mutate(fcst_cycle = "All")
+  n_stations_4  <- fcst[[1]] %>% dplyr::group_by(station_group,fcst_cycle,valid_hour) %>%
+    dplyr::summarise(num_stations = length(unique(SID))) 
+  n_stations     <- bind(n_stations_1,n_stations_2,n_stations_3,n_stations_4) %>%
+    dplyr::distinct()
+  
   # Define a list to store the sc data for this parameter over all domains
   list_scrd_data <- list()
 
@@ -903,7 +920,8 @@ run_verif <- function(prm_info, prm_name) {
                                cmap = cmap,
                                map_cbar_d = map_cbar_d,
                                fsd  = fsd,
-                               fed  = fed)
+                               fed  = fed,
+                               n_stations = n_stations)
       if ((is.na(vertical_coordinate)) & (!is.null(verif_sid))) {
         fn_plot_point_verif(verif_sid,
                                  plot_output,
@@ -913,7 +931,8 @@ run_verif <- function(prm_info, prm_name) {
                                  cmap = cmap,
                                  map_cbar_d = map_cbar_d,
                                  fsd  = fsd,
-                                 fed  = fed)
+                                 fed  = fed,
+                                 n_stations = n_stations)
         # Save the verification object used for SIDs if desired
         if (save_sidrds) {
           sidname <- paste(project_name,prm_name,"SID",start_date,end_date,sep = "_")

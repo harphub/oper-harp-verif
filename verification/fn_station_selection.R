@@ -105,16 +105,16 @@ fn_station_selection <- function(domain_choice = "All_Domains",
   
   # Include additional filtering based on the parameter
   if (param == "S10m") {
-    # Add in filtering of French stations, poor-quality Irish and high-altitude UK stations
+    # - Poor-quality Irish and high-altitude UK stations
+    # - Iceland Roads
+    # - Some Danish stations
     stations_param_rmv <- c(3039,3065,3072,3148,3227,3410,
                             3971,3979,
                             seq(4800,4999,1),
-                            6009,6012,
-                            seq(7001,7998,1))
+                            6009,6012)
   } else if (param == "T2m") {
-    stations_param_rmv <- c(26422,26436,26544,26429,26324,26348,26424,26416,
-                            26503,26446,26335,26346,26447,26339,26318,26313,
-                            26435,26403,26238,26406,26314,26229,26326)
+    # - Had Latvian stations filtered prior to 05/11/25 (bufr2vobs update)
+    stations_param_rmv <- NULL
   } else if (param == "Pmsl") {
     stations_param_rmv <- c(1304,1411,10004,4160,4166)
   } else if (param == "Gmax") {
@@ -1195,7 +1195,7 @@ fn_station_selection <- function(domain_choice = "All_Domains",
         if (nrow(stationlist_choice) > 0) {
           stationlist_out[[dc]] <- stationlist_choice
         } else {
-          cat("No SIDs found for domain",dc," - this domain will be skipped!\n")
+          cat("No SIDs found for domain",dc,"- this domain will be skipped!\n")
         }
         
       } else {
