@@ -8,6 +8,30 @@
 
 numbers_only <- function(x) !grepl("\\D", x)
 
+
+#================================================#
+# HELPER FUNCTION TO GET NUMBER OF STATIONS FROM DF
+#================================================#
+
+fn_get_n_stations <- function(n_stations,station_group_var,station,cycle,vhour){
+
+  n_out <- NULL
+  if (!is.null(n_stations)) {
+    if (all(c(station_group_var,"fcst_cycle","valid_hour") %in% names(n_stations))) {
+      ns_val <- n_stations %>% filter(get(station_group_var) == station,
+                                      fcst_cycle == cycle,
+                                      valid_hour == vhour)
+      ns_val <- ns_val$num_stations
+      if (length(ns_val == 1)) {
+        n_out <- ns_val
+      } else {
+        cat("Found n_stations but did not find unique info for",station,", cycle",cycle,"\n")
+      }
+    }
+  }
+  return(n_out)
+}
+
 #================================================#
 # HELPER FUNCTION TO COMBINE IMAGE WITH NUM_CASES
 #================================================#
@@ -1013,7 +1037,7 @@ fn_get_map_cbar <- function(map_cbar_d,c_min,c_max,score,param,par_unit){
   
   # Then filter the cmap to just the colours which cover the range cmin-cmax
   bl <- brks[brks<c_min]
-  if (length(bl) > 1){
+  if (length(bl) > 0){
     bl_ind <- which(brks == tail(bl,1))
     bl_val <- NULL
   } else { 
@@ -1021,7 +1045,7 @@ fn_get_map_cbar <- function(map_cbar_d,c_min,c_max,score,param,par_unit){
     bl_val <- round(c_min,1)
   }
   bu <- brks[brks>c_max]
-  if (length(bu) > 1){
+  if (length(bu) > 0){
     bu_ind <- which(brks == bu[1])
     bu_val <- NULL
   } else {
@@ -1042,7 +1066,7 @@ fn_get_map_cbar <- function(map_cbar_d,c_min,c_max,score,param,par_unit){
   }
 
   # If we are outside the limits defined by brks, add in the extremes
-  if (!is.null(bl_val) & (score %in% c("bias","mean_bias"))) {
+  if ((!is.null(bl_val)) & (score %in% c("bias","mean_bias"))) {
     brks_out <- c(bl_val,brks_out)
     cmap_out <- c("darkorchid3",cmap_out)
   }
