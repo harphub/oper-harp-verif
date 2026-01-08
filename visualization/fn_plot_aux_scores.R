@@ -96,10 +96,23 @@ fn_plot_aux_scores <- function(fcst_input,
   if (param == "Pcp") { 
     all_fcst_names <- names(fcst)
     param          <- all_fcst_names[grepl("AccPcp",all_fcst_names,fixed = TRUE)]
-    if (length(param) > 1) {
+    if (length(param) != 1) {
+      cat("Found the following for param in fn_plot_aux_score:")
+      print(param)
       stop("Error in param name for AccPcp")
     }
   }
+  # Need a workaround for single UA levels e.g. T925
+  if (!(param %in% names(fcst))) {
+    all_fcst_names <- names(fcst)
+    param          <- all_fcst_names[grepl(param,all_fcst_names,fixed = TRUE)]
+    if (length(param) != 1) {
+      cat("Found the following for param in fn_plot_aux_score:")
+      print(param)
+      stop("Error when looking for single UA level")
+    }
+  }
+
   fcst       <- dplyr::rename(fcst,"OBS" = all_of(param))
   cycles     <- sort(unique(fcst[["fcst_cycle"]]))
   stations   <- unique(fcst[[station_group_var]])

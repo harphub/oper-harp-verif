@@ -183,6 +183,11 @@ all_surface_params        <- list("MSLP"              = "Pmsl",
                                   "Clear Sky Index"   = "CSI"
 )
 
+# Tab names
+surf_tab_name <- "Surface/Single level"
+ua_tab_name   <- "Upper Air"
+sc_tab_name   <- "Scorecards"
+
 # Add more surface obs types
 more_surface_obstypes <- c("ascat","buoy","ship")
 df1                   <- expand_grid(more_surface_obstypes,unname(unlist(all_surface_params)))
@@ -548,7 +553,7 @@ ui <- shiny::tags$html(
                                              choices = "Waiting..."),
                           shiny::tabsetPanel(
                             id = "vartype",
-                            shiny::tabPanel("Surface",
+                            shiny::tabPanel(surf_tab_name,
                                             shiny::tabsetPanel(
                                               id="surfacetype",
                                               shiny::tabPanel("Summary"),
@@ -556,14 +561,14 @@ ui <- shiny::tags$html(
                                               shiny::tabPanel("Map"),
                                               shiny::tabPanel("Signif")
                                             )),
-                            shiny::tabPanel("Upper Air",
+                            shiny::tabPanel(ua_tab_name,
                                             shiny::tabsetPanel(
                                               id="temptype",
                                               shiny::tabPanel("Summary"),
                                               shiny::tabPanel("Prof"),
                                               shiny::tabPanel("Signif")
                                             )),
-                            shiny::tabPanel("Scorecards")),
+                            shiny::tabPanel(sc_tab_name)),
                           br(),
                           shinyWidgets::prettyRadioButtons('station',label='Station selection',
                                                            choices = "Waiting...",
@@ -900,14 +905,14 @@ server <- function(input, output, session) {
       #                        "Surface"    = all_surface_params,
       #                        "Upper Air"  = all_UA_params,
       #                        "Scorecards" = all_scorecard_params)
-      if (input$vartype == "Surface"){
-        param_for_tab <- all_surface_params
-      } else if (input$vartype == "Upper Air"){
+      if (input$vartype == surf_tab_name){
+        param_for_tab <- c(all_surface_params,all_UA_params_signif)
+      } else if (input$vartype == ua_tab_name){
         param_for_tab <- switch(input$temptype,
                                 "Summary" = all_UA_params,
                                 "Prof"    = all_UA_params,
                                 "Signif"  = all_UA_params_signif)
-      } else if (input$vartype == "Scorecards"){
+      } else if (input$vartype == sc_tab_name){
         param_for_tab <- all_scorecard_params
       }
       # If param does not exist in "all_known_params", set default. Using 
@@ -1028,18 +1033,18 @@ server <- function(input, output, session) {
     } else {
       mty <- "det"
     }
-    if (input$vartype == "Surface"){
+    if (input$vartype == surf_tab_name){
       switch(input$surfacetype,
              "Summary" = get(paste0("all_",mty,"_ssum_scores")),
              "Skill"   = get(paste0("all_",mty,"_skill_scores_th")),
              "Map"     = get(paste0("all_",mty,"_map_scores")),
              "Signif"  = get(paste0("all_",mty,"_sdiffs_scores")))
-    } else if (input$vartype == "Upper Air"){
+    } else if (input$vartype == ua_tab_name){
       switch(input$temptype,
              "Summary" = get(paste0("all_",mty,"_pl_scores")),
              "Prof"    = get(paste0("all_",mty,"_prof_scores")),
              "Signif"  = get(paste0("all_",mty,"_sdiffs_scores")))
-    } else if (input$vartype == "Scorecards"){
+    } else if (input$vartype == sc_tab_name){
       all_scorecard_scores
     }
   })
@@ -1047,33 +1052,33 @@ server <- function(input, output, session) {
   # If ens scores exist, this will contain the control scores from the ensemble
   scores_for_tab2 <- shiny::reactive({
     if (is_ens_scores()){
-      if (input$vartype == "Surface"){
+      if (input$vartype == surf_tab_name){
         switch(input$surfacetype,
                "Summary" = all_ensctrl_ssum_scores,
                "Skill"   = all_ens_skill_scores_lt,
                "Map"     = all_ensctrl_map_scores,
                "Signif"  = list("L" = -9999))
-      } else if (input$vartype == "Upper Air"){
+      } else if (input$vartype == ua_tab_name){
         switch(input$temptype,
                "Summary" = all_ensctrl_pl_scores,
                "Prof"    = all_ensctrl_prof_scores,
                "Signif"  = list("L" = -9999))
-      } else if (input$vartype == "Scorecards"){
+      } else if (input$vartype == sc_tab_name){
         list("L" = -9999)
       }
     } else {
-      if (input$vartype == "Surface"){
+      if (input$vartype == surf_tab_name){
         switch(input$surfacetype,
                "Summary" = list("L" = -9999),
                "Skill"   = all_det_skill_scores_lt,
                "Map"     = list("L" = -9999),
                "Signif"  = list("L" = -9999))
-      } else if (input$vartype == "Upper Air"){
+      } else if (input$vartype == ua_tab_name){
         switch(input$temptype,
                "Summary" = list("L" = -9999),
                "Prof"    = list("L" = -9999),
                "Signif"  = list("L" = -9999))
-      } else if (input$vartype == "Scorecards"){
+      } else if (input$vartype == sc_tab_name){
         list("L" = -9999)
       }
     }
@@ -1082,18 +1087,18 @@ server <- function(input, output, session) {
   # And the last one (for other threshold scores)
   scores_for_tab3 <- shiny::reactive({
     if (is_ens_scores()){
-      if (input$vartype == "Surface"){
+      if (input$vartype == surf_tab_name){
         switch(input$surfacetype,
                "Summary" = list("L" = -9999),
                "Skill"   = all_ens_skill_scores_ot,
                "Map"     = list("L" = -9999),
                "Signif"  = list("L" = -9999))
-      } else if (input$vartype == "Upper Air"){
+      } else if (input$vartype == ua_tab_name){
         switch(input$temptype,
                "Summary" = list("L" = -9999),
                "Prof"    = list("L" = -9999),
                "Signif"  = list("L" = -9999))
-      } else if (input$vartype == "Scorecards"){
+      } else if (input$vartype == sc_tab_name){
         list("L" = -9999)
       }
     } else {
@@ -1117,7 +1122,7 @@ server <- function(input, output, session) {
       if ((length(scores_out1()) == 0) & (length(scores_out2()) == 0) & (length(scores_out3()) == 0)){
         mdi
       } else {
-        if (input$vartype == "Surface"){
+        if (input$vartype == surf_tab_name){
           if(input$surfacetype == "Skill"){
             list(`Skill scores vs threshold` = scores_out1(),
                  `Skill scores vs leadtime` = scores_out2(),
@@ -1135,7 +1140,7 @@ server <- function(input, output, session) {
       if ((length(scores_out1()) == 0) & (length(scores_out2()) == 0)){
         mdi
       } else {
-        if (input$vartype == "Surface"){
+        if (input$vartype == surf_tab_name){
           if(input$surfacetype == "Skill"){
             list(`Skill scores vs threshold` = scores_out1(),
                  `Skill scores vs leadtime` = scores_out2())
@@ -1216,18 +1221,18 @@ server <- function(input, output, session) {
   
   # Render UI to change the label for lead time/valid time based on metric type
   pp_label <- shiny::reactive({
-    if (input$vartype == "Surface"){
+    if (input$vartype == surf_tab_name){
       switch(input$surfacetype,
              "Summary" = "Lead time/Valid time",
              "Skill"   = "Lead time",
              "Map"     = "Valid time",
              "Signif"  = "New model")
-    } else if (input$vartype == "Upper Air"){
+    } else if (input$vartype == ua_tab_name){
       switch(input$temptype,
              "Summary" = "Level (hPa) / Channel",
              "Prof"    = "Valid time",
              "Signif"  = "New model")
-    } else if (input$vartype == "Scorecards"){
+    } else if (input$vartype == sc_tab_name){
       "New model"
     }
   })
@@ -1247,15 +1252,15 @@ server <- function(input, output, session) {
     vo <- gsub(".png","",unique(unlist(lapply(strsplit(rrrrel_files(),"-"),'[',9))))
     vo <- vo[!is.na(vo)] # Drop any NA
     rname_flag = TRUE
-    if (input$vartype == "Surface"){
+    if (input$vartype == surf_tab_name){
       if (input$surfacetype == "Signif"){
         rname_flag = FALSE
       }
-    } else if (input$vartype == "Upper Air"){
+    } else if (input$vartype == ua_tab_name){
       if (input$temptype == "Signif"){
         rname_flag = FALSE
       }
-    } else if (input$vartype == "Scorecards"){
+    } else if (input$vartype == sc_tab_name){
       rname_flag = FALSE
     }
     if (length(vo)>0){
@@ -1307,18 +1312,18 @@ server <- function(input, output, session) {
   
   # Render UI to change the label for threshold based on metric type
   tt_label <- shiny::reactive({
-    if (input$vartype == "Surface"){
+    if (input$vartype == surf_tab_name){
       switch(input$surfacetype,
              "Summary" = "Threshold",
              "Skill"   = "Threshold",
              "Map"     = "Threshold",
              "Signif"  = "Ref model")
-    } else if (input$vartype == "Upper Air"){
+    } else if (input$vartype == ua_tab_name){
       switch(input$temptype,
              "Summary" = "Threshold",
              "Prof"    = "Threshold",
              "Signif"  = "Ref model")
-    } else if (input$vartype == "Scorecards"){
+    } else if (input$vartype == sc_tab_name){
       "Ref model"
     }
   })
@@ -1333,15 +1338,15 @@ server <- function(input, output, session) {
     tho <- gsub(".png","",unique(unlist(lapply(strsplit(rrrrel_files(),"-"),'[',10))))
     tho <- tho[!is.na(tho)] # Drop any NA
     rname_flag = TRUE
-    if (input$vartype == "Surface"){
+    if (input$vartype == surf_tab_name){
       if (input$surfacetype == "Signif"){
         rname_flag = FALSE
       }
-    } else if (input$vartype == "Upper Air"){
+    } else if (input$vartype == ua_tab_name){
       if (input$temptype == "Signif"){
         rname_flag = FALSE
       }
-    } else if (input$vartype == "Scorecards"){
+    } else if (input$vartype == sc_tab_name){
       rname_flag = FALSE
     }
     if (length(tho)>0){
@@ -1402,15 +1407,15 @@ server <- function(input, output, session) {
     c_width  <- 700*scale_f
     c_height <- 450*scale_f
     
-    if (input$vartype == "Surface"){
+    if (input$vartype == surf_tab_name){
       if(input$surfacetype == "Map"){
         c_width  <- 1000*scale_f
         c_height <- 450*scale_f
       }
-    } else if (input$vartype == "Scorecards"){
+    } else if (input$vartype == sc_tab_name){
       c_width  <- 1200*scale_f
       c_height <- 800*scale_f
-    } else if (input$vartype == "Upper Air"){
+    } else if (input$vartype == ua_tab_name){
       if (grepl("UAC",input$score,ignore.case = FALSE,fixed = TRUE)){
         c_width  <- 700*scale_f
         c_height <- 650*scale_f
