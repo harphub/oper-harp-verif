@@ -40,7 +40,7 @@ Spatial verificaiton against radar data. Currently under development.
 
 The main verification script:
 - ``point_verif.R``: Perform point verification for deterministic or ensemble models over various groups (e.g. ``lead_time``, ``valid_dttm``, ``SID``, etc.). By default harp rds files are produced, while a set of png files for standard verification metrics will also be generated if indicated in the config file. Scorecard generation is also available via a flag in the config file. 
-- ``set_params.R``: Defines scalings, thresholds, and quality control settings for parameters appearing in the vfld/vobs files or sqlite tables (e.g. T2m, Q). See ``harpIO::show_param_definitions()`` and ``harpIO::harp_params`` for more details, e.g.:
+- ``set_params.R``: Defines scalings, thresholds, and quality control settings for parameters appearing in the vfld/vobs files or sqlite tables (e.g. T2m, Q). See ``harpIO::show_param_definitions()`` and ``harpIO::harp_params`` for more details. The one-liner below lists the parameters which harp recognises by default. Note that for upper-air variables, e.g. Q, harp also recognises single pressure levels as individual parameters, e.g. Q925 is recognised as Q at level 925hPa (if the vertical coordinate used is `pressure`). 
 ``` r
 unlist(harp_params)[grep("harp_param",names(unlist(harp_params)))]
 ```

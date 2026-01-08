@@ -16,6 +16,23 @@ suppressPackageStartupMessages({
 })
 
 #================================================#
+# SILENT STOP WHEN RUNNING USING Rscript
+# WHEN IN RSTUDIO, DEFAULT BACK TO STOP TO AVOID
+# TERMINATING THE SESSION
+#================================================#
+
+silent_stop <- function(errmsg = "Stopping") {
+  
+  if (!interactive()) {
+    cat(paste0(errmsg,"\n"))
+    quit(save = "no", status = 0)
+  } else {
+    stop(errmsg)
+  }
+  
+}
+
+#================================================#
 # CHECK IF START AND END DATE ARE OKAY
 #================================================#
 
@@ -456,11 +473,19 @@ fn_run_verif_groups <- function(fcst = "",
     min_thr_cases <- 20
     if (!is.null(verif_toplot[[t_s_str]])) {
       if (fcst_type == "det") {
-        verif_toplot[[t_s_str]] <- verif_toplot[[t_s_str]] %>% 
-          dplyr::filter(num_cases_for_threshold_observed >= min_thr_cases)
+        obs_col_name <- "num_cases_for_threshold_observed"
       } else if (fcst_type == "eps") {
+        obs_col_name <- "num_cases_observed"
+      } else {
+        stop("How did this happen?")
+      }
+      if (min(verif_toplot[[t_s_str]][[obs_col_name]]) < min_thr_cases) {
+        message(paste0("The min number of observed cases in the threshold scores = ",
+                       min(verif_toplot[[t_s_str]][[obs_col_name]]),
+                       ", skipping filtering!"))
+      } else {
         verif_toplot[[t_s_str]] <- verif_toplot[[t_s_str]] %>% 
-          dplyr::filter(num_cases_observed >= min_thr_cases)
+          dplyr::filter(get(obs_col_name) >= min_thr_cases)
       }
     }
     
@@ -829,7 +854,10 @@ try_rpforecast <- function(start_date,
       cat("Finished FCTABLE reading\n")
     }
   )
-   
+  if (is.null(fcst)) {
+    return(fcst)
+  }
+
   # Add a check to test if read_forecast returned a named list
   # (where the names are the forecast models)
   # Also deals with converting to a harp list for a single forecast model
@@ -848,7 +876,7 @@ try_rpforecast <- function(start_date,
     }
     
   }
-  
+
   # Add a check on the number of rows (e.g. FCTABLE could exist, but it may not
   # include the leadtimes requested)
   if (!is.null(fcst)) {
@@ -896,8 +924,13 @@ try_rpforecast <- function(start_date,
       stop("Model have different lead time units, aborting.")
     }
     lt_unit_attr <- unique(lt_units)
-    fcst <- fcst %>% harpPoint::mutate_list(lead_time = harpCore::extract_numeric(lead_time))
+    # Using extract_numeric can be slow
+    for (cm in names(fcst)) {
+      fcst[[cm]][["lead_time"]] <- as.numeric(gsub(unique(lt_units),"",fcst[[cm]][["lead_time"]],fixed = T))
+    }
+    #fcst <- fcst %>% harpPoint::mutate_list(lead_time = harpCore::extract_numeric(lead_time))
   }
+
   # Add lt_untis as an attribute
   attributes(fcst)$lt_unit <- lt_unit_attr
   attributes(fcst)$ml      <- ml
@@ -1147,6 +1180,12 @@ fcst_qc <- function(fcst,
   }
 
   if (!is.null(param_info$error_sd)) {
+    
+    if (!is.na(vc)) {
+    cat("error_sd =",param_info$error_sd,"for UA variable",param,
+        "but check_obs_against_fcst does not work properly for UA - skipping!\n")
+    } else {
+    
     cat("Run check_obs_against_fcst\n")
     
     # Note: Need to be careful with lat, lon, elev, and model_elevation
@@ -1188,6 +1227,7 @@ fcst_qc <- function(fcst,
     } else {
       cat("check_obs_against_fcst did not run for ",param,"\n")
     }
+    } # vc check
   
   } else {
     cat("error_sd is not set in the parameter list, skipping check_obs_against_fcst\n")
@@ -1201,6 +1241,13 @@ fcst_qc <- function(fcst,
                                         probs = .01,
                                         names = FALSE)
     min_num_stations <- max(min_num_stations,num_days)
+    # If the number of stations available is quite small (e.g. <10) then do not remove
+    # any stations
+    if (nrow(station_count) < 10) {
+      min_num_stations <- 0
+      cat("Only found",nrow(station_count),
+          "stations in the dataset - skipping the 'infrequent' station check\n")
+    }
     
     sids_filter      <- station_count$SID[station_count$n >= min_num_stations]
     sids_removed     <- station_count$SID[station_count$n < min_num_stations]
@@ -1213,6 +1260,12 @@ fcst_qc <- function(fcst,
     } else {
       cat("No 'infrequent' stations removed\n")
     }
+  }
+  
+  # Finally, call the slapdash forecast-obs difference check if included in
+  # param_info
+  if (!is.null(param_info$fcob_diff_sd)) {
+    fcst <- fc_ob_diff_check(fcst,param,vc,num_sd = param_info$fcob_diff_sd)
   }
   
   
@@ -1325,5 +1378,69 @@ gen_sc <- function(sc_data,
   }
   
   return(sc_data)
+  
+}
+
+#================================================#
+# EXPERIMENTAL!
+# A SIMPLE WAY OF REMOVING CASES WHERE THE DIFFERENCE 
+# BETWEEN FCST OBS IS GREATER THAN X STANDARD DEVIATIONS 
+# FROM THE MEAN DIFFERENCE
+# NOT ADVISED TO USE WIDELY, BUT MAY BE HANDY FOR UA
+# WHERE check_obs_against_fcst DOES NOT WORK. USE
+# A LARGE num_sd E.G. 20 TO FOCUS ON OBVIOUS ERRORS
+#================================================#
+
+fc_ob_diff_check <- function(fcst,
+                             param,
+                             vc,
+                             num_sd = NULL) {
+  
+  if (!is.null(num_sd)) {
+    if (num_sd > 0) {
+      # Compute the difference between forecast and obs and
+      # check how far each difference is away from the mean difference.
+      # As this is essentially a check on the observations, using the first
+      # model should be sufficient
+      
+      # Forecast column to use will be either "fcst" or the first member
+      if ("fcst" %in% names(fcst[[1]])) {
+        fc_col <- "fcst"
+      } else {
+        avail_mems <- names(fcst[[1]])[grepl("_mbr0",names(fcst[[1]]),fixed=T)]
+        if (length(avail_mems) == 0) {
+          message("Could not find a matching forecast column in fc_ob_diff_check - skipping!")
+          return(fcst)
+        } else {
+          fc_col <- avail_mems[1]
+        }
+      }
+      tdf <- fcst[[1]] %>% dplyr::mutate(diff = (get(fc_col) - get(param))) %>%
+        dplyr::mutate(nsda = abs((diff - mean(diff))/sd(diff)))
+      
+      if (max(tdf$nsda) <= num_sd) {
+        cat("Max fcst-obs diff is below sd threshold of",num_sd,"\n")
+      } else {
+        tdf_remove <- tdf %>% dplyr::filter(nsda > num_sd)
+        if (nrow(tdf_remove) == nrow(fcst[[1]]) ) {
+          cat("You have removed the entire dataset with fcob_diff_sd = ",num_sd,"- skipping this check!\n")
+          return(fcst)
+        } else {
+          fcst[[1]]  <- anti_join(fcst[[1]],tdf_remove)
+          # Run common_cases to remove the same obs from other models
+          fcst <- switch(
+            vc,
+            "pressure" = harpCore::common_cases(fcst, p),
+            "height"   = harpCore::common_cases(fcst, z),
+            harpCore::common_cases(fcst)
+          )
+          cat("Removed",nrow(tdf_remove),"cases where fcst-obs diff >",num_sd,"sd from mean diff\n")
+          attr(fcst,"fcob_diff_removed") <- tdf_remove
+        }
+      }
+    }
+  }
+  
+  return(fcst)
   
 }
