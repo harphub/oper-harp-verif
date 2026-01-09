@@ -128,6 +128,10 @@ if (!interactive()) {
                       default = TRUE,
                       help    = "Use the input start/end dates in output figs/rds?
                                  If FALSE, the first/last valid fcst_dttm are used")
+  parser$add_argument("-skip_aux_plots",
+                      type    = "logical",
+                      default = FALSE,
+                      help    = "Skip the auxiliary plotting function")
   parser$add_argument("-skip_sid_verif",
                       type    = "logical",
                       default = FALSE,
@@ -150,6 +154,7 @@ if (!interactive()) {
   rolling_verif      <- args$rolling_verif
   gen_sc_only        <- args$gen_sc_only
   use_fixed_dates    <- args$use_fixed_dates
+  skip_aux_plots     <- args$skip_aux_plots
   skip_sid_verif     <- args$skip_sid_verif
   skip_thresh_verif  <- args$skip_thresh_verif
 
@@ -912,7 +917,7 @@ run_verif <- function(prm_info, prm_name) {
     #================================================#
     
     st_aux <- Sys.time()
-    if (is.na(vertical_coordinate) & (create_png)) {
+    if (is.na(vertical_coordinate) & (create_png) & (!skip_aux_plots)) {
       fn_plot_aux_scores(fcst,
                               plot_output,
                               png_projname = png_projname,

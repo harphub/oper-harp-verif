@@ -479,9 +479,10 @@ fn_run_verif_groups <- function(fcst = "",
       } else {
         stop("How did this happen?")
       }
-      if (min(verif_toplot[[t_s_str]][[obs_col_name]]) < min_thr_cases) {
-        message(paste0("The min number of observed cases in the threshold scores = ",
-                       min(verif_toplot[[t_s_str]][[obs_col_name]]),
+      if (max(verif_toplot[[t_s_str]][[obs_col_name]]) < min_thr_cases) {
+        message(paste0("The max number of observed cases in the threshold scores = ",
+                       max(verif_toplot[[t_s_str]][[obs_col_name]]),
+                       " is less than min_thr_cases = ",min_thr_cases,
                        ", skipping filtering!"))
       } else {
         verif_toplot[[t_s_str]] <- verif_toplot[[t_s_str]] %>% 
@@ -612,7 +613,8 @@ get_latlon <- function(df,
                        ind,
                        print_warning = TRUE){
   
-  sid_toget <- df[[ind]][["SID"]]
+  sid_toget <- df[[ind]][["SID"]] %>% unique()
+  sids      <- NULL
   lat_sids  <- NULL
   lon_sids  <- NULL
   fc_tmp    <- fc[[1]] 
@@ -649,13 +651,18 @@ get_latlon <- function(df,
      
     }
     
+    sids     <- c(sids,sid_i)
     lat_sids <- c(lat_sids,lat_v)
     lon_sids <- c(lon_sids,lon_v)
   }
   
   rm(fc_tmp)
-  return(list("lat_sids" = lat_sids,
-              "lon_sids" = lon_sids))
+  out_df     <- NULL
+  out_df$SID <- sids
+  out_df$lat <- lat_sids
+  out_df$lon <- lon_sids
+  out_df     <- dplyr::as_tibble(out_df) 
+  return(out_df)
 }
 
 #================================================#
@@ -667,15 +674,19 @@ fn_sid_latlon <- function(df,
                           print_warning = TRUE){
   
   ll1         <- get_latlon(df,fc,1,print_warning)
-  df[[1]]$lat <- ll1$lat_sids
-  df[[1]]$lon <- ll1$lon_sids
+  df[[1]]     <- dplyr::inner_join(df[[1]],
+                                   ll1,
+                                   by="SID",
+                                   relationship = "many-to-one")
   
   # Do the same for deterministic scores in the case of an ensemble 
   if (length(df) > 2) {
     if (nrow(df[[3]]) > 0) {
       ll3         <- get_latlon(df,fc,3,print_warning)
-      df[[3]]$lat <- ll3$lat_sids
-      df[[3]]$lon <- ll3$lon_sids
+      df[[3]]     <- dplyr::inner_join(df[[3]],
+                                       ll1,
+                                       by="SID",
+                                       relationship = "many-to-one")
     }
   }
   
@@ -1426,6 +1437,13 @@ fc_ob_diff_check <- function(fcst,
           cat("You have removed the entire dataset with fcob_diff_sd = ",num_sd,"- skipping this check!\n")
           return(fcst)
         } else {
+          # Get number of unique obs and obs removed
+          num_obs <- fcst[[1]] %>% dplyr::select(valid_dttm,SID) %>%
+            dplyr::distinct() %>% nrow()
+          num_obs_removed <- tdf_remove %>% dplyr::select(valid_dttm,SID) %>%
+            dplyr::distinct() %>% nrow()
+          
+          # Then remove
           fcst[[1]]  <- anti_join(fcst[[1]],tdf_remove)
           # Run common_cases to remove the same obs from other models
           fcst <- switch(
@@ -1434,7 +1452,8 @@ fc_ob_diff_check <- function(fcst,
             "height"   = harpCore::common_cases(fcst, z),
             harpCore::common_cases(fcst)
           )
-          cat("Removed",nrow(tdf_remove),"cases where fcst-obs diff >",num_sd,"sd from mean diff\n")
+          cat("Removed",num_obs_removed,"observations ( from a total of",num_obs,
+          ") where fcst-obs diff >",num_sd,"sd from mean diff\n")
           attr(fcst,"fcob_diff_removed") <- tdf_remove
         }
       }
