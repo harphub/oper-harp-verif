@@ -691,11 +691,19 @@ run_verif <- function(prm_info, prm_name) {
   # READ OBS, SCALE, AND JOIN
   #================================================#
   
+  if (prm_name == "T2m_uncorrected") {
+    prm_name_obs <- "T2m"
+  } else {
+    prm_name_obs <- prm_name
+  }
   obs <- try_rpobs(fcst,
-                   prm_name,
+                   prm_name_obs,
                    prm_info,
                    obs_path,
                    vertical_coordinate)
+  if (prm_name_obs != prm_name) {
+    obs <- dplyr::rename(obs,!!prm_name:=all_of(prm_name_obs))
+  }
 
   if (is.null(obs)) {
     message("No obs found for ",prm_name,", moving on to the next parameter")
@@ -723,7 +731,25 @@ run_verif <- function(prm_info, prm_name) {
     )
   }
   
-  fcst <- harpCore::join_to_fcst(fcst, obs)
+  fcst <- tryCatch(
+    {
+      harpCore::join_to_fcst(fcst, obs)
+    },
+    error = function(cond){
+      cat("An error was detected during join_to_fcst for",prm_name,"\n")
+      cat("Here is the original message:\n")
+      message(conditionMessage(cond))
+      cat("And here is what the obs datadrame looked like:\n")
+      print(obs)
+      return(NULL)
+    }
+  )
+  if (is.null(fcst)) {
+    message("Failure during join_to_fcst for ",prm_name,
+            ", moving on to next parameter")
+    return(missing_data)
+  }
+  
   fcst <- switch(
     vertical_coordinate,
     "pressure" = harpCore::common_cases(fcst, p),
@@ -745,6 +771,12 @@ run_verif <- function(prm_info, prm_name) {
                   prm_info,
                   vertical_coordinate,
                   num_days)
+  if (is.null(fcst)) {
+    message("Failure after the QC check for parameter ",prm_name,
+            ", moving on to next parameter")
+    return(missing_data)
+  }
+  
   # Add in one more common cases check to be safe
   fcst <- switch(
     vertical_coordinate,

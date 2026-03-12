@@ -751,6 +751,25 @@ fn_plot_point_verif <- function(harp_verif_input,
               if (nrow(verif_III[[c_tstr]]) == 0) {
                 next
               }
+              # Add in an extra check in case there is only one lead_time. In this
+              # case the above filtering by != "All" will not work as "All" will not
+              # exist for lead time, and you will end up including data for
+              # different valid_hour/valid_dttm if they exist
+              if (xgroup == "lead_time") {
+                if (length(unique(verif_III[[c_tstr]][["lead_time"]])) == 1) {
+                  # Only plot where valid_hour = valid_dttm = "All"
+                  # This is normally the case for lead_time != "All"
+                  cat("Special case where only a single lead time exists!\n")
+                  if ("valid_hour" %in% names(verif_III[[c_tstr]])) {
+                    verif_III[[c_tstr]] <- dplyr::filter(verif_III[[c_tstr]],
+                                                         valid_hour == "All")
+                  }
+                  if ("valid_dttm" %in% names(verif_III[[c_tstr]])) {
+                    verif_III[[c_tstr]] <- dplyr::filter(verif_III[[c_tstr]],
+                                                         valid_dttm == "All")
+                  }
+                }
+              }
               p_c <- fn_plot_point(verif_III,
                                    c_title_str,
                                    subtitle_str,
@@ -852,9 +871,31 @@ fn_plot_point_verif <- function(harp_verif_input,
             # Not sure if this will ever be used since SID and valid_hour are
             # currently grouped together. Hence in fn_check_verif, validhours
             # will be set to whatever is available.
-            if (validhours[1] == "NA") { # I don't think this will ever happen
-              # Average scores only
-              c_subtitle <- paste0(subtitle_str," : Average")
+            # 03/03/26: Correction, this can occur if there is only one valid
+            # hour in the data, in which case it is removed as a group when
+            # running the SID verif!
+            if (is.na(validhours[1])) {
+              
+              if (!is.null(attributes(verif_input)$all_vhs_avail)) {
+                avha <- attributes(verif_input)$all_vhs_avail
+                if (length(avha) != 1) {
+                  stop("Something weird happened with valid_hours, aborting")
+                } else {
+                  if (!is.null(alta)) {
+                    lt_used    <- fn_get_lts_used(avha,cycle,allcycles,alta)
+                    c_subtitle <- paste0(subtitle_str,": ",lt_used)
+                  } else {
+                    c_subtitle <- subtitle_str
+                  }
+                  c_subtitle <- paste0(subtitle_str," : Valid hour = ",avha,"Z")
+                  ns_val <- fn_get_n_stations(n_stations,station_group_var,station,cycle,avha)
+                }
+              } else {
+                # Average scores only
+                c_subtitle <- paste0(subtitle_str," : Average")
+                ns_val <- NULL
+              }
+              
               verif_III  <- verif_II
               if (grepl("ctrl",score_orig)) {
                 verif_III[[c_tstr]] <- dplyr::filter(verif_III[[c_tstr]],
@@ -866,19 +907,29 @@ fn_plot_point_verif <- function(harp_verif_input,
               if (nrow(verif_III[[c_tstr]]) == 0) {
                 next
               }
+              
+              # Replace number of stations with correct one for this vhour
+              if (!is.null(ns_val)) {
+                c_subtitle <- gsub("*\\(.*?\\) *",
+                                   paste0("(",ns_val,")"),
+                                   c_subtitle)
+              }
+              
               p_c <- fn_plot_map(verif_III,
                                  c_title_str,
                                  c_subtitle,
                                  fxoption_list,
                                  vroption_list)
               
-              fn_save_png(p_c           = p_c,
-                          fxoption_list = fxoption_list,
-                          vroption_list = vroption_list,
-                          fcst_type     = fcst_type,
-                          score         = score_orig,
-                          vlt           = "All",
-                          map_ind       = TRUE)
+              if (is.object(p_c)) {
+                fn_save_png(p_c           = p_c,
+                            fxoption_list = fxoption_list,
+                            vroption_list = vroption_list,
+                            fcst_type     = fcst_type,
+                            score         = score_orig,
+                            vlt           = "All",
+                            map_ind       = TRUE)
+              }
               
             } else {
               

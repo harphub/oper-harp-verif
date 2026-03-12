@@ -423,6 +423,7 @@ fn_run_verif_groups <- function(fcst = "",
       }
       # Add all lead times used as an attribute 
       attr(verif_sid,"all_lts_avail") <- as.character(sort(unique(fcst_sid_tmp[[1]]$lead_time)))
+      attr(verif_sid,"all_vhs_avail") <- as.character(sort(unique(fcst_sid_tmp[[1]]$valid_hour)))
       rm(fcst_sid_tmp)
       
       # Need to add lat/lon to the SIDs
