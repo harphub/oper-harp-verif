@@ -28,6 +28,15 @@ params <- list(
       error_sd   = 6,
       models_to_scale = NULL
     ),
+    T2m_uncorrected = list(
+      thresholds = c(-20, -10, seq(-5, 25, 5)),
+      scale_fcst = list(scaling = -273.15, new_units = "degC"),
+      scale_obs  = list(scaling = -273.15, new_units = "degC"),
+      obsmin_val = 273.15 - 30,
+      obsmax_val = 273.15 + 50,
+      error_sd   = 6,
+      models_to_scale = NULL
+    ),
     Td2m = list(
       thresholds = c(-20, -10, seq(-5, 25, 5)),
       scale_fcst = list(scaling = -273.15, new_units = "degC"),
