@@ -43,11 +43,10 @@ fn_plot_tile_scorecard <- function(sc_input,
   png_archive <- check_png_sedate(start_date,end_date,png_archive)
   
   # Define some figure widths/heights
-  sc_fh     <- 8
-  sc_fw     <- 12
   fig_units <- "in"
   fig_dpi   <- 200
-
+  sc_fw     <- 14
+  
   domains       <- unique(names(sc_input))
   scores_tables <- names(sc_input[[1]][[1]])
   if (all(grepl("det_",scores_tables))) {
@@ -106,7 +105,7 @@ fn_plot_tile_scorecard <- function(sc_input,
     abs(df_all$signed_percent_diff_mean[df_all$sig == "Better"])
   df_all$signed_percent_diff_mean[df_all$sig == "Worse"]   <-
     -abs(df_all$signed_percent_diff_mean[df_all$sig == "Worse"])
-  df_all$signed_percent_diff_mean[df_all$sig == "Neutral"] <- NA
+  df_all$signed_percent_diff_mean[df_all$sig == "Neutral"] <- 0
   df_all$diff_text                                         <- 
     df_all$difference_mean_round
   df_all$diff_text[df_all$sig == "Neutral"]                <- NA
@@ -138,6 +137,15 @@ fn_plot_tile_scorecard <- function(sc_input,
       fcst_model == fcstmodel,
       ref_model  == refmodel)
     
+    # Set figure height
+    sc_fh <- 10
+    if (length(unique(data_cur$parameter)) > 12) {
+      sc_fh <- 14
+    }
+    if (length(scores_to_plot) > 3) {
+      sc_fh <- sc_fh + 4
+    }
+    
     sc_title1 <- paste0("Models: ",fcstmodel," vs ",
                       refmodel," (reference)")
     sc_title2 <- paste0("Station selection: ",dc,", Period: ",
@@ -146,32 +154,45 @@ fn_plot_tile_scorecard <- function(sc_input,
       " (",num_cycles," cycles), Significance level: ",100*significance,"%")
     
     qwe_all <- list()
+    cbar_opts_bias <- fn_get_map_cbar(T,-100,100,"bias","sc_percentage","NA")
     for (ii in seq(1,length(scores_to_plot))) {
       qwe  <- data_cur %>% dplyr::filter(score == scores_to_plot[ii])
       cmin <- max(min(tidyr::drop_na(qwe)[["signed_percent_diff_mean"]]) - 0.1,-100)
       cmax <- min(max(tidyr::drop_na(qwe)[["signed_percent_diff_mean"]]) + 0.1,100)
-
+      # Get the cmap and brks
+      cbar_opts <- fn_get_map_cbar(T,cmin,cmax,"bias","sc_percentage","NA")
+      param_order <- unique(qwe$parameter)
+      # Add in NAs where data is missing i.e. fill out the grid
+      df_grid   <- expand.grid(lead_time = unique(qwe$lead_time),
+                               parameter = unique(qwe$parameter))
+      qwe       <- merge(qwe, df_grid, by = c("lead_time", "parameter"), all = TRUE)
+      qwe$score <- scores_to_plot[ii] # Avoids faceting by NA
       if (scores_to_plot[ii] %in% c("bias","mean_bias")) {
         # Only indicate better/worse with actual diff as text. Percentage
         # diff not really useful for bias.
         qwe$signed_percent_diff_mean[qwe$sig == "Better"] <- "Better"
         qwe$signed_percent_diff_mean[qwe$sig == "Worse"]  <- "Worse"
-        gg <- ggplot2::ggplot(qwe,
-                              aes(x     = lead_time,
-                                  y     = (parameter),
-                                  fill  = signed_percent_diff_mean,
-                                  label = diff_text)) +
-          ggplot2::geom_tile() +
-          ggplot2::geom_text() +
+        qwe$signed_percent_diff_mean[qwe$sig == "Neutral"]  <- "Neutral"
+        qwe_all[[ii]] <- ggplot2::ggplot(qwe,aes(x=lead_time,y=parameter)) +
+          ggplot2::geom_tile(data = subset(qwe, !is.na(signed_percent_diff_mean)),
+                             aes(fill  = signed_percent_diff_mean)) +
+          ggplot2::geom_tile(data = subset(qwe, is.na(signed_percent_diff_mean)),
+                             fill="gray90",colour=NA) +
+          ggplot2::geom_hline(yintercept = (seq_len(length(unique(qwe$parameter)))-0.5),
+                              colour = "black",
+                              linewidth = 0.5) +
+          ggplot2::geom_text(aes(label = diff_text),color="black") +
           ggplot2::scale_fill_manual(
             "",
-            values   = c("Better" = "#6c91c6","Worse" = "#e6897f","NA" = "white"),
-            na.value = "white",
+            values   = c("Better"  = tail(cbar_opts_bias$cmap,1),
+                         "Worse"   = cbar_opts_bias$cmap[[1]],
+                         "Neutral" = cbar_opts_bias$cmap[length(cbar_opts_bias$brks)/2]),
+            na.value = "gray90",
             labels   = formatC(c("","",""),width = 6)) +
           ggplot2::facet_wrap(~score,
                               labeller = ggplot2::as_labeller(label_facet)) +
           ggplot2::theme_bw() +
-          ggplot2::ylim(rev(unique(qwe$parameter))) +
+          ggplot2::ylim(rev(param_order)) +
           ggplot2::scale_x_continuous(breaks = unique(qwe$lead_time),
                                       expand = c(0,0)) +
           ggplot2::theme(panel.grid.major = ggplot2::element_blank(),
@@ -184,28 +205,52 @@ fn_plot_tile_scorecard <- function(sc_input,
                          legend.text      = ggplot2::element_text(size = 10),
                          legend.position  = "right")
       } else {
-        gg <- ggplot2::ggplot(qwe,
-                              aes(x     = lead_time,
-                                  y     = (parameter),
-                                  fill  = signed_percent_diff_mean,
-                                  label = diff_text)) +
-          ggplot2::geom_tile() +
-          ggplot2::geom_text() +
-          ggplot2::scale_fill_gradient2(
-            "%",
-            guide   = ggplot2::guide_colourbar(title.position = "top"),
-            labels  = function(x) formatC(x,width = 3),
-            low     = "#cd4a44",
-            mid     = "white",
-            high    = "#2970b3",
-            oob     = scales::squish,
-            n.breaks = 5,
-            na.value = "white",
-            limits   = c(cmin,cmax)) +
+        qwe_all[[ii]] <- ggplot2::ggplot(qwe,aes(x=lead_time,y=parameter)) +
+          ggplot2::geom_tile(data = subset(qwe, !is.na(signed_percent_diff_mean)),
+                             aes(fill  = signed_percent_diff_mean)) +
+          ggplot2::geom_tile(data = subset(qwe, is.na(signed_percent_diff_mean)),
+                             fill="gray90",colour=NA) +
+          ggplot2::geom_hline(yintercept = (seq_len(length(unique(qwe$parameter)))-0.5),
+                              colour = "black",
+                              linewidth = 0.5) +
+          ggplot2::geom_text(aes(label = diff_text),color="black") +
+          #ggplot2::scale_fill_gradient2(
+          #  "%",
+          #  guide   = ggplot2::guide_colourbar(title.position = "top"),
+          #  labels  = function(x) formatC(x,width = 3),
+          #  low     = "#cd4a44",
+          #  mid     = "white",
+          #  high    = "#2970b3",
+          #  oob     = scales::squish,
+          #  n.breaks = 5,
+          #  na.value = "bisque",
+          #  limits   = c(cmin,cmax)) +
+          # Note that adding local here is require to avoid sharing cbar
+          # attributes over multiple plots!
+          ggplot2::binned_scale(
+            scale_name = paste0("sc_plot_",ii),
+            name       = paste0("%"),
+            aesthetics = "fill",
+            palette    = local({
+              pal <- cbar_opts$cmap
+              function(x) pal
+            }),
+            breaks     = local({
+              cbrks <- cbar_opts$brks
+              cbrks
+            }),
+            limits     = local({
+              clims <- c(min(cbar_opts$brks),max(cbar_opts$brks))
+              clims
+            }),
+            labels     = function(x) round(x,2),
+            oob        = scales::squish,
+            guide      = "colorsteps"
+          ) +
           ggplot2::facet_wrap(~score,
                               labeller = ggplot2::as_labeller(label_facet)) +
           ggplot2::theme_bw() +
-          ggplot2::ylim(rev(unique(qwe$parameter))) +
+          ggplot2::ylim(rev(param_order)) +
           ggplot2::scale_x_continuous(breaks = unique(qwe$lead_time),
                                       expand = c(0,0)) +
           ggplot2::theme(panel.grid.major = ggplot2::element_blank(),
@@ -217,10 +262,10 @@ fn_plot_tile_scorecard <- function(sc_input,
                          legend.text      = ggplot2::element_text(size   = 10,
                                                          family = "mono"),
                          legend.key.width = grid::unit(0.5,"cm"),
+                         legend.key.height = grid::unit(1,"cm"),
                          legend.position  = "right")
       }
       
-      qwe_all[[ii]] <- gg
     }
         
     p_scrd <- qwe_all %>% 

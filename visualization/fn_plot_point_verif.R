@@ -761,12 +761,16 @@ fn_plot_point_verif <- function(harp_verif_input,
                   # This is normally the case for lead_time != "All"
                   cat("Special case where only a single lead time exists!\n")
                   if ("valid_hour" %in% names(verif_III[[c_tstr]])) {
-                    verif_III[[c_tstr]] <- dplyr::filter(verif_III[[c_tstr]],
-                                                         valid_hour == "All")
+                    if ("All" %in% unique(verif_III[[c_tstr]][["valid_hour"]])){
+                      verif_III[[c_tstr]] <- dplyr::filter(verif_III[[c_tstr]],
+                                                           valid_hour == "All")
+                    }
                   }
                   if ("valid_dttm" %in% names(verif_III[[c_tstr]])) {
-                    verif_III[[c_tstr]] <- dplyr::filter(verif_III[[c_tstr]],
-                                                         valid_dttm == "All")
+                    if ("All" %in% unique(verif_III[[c_tstr]][["valid_dttm"]])){
+                      verif_III[[c_tstr]] <- dplyr::filter(verif_III[[c_tstr]],
+                                                           valid_dttm == "All")
+                    }
                   }
                 }
               }

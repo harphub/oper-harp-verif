@@ -143,15 +143,22 @@ fn_scorecard_signif <- function(sc_input,
   fig_units <- "in"
   fig_dpi   <- 200
   
-  # Choosing the appropriate figure height and width for scorecards is a 
-  # little awkward (depends on number of params+scores)
-  sc_fh <- 8
-  sc_fw <- 12
-  
   for (dc in names(sc_data)) {
     
     sc_current <- sc_data[[dc]]
     sc_df      <- harpPoint::bind_point_verif(sc_current)
+    
+    # Choosing the appropriate figure height and width for scorecards is a 
+    # little awkward (depends on number of params+scores)
+    sc_fh <- 8
+    sc_fw <- 12
+    nump  <- length(names(sc_current))
+    if (nump > 12) {
+      sc_fh <- 12
+    }
+    if (length(scores_to_plot) > 3) {
+      sc_fw <- 15
+    }
     
     #================================================#
     # SCORECARD 
