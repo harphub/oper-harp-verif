@@ -2,7 +2,7 @@
 # SIMPLE SHINY SCRIPT FOR DISPLAYING STATIC IMAGES
 # 
 # THIS APP ASSUMES THAT THE PNGS ARE STORED USING THE FOLLOWING DIRECTORY STRUCTURE:
-# img_dir/EXPNAME/DTGSTART-DTGEND/*.png
+# img_dir/EXPNAME/DTGSTART-DTGEND/*.img_type
 # WHERE img_dir IS SET BELOW
 #
 # EXPNAME AND DTGSTART-DTGEND WILL BE USED TO DISPLAY THE EXPERIMENTS AVAILABLE AND 
@@ -10,7 +10,7 @@
 # 
 # THE APP ASSUMES A FIXED FILENAME CONVENTION OF THE FORM OUTLINED IN fn_png_name (fn_plot_helpers.R)
 #
-# PARAM-FTPE-SCORE-XAXIS-FC-DTGSTART-DTGEND-STATION-VALID(LT)(LEVEL)-THRESHOLD.png
+# PARAM-FTPE-SCORE-XAXIS-FC-DTGSTART-DTGEND-STATION-VALID(LT)(LEVEL)-THRESHOLD.img_type
 #
 # WHERE:
 #
@@ -71,6 +71,11 @@ img_dir <- shiny::getShinyOption("img_dir",
 if ((is.null(img_dir)) || (!dir.exists(img_dir))){
   stop("Error: Please set img_dir to an existing directory.")
 }
+
+# Image format type - can be muliple types delineated by "|"
+img_type <- shiny::getShinyOption("img_type",
+                                  default = "webp|png")
+img_vec  <- unlist(strsplit(img_type,"|",fixed=T)) 
 
 # Seasonal/Monthly/Rolling switch for date display in the app.
 # To be use in oper context, assumes that Seasonal/Monthly/Rolling directories
@@ -873,15 +878,15 @@ server <- function(input, output, session) {
     }
   })
   # Add an extra check to handle the case where the project name is included
-  # as the first element of the png name
+  # as the first element of the image name
   proj_name_flag <- shiny::reactive({
-    raw_files <- list.files(path = data_dirname(),pattern="*.png")
+    raw_files <- list.files(path = data_dirname(),pattern=paste0("*.",img_type))
     fa <- unique(unlist(lapply(strsplit(raw_files,"-"),'[',1)))
     input$expname %in% fa
   })
   # All images in this directory
   all_files <- shiny::reactive({
-    raw_files <- list.files(path = data_dirname(),pattern="*.png")
+    raw_files <- list.files(path = data_dirname(),pattern=paste0("*.",img_type))
     # Now rename based on proj_name_flag
     if (proj_name_flag()){
       # Get the files without the project name
@@ -1249,7 +1254,7 @@ server <- function(input, output, session) {
   
   # Now get the available valid/lead times
   validtime_out <- shiny::reactive({
-    vo <- gsub(".png","",unique(unlist(lapply(strsplit(rrrrel_files(),"-"),'[',9))))
+    vo <- gsub(paste0(".",img_vec,collapse = "|"),"",unique(unlist(lapply(strsplit(rrrrel_files(),"-"),'[',9))))
     vo <- vo[!is.na(vo)] # Drop any NA
     rname_flag = TRUE
     if (input$vartype == surf_tab_name){
@@ -1335,7 +1340,7 @@ server <- function(input, output, session) {
   
   # Now get the available thresholds (again for a selected parameter+station+score+initial time)
   threshold_out <- shiny::reactive({
-    tho <- gsub(".png","",unique(unlist(lapply(strsplit(rrrrel_files(),"-"),'[',10))))
+    tho <- gsub(paste0(".",img_vec,collapse = "|"),"",unique(unlist(lapply(strsplit(rrrrel_files(),"-"),'[',10))))
     tho <- tho[!is.na(tho)] # Drop any NA
     rname_flag = TRUE
     if (input$vartype == surf_tab_name){
@@ -1439,7 +1444,7 @@ server <- function(input, output, session) {
     # Define the filename
     fname_base <- paste0(input$param,"-",mty,"-",input$score,"-",input$inittime,"-",
                          input$dates,"-",input$station,"-",input$validtime,"-",input$threshold)
-    fname    <- paste0(fname_base,".png")
+    fname    <- paste0(fname_base,".",img_vec)
     if (proj_name_flag()){
       fname <- paste0(input$expname,"-",fname)
     }
@@ -1451,6 +1456,18 @@ server <- function(input, output, session) {
     }
 
     filename <- file.path(data_dirname(),fname)
+    if (length(filename) > 1) {
+      for (ii in seq(1,length(filename))) {
+        if (file.exists(filename[ii])) {
+          filename <- filename[ii]
+          break
+        }
+      }
+    }
+    # If no file was found above, just use the first one
+    if (length(filename) > 1){
+      filename <- filename[1]
+    }
  
     # Return a list containing the filename
     list(src    = filename,
@@ -1572,7 +1589,7 @@ server <- function(input, output, session) {
     })
     # All images in this directory
     all_files <- shiny::reactive({
-      raw_files <- list.files(path = data_dirname(),pattern="*.png")
+      raw_files <- list.files(path = data_dirname(),pattern=paste0("*.",img_type))
       # Remove "panel_" and panel_case
       req(length(raw_files)>0)
       raw_files <- gsub("panel-","",raw_files)
@@ -1706,7 +1723,7 @@ server <- function(input, output, session) {
                                                      split = paste0("-",input$panel_forecast,"-"),fixed=T),
                                             '[',2)))
         req(length(model_avail)>0)
-        model_avail  <- gsub(".png","",model_avail)
+        model_avail  <- gsub(paste0(".",img_vec,collapse = "|"),"",model_avail)
         model_format <- gsub("-","+",model_avail)
         stats::setNames(model_avail,model_format)
       } else {
@@ -1777,8 +1794,20 @@ server <- function(input, output, session) {
                           input$panel_forecast,
                           input$panel_model,
                           sep = "-")
-      fname      <- paste0(fname_base,".png")
+      fname      <- paste0(fname_base,".",img_vec)
       filename   <- file.path(data_dirname(),fname)
+      if (length(filename) > 1) {
+        for (ii in seq(1,length(filename))) {
+          if (file.exists(filename[ii])) {
+            filename <- filename[ii]
+            break
+          }
+        }
+      }
+      # If no file was found above, just use the first one
+      if (length(filename) > 1){
+        filename <- filename[1]
+      }
       # Return a list containing the filename
       list(src    = filename,
            #width  = c_width,  # Use CSS scaling

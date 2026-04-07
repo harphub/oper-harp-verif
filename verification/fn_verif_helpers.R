@@ -1245,6 +1245,13 @@ fcst_qc <- function(fcst,
     cat("error_sd is not set in the parameter list, skipping check_obs_against_fcst\n")
   }
   
+  # Add check in case check_obs_against_fcst removed everything!
+  if (nrow(fcst[[1]]) == 0) {
+    cat("Looks like check_obs_against_fcst removed all observations for",param,"\n")
+    cat("Skipping this parameter as the observations seem to be incorrect\n")
+    return(NULL)
+  }
+  
   # Remove stations that only occur very infrequently (surface variables only)
   if (is.na(vc)) {
     station_count    <- fcst[[1]] %>% dplyr::count(SID)

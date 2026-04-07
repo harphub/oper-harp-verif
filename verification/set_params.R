@@ -23,7 +23,7 @@ params <- list(
       thresholds = c(-20, -10, seq(-5, 25, 5)),
       scale_fcst = list(scaling = -273.15, new_units = "degC"),
       scale_obs  = list(scaling = -273.15, new_units = "degC"),
-      obsmin_val = 273.15 - 30,
+      obsmin_val = 273.15 - 50,
       obsmax_val = 273.15 + 50,
       error_sd   = 6,
       models_to_scale = NULL
@@ -32,7 +32,7 @@ params <- list(
       thresholds = c(-20, -10, seq(-5, 25, 5)),
       scale_fcst = list(scaling = -273.15, new_units = "degC"),
       scale_obs  = list(scaling = -273.15, new_units = "degC"),
-      obsmin_val = 273.15 - 30,
+      obsmin_val = 273.15 - 50,
       obsmax_val = 273.15 + 50,
       error_sd   = 6,
       models_to_scale = NULL
@@ -41,7 +41,7 @@ params <- list(
       thresholds = c(-20, -10, seq(-5, 25, 5)),
       scale_fcst = list(scaling = -273.15, new_units = "degC"),
       scale_obs  = list(scaling = -273.15, new_units = "degC"),
-      obsmin_val = 273.15 - 30,
+      obsmin_val = 273.15 - 50,
       obsmax_val = 273.15 + 50,
       error_sd   = 6
     ),
@@ -49,7 +49,7 @@ params <- list(
       thresholds = c(-20, -10, seq(-5, 25, 5)),
       scale_fcst = list(scaling = -273.15, new_units = "degC"),
       scale_obs  = list(scaling = -273.15, new_units = "degC"),
-      obsmin_val = 273.15 - 30,
+      obsmin_val = 273.15 - 50,
       obsmax_val = 273.15 + 50,
       error_sd   = 6
     ),
@@ -57,7 +57,7 @@ params <- list(
       thresholds = c(-20, -10, seq(-5, 25, 5)),
       scale_fcst = list(scaling = -273.15, new_units = "degC"),
       scale_obs  = list(scaling = -273.15, new_units = "degC"),
-      obsmin_val = 273.15 - 30,
+      obsmin_val = 273.15 - 50,
       obsmax_val = 273.15 + 50,
       error_sd   = 6
     ),
