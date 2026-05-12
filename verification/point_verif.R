@@ -32,9 +32,11 @@ suppressPackageStartupMessages({
 if ("sf" %in% rownames(installed.packages())) {
   library(sf)
   sf_available <- T
+  world_data   <- rnaturalearth::ne_countries(scale = "medium", returnclass = "sf")
 } else {
   cat("sf package not found - filtering via poly files will not work and will be skipped!\n")
   sf_available <- F
+  world_data   <- ggplot2::map_data("world")
 }
 if ("cowplot" %in% rownames(installed.packages())) {
   library(cowplot)
@@ -205,12 +207,19 @@ by_step         <- check_config_input(CONFIG,"verif","by_step")
 fcst_type       <- check_config_input(CONFIG,"verif","fcst_type")
 fcst_path       <- check_config_input(CONFIG,"verif","fcst_path")
 obs_path        <- check_config_input(CONFIG,"verif","obs_path")
+model_as_obs    <- check_config_input(CONFIG,"verif","model_as_obs",default=FALSE)
+if (!isFALSE(model_as_obs)) {
+  model_as_obs_name <- check_config_input(CONFIG,"verif","model_as_obs",z="model_as_obs_name")
+  model_as_obs_path <- check_config_input(CONFIG,"verif","model_as_obs",z="model_as_obs_path")
+  model_as_obs_tmpl <- check_config_input(CONFIG,"verif","model_as_obs",z="model_as_obs_tmpl",default = "fctable")
+}
 verif_path      <- check_config_input(CONFIG,"verif","verif_path")
 domains         <- check_config_input(CONFIG,"verif","domains",default="All")
 domains_UA      <- check_config_input(CONFIG,"verif","domains_UA",default=list(NULL))
 members         <- CONFIG$verif$members
 lags            <- check_config_input(CONFIG,"verif","lags")
 shifts          <- check_config_input(CONFIG,"verif","shifts",default=list(NULL))
+file_template   <- check_config_input(CONFIG,"verif","file_template",default="fctable")
 num_ref_members <- check_config_input(CONFIG,"verif","num_ref_members",default="Inf")
 ua_fcst_cycle   <- check_config_input(CONFIG,"verif","ua_fcst_cycle",default=F)
 ua_restrict_vh  <- check_config_input(CONFIG,"verif","ua_restrict_vh",default=T)
@@ -218,6 +227,8 @@ lt_split        <- check_config_input(CONFIG,"verif","lt_split",default=F)
 force_valid_thr <- check_config_input(CONFIG,"verif","force_valid_thr",default=F)
 plot_output     <- check_config_input(CONFIG,"post","plot_output",default="default")
 create_png      <- check_config_input(CONFIG,"post","create_png",default=T)
+use_parallel    <- check_config_input(CONFIG,"post","use_parallel",default=F)
+use_parallel_c  <- check_config_input(CONFIG,"post","use_parallel_c",default = -1)
 save_vofp       <- check_config_input(CONFIG,"post","save_vofp",default=F)
 save_sidrds     <- check_config_input(CONFIG,"post","save_sidrds",default=F)
 cmap            <- check_config_input(CONFIG,"post","cmap",default="Set2")
@@ -229,6 +240,7 @@ create_scrd     <- check_config_input(CONFIG,"scorecards","create_scrd",default=
 members_list    <- get_named_list(members,fcst_model,"members")
 lags_list       <- get_named_list(lags,fcst_model,"lags")
 shifts_list     <- get_named_list(shifts,fcst_model,"shifts")
+file_template   <- get_named_list(file_template,fcst_model,"file_template")
 
 # Abort if directories do not exist
 check_dirs_exist(c(fcst_path,obs_path,verif_path))
@@ -432,7 +444,7 @@ if (gen_sc_only) {
     silent_stop("Switch create_scrd to TRUE in config")
   }
 }
-if (length(params) == 1) {
+if ((length(params) == 1) & (!gen_sc_only)) {
   cat("Only one input parameter, switching off scorecard generation\n")
   create_scrd <- FALSE
 }
@@ -454,6 +466,24 @@ if (use_fixed_dates) {
   fed <- NA_character_
 }
 
+# Check for parallel image generation
+if ((use_parallel) && (create_png)) {
+  if ("future.apply" %in% rownames(installed.packages())) {
+    if (use_parallel_c>1) {
+      use_parallel_c <- floor(use_parallel_c)
+      cat("Starting",use_parallel_c,"workers for parallel image generation\n")
+      library(future.apply)
+      plan(multisession,workers=use_parallel_c)
+    } else {
+      cat("use_parallel_c =",use_parallel_c,"- it should be a whole number >1!\n")
+      use_parallel <- FALSE
+    }
+  } else {
+    cat("use_parallel is TRUE but future.apply was not found, switching off\n")
+    use_parallel <- FALSE
+  }
+}
+
 # Set default lead_time
 lead_time_default <- lead_time
 
@@ -467,12 +497,14 @@ model_domain_min <- create_station_filter(start_date,
                                           fcst_model,
                                           param_csf,
                                           fcst_path,
+                                          file_template,
                                           sl_dir)
 
 # Get members and lags corresponding to this model_domain_min
 if (!is.na(model_domain_min)) {
   members_domain_min <- members_list[[model_domain_min]]
   lags_domain_min    <- lags_list[[model_domain_min]]
+  file_template_domain_min <- file_template[[model_domain_min]]
 }
 
 #================================================#
@@ -567,6 +599,7 @@ run_verif <- function(prm_info, prm_name) {
                                members_domain_min,
                                lags_domain_min,
                                fcst_path,
+                               file_template_domain_min,
                                NULL,
                                vertical_coordinate)
     
@@ -593,6 +626,7 @@ run_verif <- function(prm_info, prm_name) {
                          members_list,
                          lags_list,
                          fcst_path,
+                         file_template,
                          stations_filter,
                          vertical_coordinate)
   
@@ -657,28 +691,8 @@ run_verif <- function(prm_info, prm_name) {
     harpCore::common_cases(fcst)
   )
   
-  if (!is.null(prm_info$scale_fcst)) {
-    # Check if we need to scale models differently for this parameter
-    if (is.null(prm_info$models_to_scale)) {
-      cat("Scaling all models using the same scale_fcst\n")
-      fcst <- do.call(
-        harpCore::scale_param,
-        c(list(x = fcst), 
-          prm_info$scale_fcst))
-    } else {
-      for (cm in prm_info$models_to_scale) {
-        cat("Scaling the forecast for model",cm,"\n")
-        if (!(cm %in% names(fcst))) {
-          cat("Warning: You are trying to scale model",cm,"but it was not found in the data\n")
-        } else {
-          fcst[[cm]] <- do.call(
-            harpCore::scale_param,
-            c(list(x = fcst[[cm]]), 
-              prm_info$scale_fcst))
-        }
-      }
-    }
-  }
+  # Scale the forecast object
+  fcst <- scale_fcst(fcst,prm_info)
   
   # Filter forecasts to max value if indicated in the param file
   # For ensembles, all members must be <= the maximum
@@ -696,6 +710,9 @@ run_verif <- function(prm_info, prm_name) {
   } else {
     prm_name_obs <- prm_name
   }
+  
+  # Read the actual observations or use a model as observations
+  if (isFALSE(model_as_obs)){
   obs <- try_rpobs(fcst,
                    prm_name_obs,
                    prm_info,
@@ -730,6 +747,42 @@ run_verif <- function(prm_info, prm_name) {
              prm_info$scale_obs)
     )
   }
+  } else {
+    
+    cat("Using forecast model",model_as_obs_name,"at lead_time=0 as observations!\n")
+    # Now do try_rpforecast 
+    all_valid <- harpCore::unique_valid_dttm(fcst[[1]]) %>% sort()
+    mm        <- list(NULL)
+    names(mm) <- model_as_obs_name
+    lm        <- list("0h")
+    names(lm) <- model_as_obs_name
+    obs <- try_rpforecast(all_valid[1],
+                          tail(all_valid,1),
+                          "1h",
+                          model_as_obs_name,
+                          fcst_type,
+                          prm_name,
+                          0,
+                          mm,
+                          lm,
+                          model_as_obs_path,
+                          model_as_obs_tmpl,
+                          stations_filter,
+                          vertical_coordinate)
+    
+    if (is.null(obs)) {
+      message("Failure during the FCTABLE reading process for ",prm_name,
+              ", moving on to the next parameter")
+      return(missing_data)
+    }
+    
+    # Now scale and drop columns
+    obs <- scale_fcst(obs,prm_info)
+    obs <- obs %>% dplyr::select(-fcst_model,-fcst_dttm,-lead_time,-fcst_cycle) %>%
+      dplyr::rename(!!prm_name:="fcst")
+    obs <- obs[[1]]
+    
+  }
   
   fcst <- tryCatch(
     {
@@ -739,8 +792,10 @@ run_verif <- function(prm_info, prm_name) {
       cat("An error was detected during join_to_fcst for",prm_name,"\n")
       cat("Here is the original message:\n")
       message(conditionMessage(cond))
-      cat("And here is what the obs datadrame looked like:\n")
+      cat("And here is what the obs dataframe looked like:\n")
       print(obs)
+      cat("And here is the forecast dataframe:\n")
+      print(fcst)
       return(NULL)
     }
   )
@@ -952,13 +1007,14 @@ run_verif <- function(prm_info, prm_name) {
     if (is.na(vertical_coordinate) & (create_png) & (!skip_aux_plots)) {
       fn_plot_aux_scores(fcst,
                               plot_output,
-                              png_projname = png_projname,
+                              png_projname  = png_projname,
                               rolling_verif = rolling_verif,
-                              cmap = cmap,
-                              cmap_hex = cmap_hex,
-                              lt_split = lt_split,
-                              fsd  = fsd,
-                              fed  = fed)
+                              cmap          = cmap,
+                              cmap_hex      = cmap_hex,
+                              lt_split      = lt_split,
+                              fsd           = fsd,
+                              fed           = fed,
+                              use_parallel  = use_parallel)
     }
     et_aux <- Sys.time()
     dt_aux <- round(as.numeric(et_aux - st_aux,units = "secs"))
@@ -1011,24 +1067,28 @@ run_verif <- function(prm_info, prm_name) {
       
       fn_plot_point_verif(verif_toplot,
                                plot_output,
-                               png_projname = png_projname,
+                               png_projname  = png_projname,
                                rolling_verif = rolling_verif,
-                               cmap = cmap,
-                               map_cbar_d = map_cbar_d,
-                               fsd  = fsd,
-                               fed  = fed,
-                               n_stations = n_stations)
+                               cmap          = cmap,
+                               map_cbar_d    = map_cbar_d,
+                               fsd           = fsd,
+                               fed           = fed,
+                               n_stations    = n_stations,
+                               use_parallel  = use_parallel,
+                               plot_num_obs  = TRUE,
+                               fcst          = fcst)
       if ((is.na(vertical_coordinate)) & (!is.null(verif_sid))) {
         fn_plot_point_verif(verif_sid,
                                  plot_output,
-                                 table_SIDS = FALSE,
-                                 png_projname = png_projname,
+                                 table_SIDS    = FALSE,
+                                 png_projname  = png_projname,
                                  rolling_verif = rolling_verif,
-                                 cmap = cmap,
-                                 map_cbar_d = map_cbar_d,
-                                 fsd  = fsd,
-                                 fed  = fed,
-                                 n_stations = n_stations)
+                                 cmap          = cmap,
+                                 map_cbar_d    = map_cbar_d,
+                                 fsd           = fsd,
+                                 fed           = fed,
+                                 n_stations    = n_stations,
+                                 use_parallel  = use_parallel)
         # Save the verification object used for SIDs if desired
         if (save_sidrds) {
           sidname <- paste(project_name,prm_name,"SID",start_date,end_date,sep = "_")
@@ -1037,7 +1097,6 @@ run_verif <- function(prm_info, prm_name) {
                                      paste0(sidname,".rds")))
         }
       }
-  
     }
     
     # Save the verification object used for plotting pngs if desired

@@ -114,6 +114,8 @@ file_template <- check_config_input(CONFIG,"pre","vfld_template")
 params        <- CONFIG$pre$params
 by_val        <- check_config_input(CONFIG,"pre","vfld_by")
 fcst_path     <- check_config_input(CONFIG,"verif","fcst_path")
+correct_t2m   <- check_config_input(CONFIG,"pre","correct_t2m",default=T)
+keep_uncort2m <- check_config_input(CONFIG,"pre","keep_uncort2m",default=F)
 
 # Create list of members (required when generating tables for eps experiments)
 members_list  <- get_named_list(CONFIG$pre$members,fcst_model,"members")
@@ -225,7 +227,8 @@ harpIO::read_forecast(
   file_template       = file_template,
   output_file_opts    = harpIO::sqlite_opts(path = fcst_path,
                                             remove_model_elev = remove_m_elev),
-  transformation_opts = harpIO::interpolate_opts(correct_t2m = TRUE,
+  transformation_opts = harpIO::interpolate_opts(correct_t2m = correct_t2m,
+                                                 keep_model_t2m = keep_uncort2m,
                                                  stations = stations_rf),
   return_data         = FALSE
 )

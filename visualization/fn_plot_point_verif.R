@@ -19,11 +19,22 @@ fn_plot_point_verif <- function(harp_verif_input,
                                      fed = NA_character_,
                                      fylims = NULL,
                                      plevel_filter = TRUE,
-                                     n_stations = NULL){
+                                     n_stations = NULL,
+                                     use_parallel = FALSE,
+                                     plot_num_obs = FALSE,
+                                     fcst = NULL){
  
   #=================================================#
   # INITIAL CHECKS
   #=================================================#
+  
+  if (!exists("world_data")) {
+    if (sf_available) {
+      world_data <- rnaturalearth::ne_countries(scale = "medium", returnclass = "sf")
+    } else {
+      world_data <- ggplot2::map_data("world")
+    }
+  }
   
   # Is the input a file path to an rds file or is it a harp verification object?
   if (is.list(harp_verif_input)) {
@@ -84,7 +95,7 @@ fn_plot_point_verif <- function(harp_verif_input,
     scores_lt  <- c(paste0("bias",score_sep,"rmse"),
                     paste0("bias",score_sep,"stde"),
                     paste0("bias",score_sep,"mae"))
-    
+
     # Scores as a fn of valid_dttm
     scores_vd  <- c(paste0("bias",score_sep,"stde"))
     
@@ -425,6 +436,10 @@ fn_plot_point_verif <- function(harp_verif_input,
   # Set verif_input as the original verif object
   verif_input <- verif
   
+  # A list to store all possible plots
+  plot_list <- list()
+  counter   <- 1
+  
   for (xgroup in xgroups) {
     
     c_ind <- TRUE # Just a counter for printing
@@ -709,6 +724,8 @@ fn_plot_point_verif <- function(harp_verif_input,
                 if (nrow(verif_IIII[[c_tstr]]) == 0) {
                   next
                 }
+                
+                if (!use_parallel) {
                 p_c  <- fn_plot_point(verif_IIII,
                                       title_str,
                                       c_subtitle,
@@ -732,6 +749,21 @@ fn_plot_point_verif <- function(harp_verif_input,
                             score         = score_orig,
                             vlt           = vlt,
                             vth           = vth)
+                } else {
+                p_info <- list("verif"     = fn_drop_verif_attr(verif_IIII),
+                               "title"     = title_str,
+                               "subtitle"  = c_subtitle,
+                               "vroptions" = vroption_list,
+                               "vlt"       = vlt,
+                               "vth"       = vth,
+                               "fcst_type" = fcst_type,
+                               "score"     = score_orig,
+                               "p_cases"   = plot_num_cases,
+                               "p_map"     = FALSE,
+                               "p_prof"    = FALSE)
+                plot_list[[counter]] <- p_info
+                counter              <- counter + 1
+                }
               } # lt
               
             } else if (c_typ == "summary") { 
@@ -774,12 +806,14 @@ fn_plot_point_verif <- function(harp_verif_input,
                   }
                 }
               }
+              
+              if (!use_parallel) {
               p_c <- fn_plot_point(verif_III,
                                    c_title_str,
                                    subtitle_str,
                                    fxoption_list,
                                    vroption_list)
-  
+              
               if ((plot_num_cases) & (!grepl("mbr",score_orig))) {
                 p_numcases <- fn_plot_numcases(verif_III,
                                                fxoption_list,
@@ -792,9 +826,24 @@ fn_plot_point_verif <- function(harp_verif_input,
                           vroption_list = vroption_list,
                           fcst_type     = fcst_type,
                           score         = score_orig)
+              } else {
+              p_info <- list("verif"     = fn_drop_verif_attr(verif_III),
+                             "title"     = c_title_str,
+                             "subtitle"  = subtitle_str,
+                             "vroptions" = vroption_list,
+                             "vlt"       = "NA",
+                             "vth"       = "NA",
+                             "fcst_type" = fcst_type,
+                             "score"     = score_orig,
+                             "p_cases"   = (plot_num_cases) & (!grepl("mbr",score_orig)),
+                             "p_map"     = FALSE,
+                             "p_prof"    = FALSE)
+              plot_list[[counter]] <- p_info
+              counter              <- counter + 1
+              }
               
             } # if c_typ
-           
+            
           # Now look at the "other" group (only for surface variables)
           # Add in a check to make sure the threshold scores are non-empty
           } else if ((xgroup == "other") & (score %in% ens_spec) &
@@ -817,11 +866,27 @@ fn_plot_point_verif <- function(harp_verif_input,
               if (!is.null(alta)) {
                 subtitle_str <- paste0(subtitle_str,": +",lt_used_fig)
               }
+              if (!use_parallel) {
               p_out <- fn_plot_point(verif_III,
                                      title_str,
                                      subtitle_str,
                                      fxoption_list,
                                      vroption_list)
+              } else {
+              p_info <- list("verif"     = verif_III,
+                             "title"     = title_str,
+                             "subtitle"  = subtitle_str,
+                             "vroptions" = vroption_list,
+                             "vlt"       = "NA",
+                             "vth"       = "NA",
+                             "fcst_type" = "NA",
+                             "score"     = "NA",
+                             "p_cases"   = FALSE,
+                             "p_map"     = FALSE,
+                             "p_prof"    = FALSE)
+              plot_list[[counter]] <- p_info
+              counter              <- counter + 1
+              }
             } else {
               # Loop over all lead_time+threshold pairs
               for (lt in leadtime_vals) {
@@ -851,6 +916,7 @@ fn_plot_point_verif <- function(harp_verif_input,
                     if (nrow(verif_IIII[[c_tstr]]) == 0) {
                       next
                     }
+                    if (!use_parallel) {
                     p_out <- fn_plot_point(verif_IIII,
                                            title_str,
                                            c_subtitle,
@@ -858,6 +924,21 @@ fn_plot_point_verif <- function(harp_verif_input,
                                            vroption_list,
                                            vlt = lt,
                                            vth = vth)
+                    } else {
+                    p_info <- list("verif"     = verif_IIII,
+                                   "title"     = title_str,
+                                   "subtitle"  = c_subtitle,
+                                   "vroptions" = vroption_list,
+                                   "vlt"       = lt,
+                                   "vth"       = vth,
+                                   "fcst_type" = "NA",
+                                   "score"     = "NA",
+                                   "p_cases"   = FALSE,
+                                   "p_map"     = FALSE,
+                                   "p_prof"    = FALSE)
+                    plot_list[[counter]] <- p_info
+                    counter              <- counter + 1
+                    }
                   }
                 }
               }
@@ -919,11 +1000,13 @@ fn_plot_point_verif <- function(harp_verif_input,
                                    c_subtitle)
               }
               
+              if (!use_parallel) {
               p_c <- fn_plot_map(verif_III,
                                  c_title_str,
                                  c_subtitle,
                                  fxoption_list,
-                                 vroption_list)
+                                 vroption_list,
+                                 world = world_data)
               
               if (is.object(p_c)) {
                 fn_save_png(p_c           = p_c,
@@ -933,6 +1016,21 @@ fn_plot_point_verif <- function(harp_verif_input,
                             score         = score_orig,
                             vlt           = "All",
                             map_ind       = TRUE)
+              }
+              } else {
+              p_info <- list("verif"     = fn_drop_verif_attr(verif_III),
+                             "title"     = c_title_str,
+                             "subtitle"  = c_subtitle,
+                             "vroptions" = vroption_list,
+                             "vlt"       = "All",
+                             "vth"       = "NA",
+                             "fcst_type" = fcst_type,
+                             "score"     = score_orig,
+                             "p_cases"   = FALSE,
+                             "p_map"     = TRUE,
+                             "p_prof"    = FALSE)
+              plot_list[[counter]] <- p_info
+              counter              <- counter + 1
               }
               
             } else {
@@ -973,11 +1071,13 @@ fn_plot_point_verif <- function(harp_verif_input,
                                      c_subtitle)
                 }
                 
+                if (!use_parallel) {
                 p_c <- fn_plot_map(verif_III,
                                    c_title_str,
                                    c_subtitle,
                                    fxoption_list,
-                                   vroption_list)
+                                   vroption_list,
+                                   world = world_data)
                 
                 if (is.object(p_c)) {
                   fn_save_png(p_c           = p_c,
@@ -987,6 +1087,21 @@ fn_plot_point_verif <- function(harp_verif_input,
                               score         = score_orig,
                               vlt           = vhour,
                               map_ind       = TRUE)
+                }
+                } else {
+                p_info <- list("verif"     = fn_drop_verif_attr(verif_III),
+                               "title"     = c_title_str,
+                               "subtitle"  = c_subtitle,
+                               "vroptions" = vroption_list,
+                               "vlt"       = vhour,
+                               "vth"       = "NA",
+                               "fcst_type" = fcst_type,
+                               "score"     = score_orig,
+                               "p_cases"   = FALSE,
+                               "p_map"     = TRUE,
+                               "p_prof"    = FALSE)
+                plot_list[[counter]] <- p_info
+                counter              <- counter + 1
                 }
                 
                 # Optional SID table output (for debugging/filtering stations)
@@ -1047,6 +1162,7 @@ fn_plot_point_verif <- function(harp_verif_input,
                 if (nrow(verif_III[[c_tstr]]) == 0) {
                   next
                 }
+                if (!use_parallel) {
                 p_c <- fn_plot_point(verif_III,
                                      c_title_str,
                                      subtitle_str,
@@ -1066,6 +1182,21 @@ fn_plot_point_verif <- function(harp_verif_input,
                             fcst_type     = fcst_type,
                             score         = score_orig,
                             vlt           = pl)
+                } else {
+                p_info <- list("verif"     = fn_drop_verif_attr(verif_III),
+                               "title"     = c_title_str,
+                               "subtitle"  = subtitle_str,
+                               "vroptions" = vroption_list,
+                               "vlt"       = pl,
+                               "vth"       = "NA",
+                               "fcst_type" = fcst_type,
+                               "score"     = score_orig,
+                               "p_cases"   = (plot_num_cases) & (!grepl("mbr",score_orig)),
+                               "p_map"     = FALSE,
+                               "p_prof"    = FALSE)
+                plot_list[[counter]] <- p_info
+                counter              <- counter + 1
+                }
 
               } # pressure levels
               
@@ -1111,6 +1242,7 @@ fn_plot_point_verif <- function(harp_verif_input,
                 if (nrow(verif_III[[c_tstr]]) == 0) {
                   next
                 }
+                if (!use_parallel) {
                 p_c <- fn_plot_profile(verif_III,
                                        c_title_str,
                                        c_subtitle,
@@ -1124,6 +1256,21 @@ fn_plot_point_verif <- function(harp_verif_input,
                             fcst_type     = fcst_type,
                             score         = score_orig,
                             vlt           = vh)
+                } else {
+                p_info <- list("verif"     = fn_drop_verif_attr(verif_III),
+                               "title"     = c_title_str,
+                               "subtitle"  = c_subtitle,
+                               "vroptions" = vroption_list,
+                               "vlt"       = vh,
+                               "vth"       = "NA",
+                               "fcst_type" = fcst_type,
+                               "score"     = score_orig,
+                               "p_cases"   = plot_num_cases,
+                               "p_map"     = FALSE,
+                               "p_prof"    = TRUE)
+                plot_list[[counter]] <- p_info
+                counter              <- counter + 1
+                }
 
               } # validhour
               } else {
@@ -1141,5 +1288,101 @@ fn_plot_point_verif <- function(harp_verif_input,
       } # cycle
     } # Scores
   } # xgroup
+  
+  if (plot_num_obs) {
+    if (!is.null(fcst)) {
+      
+      cat("Plotting number of observations map\n")
+      # Select only unique obs for each station group
+      qwe <- fcst[[1]] %>% 
+        dplyr::select(SID,valid_dttm,lat,lon,station_group) %>%
+        dplyr::distinct()
+      
+      # Set required vroptions 
+      vroption_list <- list("xgroup"  = "NA",
+                            "score"   = "num_obs",
+                            "cycle"   = "All",
+                            "station" = "NA",
+                            "c_typ"   = "NA",
+                            "c_ftyp"  = "NA",
+                            "xg_str"  = "mp",
+                            "fylims"  =  c(NA,NA))
+      
+      # Loop over station groups and plot
+      for (stn in unique(qwe[["station_group"]])) {
+        aa <- qwe %>%
+          dplyr::filter(station_group == stn)
+        uvh <- harpCore::as_ymdh(unique(aa$valid_dttm)) %>% substr(.,9,10) %>% unique() %>% sort()
+        if (length(uvh) > 5) {
+          uvh_fig <- c(uvh[1],
+                       uvh[2],
+                       "... ",
+                       uvh[length(uvh)-1],
+                       uvh[length(uvh)])
+          uvh_fig <- paste0(uvh_fig,collapse = ", ")
+        } else {
+          uvh_fig <- paste0(uvh,collapse = ", ")
+        }
+        uvd    <- harpCore::unique_valid_dttm(aa) %>% sort()
+        osdate <- uvd[1]
+        oedate <- uvd[length(uvd)]
+        
+        aa <- aa %>%
+          dplyr::group_by(SID) %>%
+          dplyr::summarise(num_obs = n())
+        aa <- fn_sid_latlon(list("tmp" = aa),fcst)
+        aa <- aa[[1]]
+        vroption_list$station <- stn
+        num_stations <- length(unique(aa$SID))
+        
+        title_str = suppressMessages(paste0(stringr::str_to_title(param)," : Valid between ",
+                                            format(harpIO::str_datetime_to_datetime(osdate),"%Y-%m-%d-%H")," - ",
+                                            format(harpIO::str_datetime_to_datetime(oedate),"%Y-%m-%d-%H")))
+        subtitle_str <- paste0(stn," stations (",num_stations,
+                               ") : Valid hours = ",uvh_fig)
+        
+        # Then plot
+        if (!use_parallel){
+          p_c <- fn_plot_map(aa,
+                             title_str,
+                             subtitle_str,
+                             fxoption_list,
+                             vroption_list,
+                             world = world_data)
+          if (is.object(p_c)) {
+            fn_save_png(p_c           = p_c,
+                        fxoption_list = fxoption_list,
+                        vroption_list = vroption_list,
+                        fcst_type     = fcst_type,
+                        score         = "num_obs",
+                        vlt           = "All",
+                        map_ind       = TRUE)
+          }
+        } else {
+          p_info <- list("verif"     = aa,
+                         "title"     = title_str,
+                         "subtitle"  = subtitle_str,
+                         "vroptions" = vroption_list,
+                         "vlt"       = "All",
+                         "vth"       = "NA",
+                         "fcst_type" = fcst_type,
+                         "score"     = "num_obs",
+                         "p_cases"   = FALSE,
+                         "p_map"     = TRUE,
+                         "p_prof"    = FALSE)
+          plot_list[[counter]] <- p_info
+          counter              <- counter + 1
+        }
+       
+      } # stn loop
+      
+    } else {
+      cat("Cannot plot number of observations as fcst object was not supplied, skipping\n")
+    }
+  }
 
+  if (use_parallel) {
+    fn_plot_parallel(plot_list,fxoption_list,world = world_data)
+  }
+  
 } # End of function

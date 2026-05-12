@@ -17,6 +17,8 @@ verif:
     - "0h"
   shifts:                                   # Experimental: Used to shift forecasts forward/backward in time using "shift_forecast". Follows the same format as members/lags. Set to NULL in most cases.
     - NULL
+  file_template:                            # FCTABLE template, generally should conform to "fctable". Follows same logic as members/lags
+    - "fctable"
   num_ref_members: "Inf"                    # Number of reference members to use when computing fair scores for an ensemble (e.g. "Inf"). Not used for det runs.
   ua_fcst_cycle: FALSE                      # For upper air variables, do you want to group by fcst_cycle? Either TRUE or FALSE
   ua_restrict_vh: TRUE                      # For upper air variables, restict forecast-observation data to valid hours 00, 06, 12, 18Z. 
@@ -61,9 +63,13 @@ pre:
     - RH
     - Td
     - Z
+  correct_t2m: TRUE
+  keep_uncort2m: FALSE
 post:
   plot_output: "/path/to/png_output"        # Can set to "default" to use verif_path/archive
   create_png: TRUE
+  use_parallel: FALSE                       # Flag to turn on parallel image generation
+  use_parallel_c: 4                         # If use_parallel=TRUE, how many cores to use for image generation
   save_vofp: TRUE                           # Save the verification object used for plotting pngs (over station groups)
   save_sidrds: FALSE                        # Save the verification object used for individual SID scores (i.e. maps)
   cmap: "trubetskoy"                        # A palette from RColorBrewer or trubetskoy (in pals). Defaults to Set2

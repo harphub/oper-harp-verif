@@ -20,7 +20,8 @@ To install packages required by this repo, you can use:
 pkg_list <- c("here","argparse","yaml","dplyr","tidyr",
               "purrr","forcats","stringr","RColorBrewer","grid",
               "gridExtra","pracma","RSQLite","scales","pals",
-              "shiny","shinyWidgets","lubridate","scico","cowplot","sf")
+              "shiny","shinyWidgets","lubridate","scico","cowplot","sf",
+              "rnaturalearth","rnaturalearthdata","future.apply")
 for (pkg in pkg_list) {
   install.packages(pkg)
 }
@@ -95,6 +96,7 @@ Create a configuration file for your project using the structure provided in the
 | verif | members      | What ensemble members to use in the verification for each `verif:fcst_model`. Set to NULL to use all the members available in each ensemble. Include a list here if the members to be used differ for each of the `verif:fcst_model`. | For a deterministic model or to read all memeber in an ensemble: <br> members: <br> - NULL <br> <br> Specific members from different ensembles: <br> members: <br> - c(1,2,3) <br> - c(4,5,6) |
 | verif | lags         | How to lag the ensemble members for each ensemble. Include a list if the lags differ for each of the `verif:fcst_model`. Set to “0h” for no lagging. The parent cycles for lagging are determined by the `start date`, `end date`, and `verif:by_step`. See `harpIO::read_point_forecast` for more information. | For a deterministic model: <br> lags: <br> - "0h" <br> <br> For 3hr lagging in the first ensemble, no lagging in the second: <br> lags: <br> - c("0h","3h") <br> - "0h" |
 | verif | shifts       |  Experimental and for deterministic models only! How to shift forecasts forwards/backards in time for each model. Include a list if the shifts differ for each of the `verif:fcst_model`. Set to NULL to do nothing (i.e. default behaviour, equivalent to shifting by zero hours). Use digits only, where the shift is assumed to be in hours. Positive values shift forward in time, negative values backwards. | Default: <br> shifts: <br> - NULL <br> <br> Do not shift first model, but shift second by 6h forward in time: <br> shifts: <br> - "0" <br> - "6" |
+| verif | file_template | What is the file template to use for the FCTABLEs. Follows the same logic as members/lags above. Should generally stick to the default if possible. | file_template: <br> - "fctable" |
 | verif | num_ref_members | Number of reference members to use when computing fair scores for an ensemble (e.g. "Inf"). Not used for deterministic models. See `harpPoint::ens_verify` for more details. | num_ref_memebrs: "Inf" |
 | verif | ua_fcst_cycle | For upper air variables, do you want to group by fcst_cycle? Either TRUE or FALSE (default). | ua_fcst_cycle: FALSE |
 | verif | ua_restrict_vh | For upper air variables, do you want to restrict to valid hours 00, 06, 12, and 18Z? Either TRUE (default) or FALSE. | ua_restrict_vh: TRUE |
@@ -103,6 +105,10 @@ Create a configuration file for your project using the structure provided in the
 | verif | fcst_path    | Path to the forecast sqlite tables generated from the vfld. | fcst_path: "/path/to/FCTABLE" |
 | verif | obs_path     | Path to the observation sqlite tables generated from the vobs. | obs_path: "/path/to/OBSTBALE" |
 | verif | verif_path   | A root directory where the rds verification files are stored. For a given project, these rds files will be located in `verif:verif_path`/`verif:project_name`. | verif_path: "/path/to/rds" |
+| verif | model_as_obs | An extra set of options which indicates that you want to use a forecast model analysis as observations. This will read lead time=0 forecasts from the sqlite. An extra set of options are nested from `model_as_obs`, see example and options below | model_as_obs: <br>  model_as_obs_name: X <br>  model_as_obs_path: X <br>  model_as_obs_tmpl: X |
+| verif$model_as_obs | model_as_obs_name | The name of the forecast model to read as observations | model_as_obs_name: model_A |
+| verif$model_as_obs | model_as_obs_path | The path to the forecast database to read as observations | model_as_obs_path: "/path/to/FCTABLE" |
+| verif$model_as_obs | model_as_obs_tmpl | The file template to use for the forcast database to read as observations | model_as_obs_tmpl: "fctable" | 
 | pre   | fcst_model   | Carry out the vfld to sqlite conversion for these forecast models. Note that this can differ from `verif:fcst_model` (e.g. the sqlite tables may already exist for some models, and you may want to skip regenerating these). | fcst_model: <br> - model_A  <br> - model_B | 
 | pre   | lead_time    | Which lead times to use when converting the vfld. Can differ from `verif:lead_time`. | lead_time: seq(0,48,1) |
 | pre   | vfld_path    | Path to where the vfld files are stored (note that the full file names to be read are constructed from `pre:vfld_path` and `pre:vfld_template`). The vfld files for each `pre:fcst_model` should exist in this directory. | vfld_path: "/path/to/vfld" |
@@ -114,8 +120,12 @@ Create a configuration file for your project using the structure provided in the
 | pre   | members      | Which members to read for each ensemble. If only one option is set for members, it will be repeated for each `pre:fcst_model`. Set to NULL for a deterministic experiment. Note: this variable is different from `verif:members` as the two can differ in general. | For deterministic models: <br> members: <br> - NULL <br> <br> For ensembles: <br> - seq(0,6) |
 | pre   | lags         | How the ensemble members are lagged for each `pre:fcst_model`. For a given model, `pre:lags` should be the same length as `pre:members`. Include a list if the lags differ for each of the `pre:fcst_model`. Note: this variable is different from `verif:lags` as the notation used for each is different. | For deterministic models: <br> lags: <br> - NULL <br> <br> For ensemble models: <br> lags: <br> - c(0,0,0,0,3,3,3) | 
 | pre   | params       | Which parameters to consider when generating the sqlite tables from vfld. See `harpIO::show_harp_parameters` and `harpIO::harp_params` for recognised vfld parameters in harp. Set to NULL to convert everything found. | params: <br> - T2m <br> - Td2m <br> - T <br> <br> To convert everything found in the vfld: <br> params: <br> - NULL |
+| pre   | correct_t2m | Use the `correct_t2m` option in `harpIO::interpolate_opts` | correct_t2m: TRUE |
+| pre   | keep_uncort2m | Use the `keep_model_t2m` option in `harpIO::interpolate_opts` | keep_uncort2m: FALSE |
 | post  | plot_output | A root directory indicating where to save the png files generated during the verification process. For a given project, the png files will be stored in `post:plot_output`/`verif:project_name`. Set to "default" to use `verif:verif_path`/archive. | plot_output: "/path/to/png" |
 | post  | create_png  | Flag to indicate if png files should be generated. | create_png: TRUE | 
+| post  | use_parallel | Use parallel workers for png image generation. Requries the `future.apply` package. | use_parallel: FALSE |
+| post  | use_parallel_c | If use_parallel=TRUE, how many cores to use in parallel? Be conservative (e.g. 4) and do not expect linear scaling! | use_parallel_c: 4 |  
 | post  | save_vofp   | Flag to indicate if the verification object used for creating pngs should be saved. Useful for generating images at a later stage. Files will be stored in `post:plot_output`/`verif:project_name`. Default is FALSE. | save_vofp: TRUE |
 | post  | save_sidrds | Flag to indicate if the verification object used for SID scores (i.e. maps) should be saved. May be useful for investigating issues with certain stations. Files will be store in `post:plot_output`/`verif:project_name`. Default is FALSE. | save_sidrds: TRUE | 
 | post  | cmap        | What palette to use for the line plots. Choose from a palette in "RColorBrewer" or a function from the "pals" package e.g. "trubetskoy". Defaults to "Set2" from RColorBrewer if not specified. | cmap: "trubetskoy" |
@@ -232,6 +242,10 @@ By default the script assumes the following verificaiton for surface and upper-a
 - Surface: Data is grouped by `fcst_cycle` and the SID grouping specified by the `verif:domains` option in the config file (this is stored under the variable `station_group` in the scripts). Verification scores are then computed as a function of leadtime, valid date, and valid hour.
 - Upper air: Data is group by the SID grouping specified by the `verif:domains_UA` option and scores computed as a function of leadtime and valid hour. If `verif:domains_UA` is missing from the config (or set ot NULL), then `verif:domains` will be used for the SID grouping.
 
+### Using the forecast analysis as observations (experimental)
+
+In certain cases you may want to compare model forecasts against model analyses (i.e. forecats at lead time = 0) instead of observations. This can be achieved by using the `verif$model_as_obs` config option along witht he associated name, path, and template options described on the config file section. For example, a typical use case here would be to read model analyses from forecast sqlite files (FCTABLE) at observation stations and then compare the model forecasts at the observation stations against these. All of the workflow proceeds as normal except that the observations are substitued for model analyses at observation stations. Should be considered as an experimental feature. 
+
 ### Output
 
 `point_verif.R` will produce standard harp `.rds` files which contain the full suite of verification scores available in harp by default. These files will be stored in:
@@ -240,11 +254,11 @@ By default the script assumes the following verificaiton for surface and upper-a
 ```
 Typically the filenames for the harp rds files should not be changed as the harp shiny app assumes a set format. Note that while the filenames do not contain information about the `verif:domains` or `verif:doamins_UA` considered, the domain selection is included in the rds files under the `station_group` variable. 
 
-If `post:create_png: TRUE`, then a suite of standard verification scores are plotted as png files for local visualisation. These local files will also include plots which are not available in harp's shiny app, such as forecast timeseries and station bias/rmse maps. These files should appear in:
+If `post:create_png: TRUE`, then a suite of standard verification scores are plotted as png files for local visualisation. These local files will also include plots which are not available in harp's shiny app, such as station bias/rmse maps. These files should appear in:
 ```
 {post:plot_output}/{verif:project_name}/{start_date}-{end_date}/long_file_names.png 
 ```
-(the filenames are somewhat convoluted and should not be changed as a strict structure is assumed in the local shiny app). See `fn_png_name` in `fn_plot_helpers.R` for more information on the convention used.
+(the filenames are somewhat convoluted and should not be changed as a strict structure is assumed in the local shiny app). See `fn_png_name` in `fn_plot_helpers.R` for more information on the convention used. The image generation can take some time, particularly for station maps, as by default the images are generated sequentially. To speed this up, you can use the `use_parallel` option in the config file to use `use_parralel_c` cores for parallel image generation. You should be somewhat conservative in your choice for `use_parallel_c` (sometimes less is more!).
 
 If you are also generating a scorecard (`scorecards:create_scrd: TRUE`), then all the underlying scorecard data (for each domain) will be saved to:
 ```

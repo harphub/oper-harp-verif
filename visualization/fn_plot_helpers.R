@@ -8,6 +8,96 @@
 
 numbers_only <- function(x) !grepl("\\D", x)
 
+#================================================#
+# DROP VERIF ATTRIBUTES
+#================================================#
+
+fn_drop_verif_attr <- function(verif) {
+  
+  for (ca in c("dttm","stations","group_vars","all_lts_avail")) {
+    attr(verif,ca) <- NULL
+  }
+  return(verif)
+}
+
+#================================================#
+# PARALLEL PLOTTING FUNCTION
+#================================================#
+
+fn_plot_parallel <- function(plot_list,fxoption_list,world = NULL) {
+  
+  future_lapply(plot_list,future.seed = TRUE,function(x) {
+    options(dplyr.summarise.inform = FALSE)
+    
+    if (x$p_map) {
+      
+      p_c <- fn_plot_map(x$verif,
+                         x$title,
+                         x$subtitle,
+                         fxoption_list,
+                         x$vroptions,
+                         world = world)
+      if (is.object(p_c)) {
+        fn_save_png(p_c           = p_c,
+                    fxoption_list = fxoption_list,
+                    vroption_list = x$vroptions,
+                    fcst_type     = x$fcst_type,
+                    score         = x$score,
+                    vlt           = x$vlt,
+                    map_ind       = TRUE)
+      }
+      
+    } else if (x$p_prof) {
+      
+      p_c <- fn_plot_profile(x$verif,
+                             x$title,
+                             x$subtitle,
+                             x$p_cases,
+                             fxoption_list,
+                             x$vroptions)
+      fn_save_png(p_c           = p_c,
+                  fxoption_list = fxoption_list,
+                  vroption_list = x$vroptions,
+                  fcst_type     = x$fcst_type,
+                  score         = x$score,
+                  vlt           = x$vlt)
+      
+    } else {
+      
+      p_c  <- fn_plot_point(x$verif,
+                            x$title,
+                            x$subtitle,
+                            fxoption_list,
+                            x$vroptions,
+                            vlt = x$vlt,
+                            vth = x$vth)
+      if (x$p_cases) {
+        p_numcases <- fn_plot_numcases(x$verif,
+                                       fxoption_list,
+                                       x$vroptions)
+        if ((!is.null(x$ncc_h1)) && (!is.null(x$ncc_h2))) {
+          p_c        <- fn_nc_combine(p_c,
+                                      p_numcases,
+                                      h1 = x$ncc_h1,
+                                      h2 = x$ncc_h2)
+        } else {
+          p_c        <- fn_nc_combine(p_c,p_numcases)
+        }
+      }
+      if (x$fcst_type != "NA"){
+        fn_save_png(p_c           = p_c,
+                    fxoption_list = fxoption_list,
+                    vroption_list = x$vroptions,
+                    fcst_type     = x$fcst_type,
+                    score         = x$score,
+                    vlt           = x$vlt,
+                    vth           = x$vth)
+      }
+      
+    } # p_map/p_prof
+  })
+  
+}
 
 #================================================#
 # HELPER FUNCTION TO GET NUMBER OF STATIONS FROM DF
@@ -110,14 +200,14 @@ fn_png_name <- function(fcst_type,
 # HELPER FUNCTION FOR SAVING PNGS
 #================================================#
 
-fn_save_png <- function(p_c           = "",
-                        fxoption_list = "",
-                        vroption_list = "",
-                        fcst_type     = "",
-                        score         = "",
-                        vlt           = "NA",
-                        vth           = "NA",
-                        map_ind       = FALSE){
+fn_save_png <- function(p_c,
+                        fxoption_list,
+                        vroption_list,
+                        fcst_type,
+                        score,
+                        vlt     = "NA",
+                        vth     = "NA",
+                        map_ind = FALSE){
   
 
   png_fname <- fn_png_name(fcst_type,
@@ -132,25 +222,22 @@ fn_save_png <- function(p_c           = "",
                            vth = vth,
                            projectname = fxoption_list$png_projname)
   
-  if (!is.object(p_c)){
+  #if (!is.object(p_c)){
+  if (!inherits(p_c, c("ggplot","gtable","grob","ggdraw"))) {
   
     cat("The figure for",png_fname,"does not exist\n") 
     
   } else {
   
-  if (map_ind) {
-    fw <- fxoption_list$fw_map
-    fh <- fxoption_list$fh_map
-  } else {
-    fw <- fxoption_list$fw
-    fh <- fxoption_list$fh
-  }
+  fw <- if (map_ind) fxoption_list$fw_map else fxoption_list$fw
+  fh <- if (map_ind) fxoption_list$fh_map else fxoption_list$fh
+    
   # Increase width for timeseries
   if (vroption_list$xg_str == "vd") {
     fw <- 10
   }
   
-  ggplot2::ggsave(p_c,
+  ggplot2::ggsave(plot     = p_c,
                   filename = png_fname,
                   path     = fxoption_list$png_archive,
                   width    = fw,
@@ -892,8 +979,17 @@ fn_plot_map <- function(verif,
                         title_str,
                         subtitle_str,
                         fxoption_list,
-                        vroption_list){
-  
+                        vroption_list,
+                        world = NULL){
+  if (sf_available) {
+    if (is.null(world)) {
+      world <- rnaturalearth::ne_countries(scale = "medium", returnclass = "sf")
+    }
+  } else {
+    if (is.null(world)) {
+      world <- ggplot2::map_data("world")
+    }
+  }
   # Read options
   c_typ      <- vroption_list$c_typ
   c_ftyp     <- vroption_list$c_ftyp
@@ -904,7 +1000,11 @@ fn_plot_map <- function(verif,
   score_sep  <- fxoption_list$score_sep
   param      <- fxoption_list$param
   map_cbar_d <- fxoption_list$map_cbar_d
-  df         <- verif[[paste0(c_ftyp,"_",c_typ,"_scores")]]
+  if (score != "num_obs") {
+    df       <- verif[[paste0(c_ftyp,"_",c_typ,"_scores")]]
+  } else {
+    df       <- verif
+  }
   
   # Split sscore into its individual parts
   all_scores   <- strsplit(score,score_sep)[[1]]
@@ -935,20 +1035,37 @@ fn_plot_map <- function(verif,
 	   return(NA_character_)
     }
     
-    p_map <- df %>% ggplot2::ggplot(aes(lon,lat,
-                                        fill = get(score),
-                                        size = abs(get(score))))
+    if (score == "num_obs") {
+      p_map <- df %>% ggplot2::ggplot(aes(lon,lat,
+                                          fill = .data[[score]]))
+    } else {
+      p_map <- df %>% ggplot2::ggplot(aes(lon,lat,
+                                          fill = .data[[score]],
+                                          size = abs(.data[[score]])))
+    }
     
     # Get the cmap and brks
     cbar_opts <- fn_get_map_cbar(map_cbar_d,c_min,c_max,score,param,par_unit)
     
-    p_map <- p_map + 
-      ggplot2::geom_polygon(data        = ggplot2::map_data("world"),
-                            mapping     = aes(long, lat, group = group),
-                            fill        = "grey100",
-                            colour      = "black",
-                            inherit.aes = FALSE) +  
+    if (sf_available) {
+      p_map <- p_map +
+        ggplot2::geom_sf(data        = world,
+                         fill        = "gray100",
+                         colour      = "black",
+                         inherit.aes = FALSE)
+    } else {
+      p_map <- p_map + 
+        ggplot2::geom_polygon(data        = world,
+                              mapping     = aes(long, lat, group = group),
+                              fill        = "grey100",
+                              colour      = "black",
+                              inherit.aes = FALSE)
+    }
+    p_map <- p_map +
       ggplot2::geom_point(colour = 'grey40',pch = 21) + 
+      ggplot2::labs(title    = ptitle,
+                    subtitle = subtitle_str,
+                    fill     = "") +
       ggplot2::theme(
             panel.background          = ggplot2::element_rect(fill = "grey95"),
             panel.grid                = ggplot2::element_blank(),
@@ -963,17 +1080,20 @@ fn_plot_map <- function(verif,
             legend.position           = "right", 
             legend.key.height         = unit(1.5,"cm"),
             strip.background          = ggplot2::element_rect(fill = "white"),
-            strip.text                = ggplot2::element_text(size = 8)) +
-      ggplot2::facet_wrap(
+            strip.text                = ggplot2::element_text(size = 8))
+    if ((num_models > 1) && ("fcst_model" %in% names(df))) {
+      p_map <- p_map + 
+        ggplot2::facet_wrap(
         vars(fcst_model),
-        ncol = min(num_models,3)) +
-      ggplot2::scale_size_continuous(range = c(0.1, 3)) + # Controls point size
-      ggplot2::labs(title    = ptitle,
-                    subtitle = subtitle_str,
-                    fill     = "",
-                    size     = "") +
-      ggplot2::guides(size = "none") # Remove size label from legend
-    
+        ncol = min(num_models,3))
+    }
+    if (score != "num_obs") {
+      p_map <- p_map +
+        ggplot2::labs(size = "") +
+        ggplot2::scale_size_continuous(range = c(0.1, 3)) + # Controls point size
+        ggplot2::guides(size = "none") # Remove size label from legend
+    }
+      
     if (sf_available) {
       p_map <- p_map + ggplot2::coord_sf(xlim = c(min_lon-0.2,max_lon+0.2),
                                          ylim = c(min_lat-0.2,max_lat+0.2))
@@ -1018,9 +1138,13 @@ fn_get_map_cbar <- function(map_cbar_d,c_min,c_max,score,param,par_unit){
   plot_ind <- gpc$plot_ind
   log_ind  <- gpc$log_ind
   
+  if (score == "num_obs") {
+    map_cbar_d <- F
+  }
+  
   # If plot_ind is FALSE, it means that param+par_unit is not recognised above.
   # Hence you need to use a default continuous scale.
-  if (!plot_ind) {
+  if ((!plot_ind) && (map_cbar_d)) {
     cat("No breaks found for",param,"with units",par_unit,". Switching off discrete cbar.\n")
     map_cbar_d <- F
   }
@@ -1098,14 +1222,24 @@ fn_get_map_cbar <- function(map_cbar_d,c_min,c_max,score,param,par_unit){
   
   } else {
     
-  c_min   <- c_min - 0.1
-  c_max   <- c_max + 0.1
-  c_min   <- round(c_min,1)
-  c_max   <- round(c_max,1)
-  
+  cb_title <- paste0("(",par_unit,")")
+    
+  if (score == "num_obs") {
+    c_min <- c_min
+    c_max <- c_max
+    brks  <- pracma::linspace(c_min,c_max,5) %>% round() %>% unique()
+    cb_title <- ""
+  } else {
+    c_min   <- c_min - 0.1
+    c_max   <- c_max + 0.1
+    c_min   <- round(c_min,1)
+    c_max   <- round(c_max,1)
+    brks    <- waiver()
+  }
+    
   if (grepl("bias",score)) {
     cmap_out <- ggplot2::scale_fill_gradient2(
-      paste0("(",par_unit,")"),
+      cb_title,
       guide    = ggplot2::guide_colourbar(title.position = "top"),
       low      = "blue4",
       mid      = "white",
@@ -1114,10 +1248,13 @@ fn_get_map_cbar <- function(map_cbar_d,c_min,c_max,score,param,par_unit){
       limits   = c(c_min,c_max))
   } else {
     cmap_out <- ggplot2::scale_fill_viridis_c(
-      paste0("(",par_unit,")"),
-      option    = "A",
-      direction = -1,
+      cb_title,
+      option    = "H",
+      direction = 1,
+      begin     = 0.1,
+      end       = 0.9,
       guide     = ggplot2::guide_colourbar(title.position = "top"),
+      breaks    = brks,
       limits    = c(c_min,c_max))
   }
   
@@ -1394,13 +1531,17 @@ fn_aux <- function(fc,
                    fxoption_list,
                    vroption_list,
                    rolling_verif,
-                   plot_fd = FALSE){
+                   plot_fd = FALSE,
+                   use_parallel = FALSE,
+                   plot_scat = TRUE){
   
   if (grepl("Mbr000",title_str)) {
     cprefix <- "ctrl"
   } else {
     cprefix <- ""
   }
+  
+  p_list <- list()
   
   if (!rolling_verif) {
     
@@ -1409,12 +1550,14 @@ fn_aux <- function(fc,
     vroption_list$xgroup <- "valid_hour"
     vroption_list$score  <- paste0(cprefix,"dailyvar")
     vroption_list$xg_str <- "vh"
-    fn_dvar_ts(fc,
+    p <- fn_dvar_ts(fc,
                group_vars,
                title_str,
                subtitle_str,
                fxoption_list,
-               vroption_list)
+               vroption_list,
+               use_parallel = use_parallel)
+    p_list[[length(p_list) + 1]] <- p
     
     # Frequency distribution 
     if (plot_fd) {
@@ -1431,11 +1574,16 @@ fn_aux <- function(fc,
     # Alternative freqhist method for freq dist plots
     vroption_list$xgroup <- "mids"
     vroption_list$xg_str <- "cls"
-    fn_freqhist(fc,
+    p <- fn_freqhist(fc,
                 title_str,
                 subtitle_str,
                 fxoption_list,
-                vroption_list)
+                vroption_list,
+                use_parallel = use_parallel)
+    if (length(p)>0){
+      p_list[[length(p_list) + 1]] <- p[[1]]
+      p_list[[length(p_list) + 1]] <- p[[2]]
+    }
   }
   
   # Timeseries 
@@ -1443,14 +1591,17 @@ fn_aux <- function(fc,
   vroption_list$xgroup <- "valid_dttm"
   vroption_list$score  <- paste0(cprefix,"timeseries")
   vroption_list$xg_str <- "vd"
-  fn_dvar_ts(fc,
+  p <- fn_dvar_ts(fc,
              group_vars,
              title_str,
              subtitle_str,
              fxoption_list,
-             vroption_list)
+             vroption_list,
+             use_parallel = use_parallel)
+  p_list[[length(p_list) + 1]] <- p
   
   # Scatter plots
+  if (plot_scat) {
   vroption_list$xgroup <- "NA"
   vroption_list$score  <- paste0(cprefix,"scatterplot")
   vroption_list$xg_str <- "NA";
@@ -1477,7 +1628,9 @@ fn_aux <- function(fc,
       }
     }
   }
+  }
   
+  return(p_list)
 }
 
 
@@ -1490,9 +1643,11 @@ fn_dvar_ts <- function(fc,
                        title_str,
                        subtitle_str,
                        fxoption_list,
-                       vroption_list){
+                       vroption_list,
+                       use_parallel = FALSE){
   
   # Read options
+  p_info     <- list()
   score      <- vroption_list$score
   station    <- vroption_list$station
   score_orig <- score
@@ -1523,6 +1678,7 @@ fn_dvar_ts <- function(fc,
   dv <- dplyr::select(dv,-mean_obs)
   
   # Call plotting
+  if (!use_parallel) {
   p_c <- fn_plot_point(dv,
                        title_str,
                        subtitle_str,
@@ -1542,7 +1698,20 @@ fn_dvar_ts <- function(fc,
               fcst_type     = fxoption_list$c_ftyp,
               score         = score_orig,
               vlt           = vroption_list$lt_used)
-  
+  } else {
+  p_info <- list("verif"     = dv,
+                 "title"     = title_str,
+                 "subtitle"  = subtitle_str,
+                 "vroptions" = vroption_list,
+                 "vlt"       = vroption_list$lt_used,
+                 "vth"       = "NA",
+                 "fcst_type" = fxoption_list$c_ftyp,
+                 "score"     = score_orig,
+                 "p_cases"   = (fxoption_list$plot_num_cases) & (!grepl("mbr",score_orig)),
+                 "p_map"     = FALSE,
+                 "p_prof"    = FALSE)
+  }
+  return(p_info)
 }
 
 #================================================#
@@ -1688,8 +1857,10 @@ fn_freqhist <- function(fc,
                         title_str,
                         subtitle_str,
                         fxoption_list,
-                        vroption_list){
+                        vroption_list,
+                        use_parallel = FALSE){
   
+  p_info       <- list()
   title_scores <- gsub("mbr","",vroption_list$score) 
   title_scores <- gsub("ctrl","",vroption_list$score) 
   title_scores <- gsub("_"," ",str_to_title(title_scores)) 
@@ -1767,6 +1938,7 @@ fn_freqhist <- function(fc,
     if (nrow(df_fh) > 0) {
       
       # Plot histogram
+      if (!use_parallel) {
       vroption_list$score <- "freqhist"
       p_c                 <- fn_plot_point(df_fh,
                                            title_str,
@@ -1801,9 +1973,41 @@ fn_freqhist <- function(fc,
                   fcst_type     = fxoption_list$c_ftyp,
                   score         = score_ps,
                   vlt           = vroption_list$lt_used)
+      } else {
+      vroption_list$score <- "freqhist"
+      score_ps            <- paste0(cprefix,"freqhist")
+      p_info[[1]] <- list("verif"     = df_fh,
+                          "title"     = title_str,
+                          "subtitle"  = subtitle_str,
+                          "vroptions" = vroption_list,
+                          "vlt"       = vroption_list$lt_used,
+                          "vth"       = "NA",
+                          "fcst_type" = fxoption_list$c_ftyp,
+                          "score"     = score_ps,
+                          "p_cases"   = FALSE,
+                          "p_map"     = FALSE,
+                          "p_prof"    = FALSE)
       
+      vroption_list$score <- "freq_bias"
+      score_ps            <- paste0(cprefix,"freq_bias")
+      p_info[[2]] <- list("verif"     = df_fb,
+                          "title"     = title_str,
+                          "subtitle"  = subtitle_str,
+                          "vroptions" = vroption_list,
+                          "vlt"       = vroption_list$lt_used,
+                          "vth"       = "NA",
+                          "fcst_type" = fxoption_list$c_ftyp,
+                          "score"     = score_ps,
+                          "p_cases"   = TRUE,
+                          "p_map"     = FALSE,
+                          "p_prof"    = FALSE,
+                          "ncc_h1"    = 3.75,
+                          "ncc_h2"    = 1.25)
+      }
     }
   } # plot_ind
+  
+  return(p_info)
   
 }
 
@@ -1824,6 +2028,13 @@ get_param_classes <- function(param,par_unit,score = "freq") {
   plot_ind    <- TRUE
   log_ind     <- FALSE
   par_unit    <- tolower(par_unit)
+  
+  # Do not need to run this if score is num_obs
+  if (score == "num_obs") {
+    return(list("brks"     = NULL,
+                "plot_ind" = TRUE,
+                "log_ind"  = FALSE))
+  }
   
   if (param %in% c("Pmsl")) {
     

@@ -9,7 +9,8 @@ To install packages required by this repo, you can use:
 pkg_list <- c("here","argparse","yaml","dplyr","tidyr",
               "purrr","forcats","stringr","RColorBrewer","grid",
               "gridExtra","pracma","RSQLite","scales","pals",
-              "shiny","shinyWidgets","lubridate","scico","cowplot","sf")
+              "shiny","shinyWidgets","lubridate","scico","cowplot","sf",
+              "rnaturalearth","rnaturalearthdata","future.apply")
 for (pkg in pkg_list) {
   install.packages(pkg)
 }
