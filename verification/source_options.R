@@ -11,5 +11,6 @@ add_proj_png       <- FALSE
 rolling_verif      <- FALSE
 gen_sc_only        <- FALSE
 use_fixed_dates    <- TRUE
+skip_aux_plots     <- FALSE
 skip_sid_verif     <- TRUE
-skip_threh_verif   <- TRUE
+skip_thresh_verif  <- TRUE

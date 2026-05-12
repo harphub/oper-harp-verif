@@ -46,6 +46,14 @@ if (!exists("sf_available")) {
   cat("sf_available inherited\n")
 }
 
+if (!exists("world_data")) {
+  if (sf_available) {
+    world_data <- rnaturalearth::ne_countries(scale = "medium", returnclass = "sf")
+  } else {
+    world_data <- ggplot2::map_data("world")
+  }
+}
+
 fn_station_selection <- function(domain_choice = "All_Domains",
                                  param = "T2m",
                                  generate_domains = FALSE,
@@ -579,6 +587,7 @@ fn_station_selection <- function(domain_choice = "All_Domains",
   
   if (dynamic_gen){
     
+  if ("elev" %in% names(fcst_object[[1]])){
   qwe  <- fcst_object[[1]] %>% dplyr::select(SID,lat,lon,elev) %>% dplyr::distinct()
   # May have multiple lat lon values here if definition changed in vfld
   # Remove NAs which can occur at random leadtimes for Pcp - vfld2sql processing?
@@ -586,6 +595,11 @@ fn_station_selection <- function(domain_choice = "All_Domains",
   qwe2 <- qwe %>% group_by(SID) %>% summarise(lat  = min(lat,na.rm = T),
                                               lon  = min(lon,na.rm = T),
                                               elev = max(elev,na.rm = T))
+  } else {
+  qwe  <- fcst_object[[1]] %>% dplyr::select(SID,lat,lon) %>% dplyr::distinct()
+  qwe2 <- qwe %>% group_by(SID) %>% summarise(lat  = min(lat,na.rm = T),
+                                              lon  = min(lon,na.rm = T))
+  }
   if (nrow(qwe) != nrow(qwe2)) {
     mult_ll_SIDS <- names(table(qwe$SID)[table(qwe$SID)>1])
     mult_ll      <- qwe %>% filter(SID %in% mult_ll_SIDS) %>% arrange(SID)
@@ -993,7 +1007,7 @@ fn_station_selection <- function(domain_choice = "All_Domains",
 
         if (!("elev" %in% names(df))) {
           
-          cat("No elevation found - cannot do filtering")
+          cat("No elevation found - cannot do filtering\n")
           next
           
         } else {
@@ -1046,9 +1060,9 @@ fn_station_selection <- function(domain_choice = "All_Domains",
       # Plot the maps if desired
       if ((plot_domains) & (nrow(df)>0)){
         if (read_poly) {
-          p1        <- station_map(df,domain,polygon = poly_df$polygon)
+          p1        <- station_map(df,domain,world_data,polygon = poly_df$polygon)
         } else {
-          p1        <- station_map(df,domain)
+          p1        <- station_map(df,domain,world_data)
           
         }
         if (dynamic_gen) {
@@ -1174,7 +1188,7 @@ fn_station_selection <- function(domain_choice = "All_Domains",
             psc <- allstations %>% filter(SID %in% psc$SID)
           }
           if (nrow(psc) > 0){
-            p1 <- station_map(psc,dc)
+            p1 <- station_map(psc,dc,world_data)
             if (dynamic_gen) {
               png_fname <- paste0("dynamic_",param,"_",dc,"_stationmap.png")
             } else {
@@ -1426,7 +1440,7 @@ poly_filter <- function(df,
 #=================================================#
 # FOR PLOTTING THE DOMAINS
 #=================================================#
-station_map <- function(df,domain,polygon = NULL){
+station_map <- function(df,domain,world,polygon = NULL){
   
   num_stations <- length(df$SID)
   if (!is.null(polygon)) {
@@ -1454,12 +1468,21 @@ station_map <- function(df,domain,polygon = NULL){
   } else {
     p_map <- df %>% ggplot2::ggplot(aes(lon,lat,fill = "red"))
   }
-  p_map <- p_map + 
-    ggplot2::geom_polygon(data        = ggplot2::map_data("world"),
-                          mapping     = aes(long, lat, group = group),
-                          fill        = "grey100",
-                          colour      = "black",
-                          inherit.aes = FALSE) +  
+  if (sf_available) {
+    p_map <- p_map + 
+      ggplot2::geom_sf(data        = world,
+                       fill        = "grey100",
+                       colour      = "black",
+                       inherit.aes = FALSE)
+  } else {
+    p_map <- p_map + 
+      ggplot2::geom_polygon(data        = world,
+                            mapping     = aes(long, lat, group = group),
+                            fill        = "grey100",
+                            colour      = "black",
+                            inherit.aes = FALSE)
+  } 
+  p_map <- p_map +
     ggplot2::geom_point(colour = 'grey40',pch = 21,size = 2) + 
     ggplot2::theme(panel.background = ggplot2::element_rect(fill = "grey95"),
                    panel.grid       = ggplot2::element_blank(),

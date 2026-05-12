@@ -22,6 +22,8 @@ fn_plot_aux_scores <- function(fcst_input,
                                     cmap_hex = "magma",
                                     lt_split = FALSE,
                                     plot_fd = FALSE,
+                                    plot_scat = TRUE,
+                                    use_parallel = FALSE,
                                     fsd = NA_character_,
                                     fed = NA_character_){
   
@@ -295,6 +297,8 @@ fn_plot_aux_scores <- function(fcst_input,
   #=================================================#
   
   fcst_all <- fcst
+  p_list <- list()
+  
   # Add a loop over leadtime combinations
   for (jj in seq(1,length(lt_to_use_list))) {
     
@@ -374,38 +378,47 @@ fn_plot_aux_scores <- function(fcst_input,
       if (fcst_type == "det") {
         
         # All aux scores
-        fn_aux(cc_fcst,
+        p <- fn_aux(cc_fcst,
                title_str,
                subtitle_str,
                fxoption_list,
                vroption_list,
                rolling_verif,
-               plot_fd = plot_fd)
+               plot_fd = plot_fd,
+               plot_scat = plot_scat,
+               use_parallel = use_parallel)
+        p_list <- c(p_list,p)
           
       } else if (fcst_type == "ens") {
         
         # Compute scores for the ensemble mean
         cc_fcst_mean <- cc_fcst %>% dplyr::filter(member == "mean")
         c_title_str  <- paste0("Ensemble mean : ",title_str)
-        fn_aux(cc_fcst_mean,
+        p <- fn_aux(cc_fcst_mean,
                c_title_str,
                subtitle_str,
                fxoption_list,
                vroption_list,
                rolling_verif,
-               plot_fd = plot_fd)
+               plot_fd = plot_fd,
+               plot_scat = plot_scat,
+               use_parallel = use_parallel)
+        p_list <- c(p_list,p)
         
         # Compute scores for the control members
         if (compare_mbr000) {
           cc_fcst_ctrl <- cc_fcst %>% dplyr::filter(member == "mbr000")
           c_title_str  <- paste0("Mbr000 : ",title_str)
-          fn_aux(cc_fcst_ctrl,
+          p <- fn_aux(cc_fcst_ctrl,
                  c_title_str,
                  subtitle_str,
                  fxoption_list,
                  vroption_list,
                  rolling_verif,
-                 plot_fd = plot_fd)
+                 plot_fd = plot_fd,
+                 plot_scat = plot_scat,
+                 use_parallel = use_parallel)
+          p_list <- c(p_list,p)
         }
         
         # Member scores (not really required)
@@ -415,23 +428,27 @@ fn_plot_aux_scores <- function(fcst_input,
           vroption_list$score  <- "mbrdailyvar"
           vroption_list$xgroup <- "valid_hour"
           vroption_list$xg_str <- "vh"
-          fn_dvar_ts(cc_fcst,
+          p <- fn_dvar_ts(cc_fcst,
                      group_vars,
                      title_str,
                      subtitle_str,
                      fxoption_list,
-                     vroption_list)
+                     vroption_list,
+                     use_parallel = use_parallel)
+          p_list <- c(p_list,p)
           
           group_vars           <- c("fcst_model","valid_dttm","member")
           vroption_list$score  <- "mbrtimeseries"
           vroption_list$xgroup <- "valid_dttm"
           vroption_list$xg_str <- "vd"
-          fn_dvar_ts(cc_fcst,
+          p <- fn_dvar_ts(cc_fcst,
                      group_vars,
                      title_str,
                      subtitle_str,
                      fxoption_list,
-                     vroption_list)
+                     vroption_list,
+                     use_parallel = use_parallel)
+          p_list <- c(p_list,p)
           
           if (plot_fd) {
             vroption_list$xgroup <- "NA"
@@ -453,5 +470,9 @@ fn_plot_aux_scores <- function(fcst_input,
   } # cycle
   
   } # Loop over leadtime lists
+  
+  if (use_parallel) {
+    fn_plot_parallel(p_list,fxoption_list)
+  }
   
 } # End of function

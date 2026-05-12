@@ -60,6 +60,10 @@ By default the script assumes the following verificaiton for surface and upper-a
 - Surface: Data is grouped by `fcst_cycle` and the SID grouping specified by the `verif:domains` option in the config file (this is stored under the variable `station_group` in the scripts). Verification scores are then computed as a function of leadtime, valid date, and valid hour.
 - Upper air: Data is group by the SID grouping specified by the `verif:domains_UA` option and scores computed as a function of leadtime and valid hour. If `verif:domains_UA` is missing from the config (or set ot NULL), then `verif:domains` will be used for the SID grouping.
 
+### Using the forecast analysis as observations (experimental)
+
+In certain cases you may want to compare model forecasts against model analyses (i.e. forecats at lead time = 0) instead of observations. This can be achieved by using the `verif$model_as_obs` config option along witht he associated name, path, and template options described on the config file section. For example, a typical use case here would be to read model analyses from forecast sqlite files (FCTABLE) at observation stations and then compare the model forecasts at the observation stations against these. All of the workflow proceeds as normal except that the observations are substitued for model analyses at observation stations. Should be considered as an experimental feature. 
+
 ### Output
 
 `point_verif.R` will produce standard harp `.rds` files which contain the full suite of verification scores available in harp by default. These files will be stored in:
@@ -68,11 +72,11 @@ By default the script assumes the following verificaiton for surface and upper-a
 ```
 Typically the filenames for the harp rds files should not be changed as the harp shiny app assumes a set format. Note that while the filenames do not contain information about the `verif:domains` or `verif:doamins_UA` considered, the domain selection is included in the rds files under the `station_group` variable. 
 
-If `post:create_png: TRUE`, then a suite of standard verification scores are plotted as png files for local visualisation. These local files will also include plots which are not available in harp's shiny app, such as forecast timeseries and station bias/rmse maps. These files should appear in:
+If `post:create_png: TRUE`, then a suite of standard verification scores are plotted as png files for local visualisation. These local files will also include plots which are not available in harp's shiny app, such as station bias/rmse maps. These files should appear in:
 ```
 {post:plot_output}/{verif:project_name}/{start_date}-{end_date}/long_file_names.png 
 ```
-(the filenames are somewhat convoluted and should not be changed as a strict structure is assumed in the local shiny app). See `fn_png_name` in `fn_plot_helpers.R` for more information on the convention used.
+(the filenames are somewhat convoluted and should not be changed as a strict structure is assumed in the local shiny app). See `fn_png_name` in `fn_plot_helpers.R` for more information on the convention used. The image generation can take some time, particularly for station maps, as by default the images are generated sequentially. To speed this up, you can use the `use_parallel` option in the config file to use `use_parralel_c` cores for parallel image generation. You should be somewhat conservative in your choice for `use_parallel_c` (sometimes less is more!).
 
 If you are also generating a scorecard (`scorecards:create_scrd: TRUE`), then all the underlying scorecard data (for each domain) will be saved to:
 ```

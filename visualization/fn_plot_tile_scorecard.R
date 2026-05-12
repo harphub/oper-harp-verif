@@ -174,10 +174,10 @@ fn_plot_tile_scorecard <- function(sc_input,
         qwe$signed_percent_diff_mean[qwe$sig == "Worse"]  <- "Worse"
         qwe$signed_percent_diff_mean[qwe$sig == "Neutral"]  <- "Neutral"
         qwe_all[[ii]] <- ggplot2::ggplot(qwe,aes(x=lead_time,y=parameter)) +
-          ggplot2::geom_tile(data = subset(qwe, !is.na(signed_percent_diff_mean)),
-                             aes(fill  = signed_percent_diff_mean)) +
           ggplot2::geom_tile(data = subset(qwe, is.na(signed_percent_diff_mean)),
                              fill="gray90",colour=NA) +
+          ggplot2::geom_tile(data = subset(qwe, !is.na(signed_percent_diff_mean)),
+                             aes(fill  = signed_percent_diff_mean)) +
           ggplot2::geom_hline(yintercept = (seq_len(length(unique(qwe$parameter)))-0.5),
                               colour = "black",
                               linewidth = 0.5) +
@@ -206,10 +206,10 @@ fn_plot_tile_scorecard <- function(sc_input,
                          legend.position  = "right")
       } else {
         qwe_all[[ii]] <- ggplot2::ggplot(qwe,aes(x=lead_time,y=parameter)) +
-          ggplot2::geom_tile(data = subset(qwe, !is.na(signed_percent_diff_mean)),
-                             aes(fill  = signed_percent_diff_mean)) +
           ggplot2::geom_tile(data = subset(qwe, is.na(signed_percent_diff_mean)),
                              fill="gray90",colour=NA) +
+          ggplot2::geom_tile(data = subset(qwe, !is.na(signed_percent_diff_mean)),
+                             aes(fill  = signed_percent_diff_mean)) +
           ggplot2::geom_hline(yintercept = (seq_len(length(unique(qwe$parameter)))-0.5),
                               colour = "black",
                               linewidth = 0.5) +

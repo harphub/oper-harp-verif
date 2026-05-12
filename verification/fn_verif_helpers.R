@@ -80,9 +80,12 @@ check_sedate <- function(start_date,end_date) {
 # CHECK IF CONFIG FILE OPTIONS EXIST
 #================================================#
 
-check_config_input <- function(config,x,y,default="None") {
+check_config_input <- function(config,x,y,default="None",z=NULL) {
   
   val <- config[[x]][[y]]
+  if (!is.null(z)) {
+    val <- val[[z]]
+  }
   
   if (is.null(val)) {
     cat("Could not find",x,":",y,"in the config\n")
@@ -134,7 +137,7 @@ get_named_list <- function(input_str,
   for (ii in seq(1,length(input_str),1)) {
     if (!is.null(input_str[[ii]])) {
       # Deal with case where lags is specified as "0h" etc, not in c() format
-      if (any(input_str[[ii]] %in% paste0(seq(0,23),"h"))) {
+      if ((any(input_str[[ii]] %in% paste0(seq(0,23),"h"))) || (str_descrip == "file_template")) {
         out[[ii]] <- input_str[[ii]]
       } else {
         out[[ii]] <- eval(parse(text = input_str[[ii]]))
@@ -750,6 +753,7 @@ create_station_filter <- function(dttm,
                                   fcst_model,
                                   param,
                                   fctable_dir,
+                                  file_template,
                                   station_list_dir){
 
   YYYY <- substr(dttm,0,4)
@@ -775,11 +779,18 @@ create_station_filter <- function(dttm,
     
     # Read the FCTABLE for the input parameter (assuming the default directory 
     # structure for FCTABLE).
-    dbase <- file.path(fctable_dir,
-                       fm,
-                       YYYY,
-                       MM,
-                       paste0("FCTABLE_",param,"_",YYYY,MM,"_",HH,".sqlite"))
+    if (file_template[[fm]] == "fctable"){
+      dbase <- file.path(fctable_dir,
+                         fm,
+                         YYYY,
+                         MM,
+                         paste0("FCTABLE_",param,"_",YYYY,MM,"_",HH,".sqlite"))
+    } else {
+      message("File template ",file_template[[fm]]," not recognised in create_station_filter - add it!")
+      message("create_station_filter did not run and the FCTABLE read may not be optimal!\n")
+      model_domain_min <- NA_character_
+      break
+    }
     
     # Query the database and get the number of stations
     if (file.exists(dbase)) {
@@ -825,6 +836,7 @@ try_rpforecast <- function(start_date,
                            members,
                            lags,
                            fcst_path,
+                           file_template,
                            stations,
                            vc){
   
@@ -849,6 +861,7 @@ try_rpforecast <- function(start_date,
         members             = members,
         lags                = lags,
         file_path           = fcst_path,
+        file_template       = file_template, 
         stations            = stations,
         get_lat_and_lon     = TRUE, # Useful when lat/lon missing from vobs files
         merge_lags          = ml,
@@ -972,6 +985,46 @@ try_rpforecast <- function(start_date,
 
   return(fcst)
 
+}
+
+#================================================#
+# SCALE THE FORECAST OBJECT
+#================================================#
+
+scale_fcst <- function(fcst,prm_info) {
+  
+  if (!is.null(prm_info$scale_fcst)) {
+    # Check if we need to scale models differently for this parameter
+    if (is.null(prm_info$models_to_scale)) {
+      cat("Scaling all models using the same scale_fcst\n")
+      fcst <- do.call(
+        harpCore::scale_param,
+        c(list(x = fcst), 
+          prm_info$scale_fcst))
+    } else {
+      for (cm in prm_info$models_to_scale) {
+        # Check if prm_info$scale_fcst is a list of scalings, where each entry
+        # in the list corresponds to a model to scale
+        if (cm %in% names(prm_info$scale_fcst)) {
+          c_scale_fcst <- prm_info$scale_fcst[[cm]]
+        } else {
+          c_scale_fcst <- prm_info$scale_fcst
+        }
+        cat("Scaling the forecast for model",cm,"with\n")
+        print(c_scale_fcst)
+        if (!(cm %in% names(fcst))) {
+          cat("Warning: You are trying to scale model",cm,"but it was not found in the data\n")
+        } else {
+          fcst[[cm]] <- do.call(
+            harpCore::scale_param,
+            c(list(x = fcst[[cm]]), 
+              c_scale_fcst))
+        }
+      }
+    }
+  }
+  
+  return(fcst)
 }
 
 #================================================#
