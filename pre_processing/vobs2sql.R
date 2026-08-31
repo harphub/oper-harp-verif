@@ -75,6 +75,7 @@ CONFIG     <- yaml::yaml.load_file(here::here(config_file))
 vobs_path  <- check_config_input(CONFIG,"pre","vobs_path")
 obs_path   <- check_config_input(CONFIG,"verif","obs_path")
 by_val     <- check_config_input(CONFIG,"pre","vobs_by")
+file_template <- check_config_input(CONFIG,"pre","vobs_template",default="vobs")
 
 #================================================#
 # OPTION CHECKS
@@ -96,6 +97,7 @@ cat("Collecting vobs data from",start_date,"to",end_date,"\n")
 obs_data <- harpIO::read_obs(
   dttm               = harpCore::seq_dttm(start_date,end_date,by = by_val),
   file_path          = vobs_path,
+  file_template      = file_template,
   output_format_opts = harpIO::obstable_opts(path = obs_path)
 )
 
