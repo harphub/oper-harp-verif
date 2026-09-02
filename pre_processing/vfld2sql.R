@@ -135,6 +135,10 @@ if (is.null(lead_time_str)) {
   cat("Using CONFIG$pre for the lead_times to convert\n")
 }
 lead_time <- eval(parse(text = lead_time_str))
+lt_batch_size <- CONFIG$pre$lead_time_batch_size
+if (is.null(lt_batch_size)) {
+  lt_batch_size = length(lead_time)
+}
 
 # If use_obs_elev, then you need the OBSTABLE from the config
 if (use_obs_elev) {
@@ -216,21 +220,28 @@ if (is.null(params[[1]])) {
   cat("<<<<<< PROCESSING PARAMETERS",params,"for",fcst_model,">>>>>>>\n")
 }
 
-harpIO::read_forecast(
-  dttm                = harpCore::seq_dttm(start_date,end_date,by = by_val),
-  fcst_model          = fcst_model,
-  parameter           = params,
-  lead_time           = lead_time,
-  members             = members_list,
-  lags                = lags_list,
-  file_path           = vfld_path,
-  file_template       = file_template,
-  output_file_opts    = harpIO::sqlite_opts(path = fcst_path,
-                                            remove_model_elev = remove_m_elev),
+while(length(lead_time) > 0){
+  
+  lead_time_batch <- head(lead_time, lt_batch_size)
+  lead_time <- tail(lead_time, -lt_batch_size)
+
+  cat("<<<<<< PROCESSING LEAD TIMES",lead_time_batch,"for",fcst_model,">>>>>>>\n")
+  harpIO::read_forecast(
+    dttm                = harpCore::seq_dttm(start_date,end_date,by = by_val),
+    fcst_model          = fcst_model,
+    parameter           = params,
+    lead_time           = lead_time_batch,
+    members             = members_list,
+    lags                = lags_list,
+    file_path           = vfld_path,
+    file_template       = file_template,
+    output_file_opts    = harpIO::sqlite_opts(path = fcst_path,
+                                              remove_model_elev = remove_m_elev),
   transformation_opts = harpIO::interpolate_opts(correct_t2m = correct_t2m,
                                                  keep_model_t2m = keep_uncort2m,
-                                                 stations = stations_rf),
-  return_data         = FALSE
-)
+                                                  stations = stations_rf),
+    return_data         = FALSE
+  )
+}
 
 cat("Finished vfld conversion\n")

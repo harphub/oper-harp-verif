@@ -358,7 +358,7 @@ fn_run_verif_groups <- function(fcst = "",
   
   # Initialise output
   verif        <- NULL
-  verif_tpplot <- NULL
+  verif_toplot <- NULL
   verif_sid    <- NULL
   
   #================================================#
@@ -1667,4 +1667,83 @@ fc_ob_diff_check <- function(fcst,
   
   return(fcst)
   
+}
+
+#================================================#
+# CONVERT A LIST CREATED BY A VERIFICATION METHOD 
+# FOR HARP_LIST TO AN OBJECT OF CLASS HARP_VERIF
+# Code based on same function in ens_verify.R
+#================================================#
+
+list_to_harp_verif <- function(.l) {
+
+  res <- list(
+
+    ens_summary_scores = purrr::list_rbind(
+      purrr::map(.l, "ens_summary_scores")
+    ),
+
+    ens_threshold_scores = purrr::list_rbind(
+      purrr::map(.l, "ens_threshold_scores")
+    ),
+
+    det_summary_scores = purrr::list_rbind(
+      purrr::map(.l, "det_summary_scores")
+    ),
+
+    det_threshold_scores = purrr::list_rbind(
+      purrr::map(.l, "det_threshold_scores")
+    )
+  )
+
+  res <- res[vapply(res, function(x) !is.null(x), logical(1))]
+
+  res_attrs <- lapply(.l, attributes)
+
+  param_attr <- compare_attrs(
+    lapply(res_attrs, function(x) x[["parameter"]])
+  )
+  dttm_attr <- compare_attrs(
+    lapply(res_attrs, function(x) x[["dttm"]])
+  )
+  stations_attr <- compare_attrs(
+    lapply(res_attrs, function(x) x[["stations"]])
+  )
+  group_vars_attr <- compare_attrs(
+    lapply(res_attrs, function(x) x[["group_vars"]])
+  )
+
+  structure(
+    res[which(vapply(res, nrow, integer(1)) > 0)],
+    class      = "harp_verif",
+    parameter  = param_attr,
+    dttm       = dttm_attr,
+    stations   = stations_attr,
+    group_vars = group_vars_attr
+  )
+}
+
+# Compare attributes returning a list if they're different and the only value
+# if they're the same
+compare_attrs <- function(x) {
+  if (length(x) < 2) {
+    return(x[[1]])
+  }
+  same <- TRUE
+  i <- 1
+  while (same && i < length(x)) {
+    same <- identical(sort_attr(x[[i]]), sort_attr(x[[(i + 1)]]))
+    i <- i + 1
+  }
+  if (same) {
+    return(x[[1]])
+  }
+  x
+}
+
+sort_attr <- function(x) {
+  if (is.list(x)) {
+    return(lapply(x, sort_attr))
+  }
+  sort(x)
 }
