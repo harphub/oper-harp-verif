@@ -573,38 +573,27 @@ run_verif <- function(prm_info, prm_name) {
   # This step reads the "smallest" model first, gets all stations, and then
   # uses this list when reading all models
   if (!is.na(model_domain_min)) {
+    fcst_tmp <- try_rpforecast(start_date,
+                             end_date,
+                             by_step,
+                             model_domain_min,
+                             fcst_type,
+                             prm_name,
+                             lead_list[[1]],
+                             members_domain_min,
+                             lags_domain_min,
+                             fcst_path,
+                             file_template_domain_min,
+                             NULL,
+                             vertical_coordinate)
     
-    stations_filter_list <- list()
-    
-    for(i in 1:num_iterations){
-
-      cat("Lead time:", lead_list[[i]], "( Iteration", i, "of", num_iterations, ")\n")
-      cat(rep("=", 80), "\n", sep = "")
-
-      fcst_tmp <- try_rpforecast(start_date,
-                               end_date,
-                               by_step,
-                               model_domain_min,
-                               fcst_type,
-                               prm_name,
-                               lead_list[[i]],
-                               members_domain_min,
-                               lags_domain_min,
-                               fcst_path,
-                               file_template_domain_min,
-                               NULL,
-                               vertical_coordinate)
-    
-      if (is.null(fcst_tmp)) {
+    if (is.null(fcst_tmp)) {
       message("Failure during the FCTABLE reading process for ",prm_name,
-                ", moving on to the next parameter")
-        return(missing_data)
-      }
-
-      stations_filter_list[[i]] <- sort(harpCore::unique_stations(fcst_tmp))
+              ", moving on to the next parameter")
+      return(missing_data)
     }
 
-    stations_filter <- sort(unique(unlist(stations_filter_list)))
+    stations_filter <- sort(harpCore::unique_stations(fcst_tmp))
     rm(fcst_tmp)
   } else {
     stations_filter <- NULL
@@ -637,498 +626,497 @@ run_verif <- function(prm_info, prm_name) {
       )
       warning(warning_message, call. = FALSE, immediate. = TRUE)
       next()
+  }
+  
+  # Read all the models
+  fcst <- try_rpforecast(start_date,
+                         end_date,
+                         by_step,
+                         fcst_model,
+                         fcst_type,
+                         prm_name,
+                         lead_list[[i]],
+                         members_list,
+                         lags_list,
+                         fcst_path,
+                         file_template,
+                         stations_filter,
+                         vertical_coordinate)
+  
+  if (is.null(fcst)) {
+    message("Failure during the FCTABLE reading process for ",prm_name,
+            ", moving on to the next parameter")
+    return(missing_data)
+  }
+  # Save lt_unit attribute before it is dropped by other operations.
+  lt_unit <- attr(fcst,"lt_unit")
+  
+  #================================================#
+  # LAG THE FORECAST FOR EPS EXPERIMENTS
+  #================================================#
+  
+  if ((fcst_type == "eps") && (!isTRUE(attr(fcst,"ml")))) {
+    
+    message("Caution: Doing explicit lagging. With harp v0.3 this will be done as part of read_point_forecast.")
+    fcst <- try_epslag(fcst,
+                       fcst_model,
+                       parent_cycles,
+                       vertical_coordinate)
+    
+    if (is.null(fcst)) {
+      message("Failure during the model data lagging process for ",prm_name,
+              ", moving on to next parameter")
+      return(missing_data)
     }
     
-    # Read all the models
-    fcst <- try_rpforecast(start_date,
-                           end_date,
-                           by_step,
-                           fcst_model,
-                           fcst_type,
-                           prm_name,
-                           lead_list[[i]],
-                           members_list,
-                           lags_list,
-                           fcst_path,
-                           file_template,
-                           stations_filter,
-                           vertical_coordinate)
+  } 
   
-    if (is.null(fcst)) {
+  #================================================#
+  # SHIFT THE FORECAST (EXPERIMENTAL)
+  #================================================#
+  
+  if ((!is.null(shifts_list[[1]])) & (fcst_type == "det")) {
+    cat("Looks like you are trying to shift the models in time with:\n")
+    print(shifts_list)
+    fcst <- harpPoint::shift_forecast(
+      fcst,
+      fcst_shifts = shifts_list,
+      keep_unshifted = F
+    )
+    # And do some renaming (to reduce length of legend)
+    shifted_names <- gsub("shifted_","s",names(fcst))
+    # If the shift is zero hours, remove this from the model name
+    shifted_names <- gsub("_s0h","",shifted_names)
+    for (ii in seq(1,length(fcst))) {
+      fcst[[ii]][["fcst_model"]] <- shifted_names[ii]
+    }
+    names(fcst) <- shifted_names
+  }
+  
+  #================================================#
+  # ADD IN THE CLIMATOLOGY AS A MODEL
+  #================================================#
+  use_climatology_local <- use_climatology
+  climatology_name_local <- climatology_name
+  
+  if (use_climatology) {
+    
+    cat("Now add in climatology from model",climatology_name,"\n")
+    
+    if (fcst_type != "det") {
+      stop("Climatology option only working in determinstic mode so far!")
+    }
+    
+    # Valid days to grab
+    clim_days <- fcst[[1]]$valid_dttm %>% 
+      unique() %>%
+      harpCore::as_ymdh() %>%
+      sort() %>% 
+      substr(.,5,10)
+    clim_sdat <- paste0(climatology_year,min(clim_days))
+    clim_edat <- paste0(climatology_year,max(clim_days))
+    
+    # Then read in climatology data
+    clm_prm_name <- prm_name
+    if (grepl("AccPcp",prm_name,fixed = T)) {
+      clm_prm_name <- paste0("analysis_",clm_prm_name)
+    }
+    mm        <- list(NULL)
+    names(mm) <- climatology_name
+    lm        <- list("0h")
+    names(lm) <- climatology_name
+    clim_data <- try_rpforecast(clim_sdat,
+                                clim_edat,
+                                climatology_by,
+                                climatology_name,
+                                fcst_type,
+                                clm_prm_name,
+                                0,
+                                mm,
+                                lm,
+                                climatology_path,
+                                climatology_tmpl,
+                                stations_filter,
+                                vertical_coordinate)
+    if (is.null(clim_data)) {
+      
+      message("Failure during the climatology FCTABLE reading process for ",prm_name,
+              ", not using climatology for this parameter!")
+      use_climatology_local <- FALSE
+      climatology_name_local <- NULL
+      
+    } else {
+    
+      # Then filter to just month, day, hour, SID
+      cols_to_sel <- c("valid_dttm","SID","fcst")
+      cols_to_sel <- switch(
+        vertical_coordinate,
+        "pressure" = c(cols_to_sel,"p"),
+        "height"   = c(cols_to_sel,"z"),
+        cols_to_sel
+      )
+      clim_data <- clim_data %>% 
+        dplyr::select(all_of(cols_to_sel)) %>% 
+        dplyr::rename(clm = fcst) %>%
+        harpCore::expand_date(.,"valid_dttm") %>%
+        dplyr::select(-valid_dttm,-valid_year)
+      
+      # Make a fake forecast model based on first model and use it for climatology
+      qwe <- fcst[[1]] %>% 
+        harpCore::expand_date(.,"valid_dttm") %>%
+        dplyr::select(-valid_year)
+      # If multiple years are present the same day may be matched multiple times, 
+      # hence many-to-one. Then replace forecast by climatology values.
+      qwe2 <- dplyr::inner_join(qwe,
+                                clim_data[[1]],
+                                relationship = "many-to-one",
+                                by = setdiff(colnames(clim_data[[1]]),"clm")) %>%
+        dplyr::mutate(fcst_model = climatology_name,fcst = clm) %>%
+        dplyr::select(-clm,-valid_month,-valid_day,-valid_hour,-valid_minute)
+      clim_data[[1]] <- qwe2
+      # Then add this in to forecast model object
+      fcst <- c(fcst,clim_data)
+      
+      cat("Added climatology successfully!\n")
+      
+    }
+    
+  }
+  
+  #================================================#
+  # COMMON CASE, SCALE, FILTER TO MAX FORECAST
+  #================================================#
+
+  fcst <- switch(
+    vertical_coordinate,
+    "pressure" = harpCore::common_cases(fcst, p),
+    "height"   = harpCore::common_cases(fcst, z),
+    harpCore::common_cases(fcst)
+  )
+  
+  # Scale the forecast object
+  fcst <- scale_fcst(fcst,prm_info)
+  
+  # Filter forecasts to max value if indicated in the param file
+  # For ensembles, all members must be <= the maximum
+  fcst <- fcst_fctmax_filter(fcst,
+                             fcst_type,
+                             prm_info,
+                             vertical_coordinate)
+  
+  #================================================#
+  # READ OBS, SCALE, AND JOIN
+  #================================================#
+  
+  if (prm_name == "T2m_uncorrected") {
+    prm_name_obs <- "T2m"
+  } else {
+    prm_name_obs <- prm_name
+  }
+  
+  # Read the actual observations or use a model as observations
+  if (isFALSE(model_as_obs)){
+  obs <- try_rpobs(fcst,
+                   prm_name_obs,
+                   prm_info,
+                   obs_path,
+                   vertical_coordinate)
+  if (prm_name_obs != prm_name) {
+    obs <- dplyr::rename(obs,!!prm_name:=all_of(prm_name_obs))
+  }
+
+  if (is.null(obs)) {
+    message("No obs found for ",prm_name,", moving on to the next parameter")
+    return(missing_data)
+  }
+  if (nrow(obs) < 1) {
+    message("No obs found for ",prm_name,", moving on to the next parameter")
+    return(missing_data)
+  }
+  # Add a check to see if all values are the same in the case of many (>100) obs.
+  # This likely indicates some sort of issue with the OBSTABLE
+  num_unique_obs = length(unique(obs[[prm_name]]))
+  if ((num_unique_obs == 1) && (nrow(obs) >= 100)) {
+    message("There are ",nrow(obs)," obverved values but they are all = ",obs[[prm_name]][1])
+    message("Check the OBSTABLE! Moving on to the next parameter")
+    return(missing_data)
+  }
+  
+  if (!is.null(prm_info$scale_obs)) {
+    obs <- do.call(
+      harpCore::scale_param,
+      c(list(x = obs,
+             col = {{prm_name}}),
+             prm_info$scale_obs)
+    )
+  }
+  } else {
+    
+    cat("Using forecast model",model_as_obs_name,"at lead_time=0 as observations!\n")
+    # Now do try_rpforecast 
+    all_valid <- harpCore::unique_valid_dttm(fcst[[1]]) %>% sort()
+    mm        <- list(NULL)
+    names(mm) <- model_as_obs_name
+    lm        <- list("0h")
+    names(lm) <- model_as_obs_name
+    if (grepl("AccPcp",prm_name,fixed = T)) {
+      obs_prm_name <- paste0("analysis_",prm_name)
+    } else {
+      obs_prm_name <- prm_name
+    }
+    cat("Using parameter name",obs_prm_name,"when reading lead_time=0 forecasts\n")
+    obs <- try_rpforecast(all_valid[1],
+                          tail(all_valid,1),
+                          model_as_obs_by,
+                          model_as_obs_name,
+                          fcst_type,
+                          obs_prm_name,
+                          0,
+                          mm,
+                          lm,
+                          model_as_obs_path,
+                          model_as_obs_tmpl,
+                          stations_filter,
+                          vertical_coordinate)
+    
+    if (is.null(obs)) {
       message("Failure during the FCTABLE reading process for ",prm_name,
               ", moving on to the next parameter")
       return(missing_data)
     }
-    # Save lt_unit attribute before it is dropped by other operations.
-    lt_unit <- attr(fcst,"lt_unit")
-  
-    #================================================#
-    # LAG THE FORECAST FOR EPS EXPERIMENTS
-    #================================================#
-  
-    if ((fcst_type == "eps") && (!isTRUE(attr(fcst,"ml")))) {
     
-      message("Caution: Doing explicit lagging. With harp v0.3 this will be done as part of read_point_forecast.")
-      fcst <- try_epslag(fcst,
-                         fcst_model,
-                         parent_cycles,
-                         vertical_coordinate)
-    
-      if (is.null(fcst)) {
-        message("Failure during the model data lagging process for ",prm_name,
-                ", moving on to next parameter")
-        return(missing_data)
-      }
-    
-    } 
-    
-    #================================================#
-    # SHIFT THE FORECAST (EXPERIMENTAL)
-    #================================================#
-    
-    if ((!is.null(shifts_list[[1]])) & (fcst_type == "det")) {
-      cat("Looks like you are trying to shift the models in time with:\n")
-      print(shifts_list)
-      fcst <- harpPoint::shift_forecast(
-        fcst,
-        fcst_shifts = shifts_list,
-        keep_unshifted = F
-      )
-      # And do some renaming (to reduce length of legend)
-      shifted_names <- gsub("shifted_","s",names(fcst))
-      # If the shift is zero hours, remove this from the model name
-      shifted_names <- gsub("_s0h","",shifted_names)
-      for (ii in seq(1,length(fcst))) {
-        fcst[[ii]][["fcst_model"]] <- shifted_names[ii]
-      }
-      names(fcst) <- shifted_names
-    }
-    
-    #================================================#
-    # ADD IN THE CLIMATOLOGY AS A MODEL
-    #================================================#
-    use_climatology_local <- use_climatology
-    climatology_name_local <- climatology_name
-    
-    if (use_climatology) {
-      
-      cat("Now add in climatology from model",climatology_name,"\n")
-      
-      if (fcst_type != "det") {
-        stop("Climatology option only working in determinstic mode so far!")
-      }
-      
-      # Valid days to grab
-      clim_days <- fcst[[1]]$valid_dttm %>% 
-        unique() %>%
-        harpCore::as_ymdh() %>%
-        sort() %>% 
-        substr(.,5,10)
-      clim_sdat <- paste0(climatology_year,min(clim_days))
-      clim_edat <- paste0(climatology_year,max(clim_days))
-      
-      # Then read in climatology data
-      clm_prm_name <- prm_name
-      if (grepl("AccPcp",prm_name,fixed = T)) {
-        clm_prm_name <- paste0("analysis_",clm_prm_name)
-      }
-      mm        <- list(NULL)
-      names(mm) <- climatology_name
-      lm        <- list("0h")
-      names(lm) <- climatology_name
-      clim_data <- try_rpforecast(clim_sdat,
-                                  clim_edat,
-                                  climatology_by,
-                                  climatology_name,
-                                  fcst_type,
-                                  clm_prm_name,
-                                  0,
-                                  mm,
-                                  lm,
-                                  climatology_path,
-                                  climatology_tmpl,
-                                  stations_filter,
-                                  vertical_coordinate)
-      if (is.null(clim_data)) {
-        
-        message("Failure during the climatology FCTABLE reading process for ",prm_name,
-                ", not using climatology for this parameter!")
-        use_climatology_local <- FALSE
-        climatology_name_local <- NULL
-        
+    if (unique(obs[[1]]$parameter) != prm_name) {
+      if ((unique(obs[[1]]$parameter) == obs_prm_name) && (grepl("AccPcp",obs_prm_name,fixed = T))) {
+        obs[[1]]$parameter <- "Pcp"
       } else {
-      
-        # Then filter to just month, day, hour, SID
-        cols_to_sel <- c("valid_dttm","SID","fcst")
-        cols_to_sel <- switch(
-          vertical_coordinate,
-          "pressure" = c(cols_to_sel,"p"),
-          "height"   = c(cols_to_sel,"z"),
-          cols_to_sel
-        )
-        clim_data <- clim_data %>% 
-          dplyr::select(all_of(cols_to_sel)) %>% 
-          dplyr::rename(clm = fcst) %>%
-          harpCore::expand_date(.,"valid_dttm") %>%
-          dplyr::select(-valid_dttm,-valid_year)
-        
-        # Make a fake forecast model based on first model and use it for climatology
-        qwe <- fcst[[1]] %>% 
-          harpCore::expand_date(.,"valid_dttm") %>%
-          dplyr::select(-valid_year)
-        # If multiple years are present the same day may be matched multiple times, 
-        # hence many-to-one. Then replace forecast by climatology values.
-        qwe2 <- dplyr::inner_join(qwe,
-                                  clim_data[[1]],
-                                  relationship = "many-to-one",
-                                  by = setdiff(colnames(clim_data[[1]]),"clm")) %>%
-          dplyr::mutate(fcst_model = climatology_name,fcst = clm) %>%
-          dplyr::select(-clm,-valid_month,-valid_day,-valid_hour,-valid_minute)
-        clim_data[[1]] <- qwe2
-        # Then add this in to forecast model object
-        fcst <- c(fcst,clim_data)
-        
-        cat("Added climatology successfully!\n")
-        
+        stop("Something weird happened with the parameter name when reading forecasts as obs")
       }
+    }
+    
+    # Now scale and drop columns
+    obs <- scale_fcst(obs,prm_info)
+    obs <- obs %>% dplyr::select(-fcst_model,-fcst_dttm,-lead_time,-fcst_cycle) %>%
+      dplyr::rename(!!prm_name:="fcst")
+    obs <- obs[[1]]
+    
+  }
+  
+  fcst <- tryCatch(
+    {
+      harpCore::join_to_fcst(fcst, obs)
+    },
+    error = function(cond){
+      cat("An error was detected during join_to_fcst for",prm_name,"\n")
+      cat("Here is the original message:\n")
+      message(conditionMessage(cond))
+      cat("And here is what the obs dataframe looked like:\n")
+      print(obs)
+      cat("And here is the forecast dataframe:\n")
+      print(fcst)
+      return(NULL)
+    }
+  )
+  if (is.null(fcst)) {
+    message("Failure during join_to_fcst for ",prm_name,
+            ", moving on to next parameter")
+    return(missing_data)
+  }
+  
+  fcst <- switch(
+    vertical_coordinate,
+    "pressure" = harpCore::common_cases(fcst, p),
+    "height"   = harpCore::common_cases(fcst, z),
+    harpCore::common_cases(fcst)
+  )
+  
+  et_read <- Sys.time()
+  dt_read <- round(as.numeric(et_read - st_read,units = "secs"))
+  cat("Finished the forecast and obs reading\n")
 
-    } 
+  #================================================#
+  # QUALITY CHECKS, ADD VALID_HOUR, IF UA THEN ONLY
+  # LOOK AT CERTAIN HOURS
+  #================================================#
   
-    #================================================#
-    # COMMON CASE, SCALE, FILTER TO MAX FORECAST
-    #================================================#
-
-    fcst <- switch(
-      vertical_coordinate,
-      "pressure" = harpCore::common_cases(fcst, p),
-      "height"   = harpCore::common_cases(fcst, z),
-      harpCore::common_cases(fcst)
-    )
+  fcst <- fcst_qc(fcst,
+                  {{prm_name}},
+                  prm_info,
+                  vertical_coordinate,
+                  num_days,
+                  model_as_obs,
+                  skip_qc = skip_qc)
+  if (is.null(fcst)) {
+    message("Failure after the QC check for parameter ",prm_name,
+            ", moving on to next parameter")
+    return(missing_data)
+  }
   
-    # Scale the forecast object
-    fcst <- scale_fcst(fcst,prm_info)
+  # Add in one more common cases check to be safe
+  fcst <- switch(
+    vertical_coordinate,
+    "pressure" = harpCore::common_cases(fcst, p),
+    "height"   = harpCore::common_cases(fcst, z),
+    harpCore::common_cases(fcst)
+  )
   
-    # Filter forecasts to max value if indicated in the param file
-    # For ensembles, all members must be <= the maximum
-    fcst <- fcst_fctmax_filter(fcst,
-                               fcst_type,
-                               prm_info,
-                               vertical_coordinate)
+  if (is.null(fcst)) {
+    message("Skipping parameter ",prm_name," as fcst is empty")
+    return(missing_data)
+  }
   
-    #================================================#
-    # READ OBS, SCALE, AND JOIN
-    #================================================#
-  
-    if (prm_name == "T2m_uncorrected") {
-      prm_name_obs <- "T2m"
-    } else {
-      prm_name_obs <- prm_name
-    }
-  
-    # Read the actual observations or use a model as observations
-    if (isFALSE(model_as_obs)){
-      obs <- try_rpobs(fcst,
-                       prm_name_obs,
-                       prm_info,
-                       obs_path,
-                       vertical_coordinate)    
-      if (prm_name_obs != prm_name) {
-        obs <- dplyr::rename(obs,!!prm_name:=all_of(prm_name_obs))
-      }
-
-      if (is.null(obs)) {
-        message("No obs found for ",prm_name,", moving on to the next parameter")
-        return(missing_data)
-      }
-      if (nrow(obs) < 1) {
-        message("No obs found for ",prm_name,", moving on to the next parameter")
-        return(missing_data)
-      }
-      # Add a check to see if all values are the same in the case of many (>100) obs.
-      # This likely indicates some sort of issue with the OBSTABLE
-      num_unique_obs = length(unique(obs[[prm_name]]))
-      if ((num_unique_obs == 1) && (nrow(obs) >= 100)) {
-        message("There are ",nrow(obs)," obverved values but they are all = ",obs[[prm_name]][1])
-        message("Check the OBSTABLE! Moving on to the next parameter")
-        return(missing_data)
-      }
-  
-      if (!is.null(prm_info$scale_obs)) {
-        obs <- do.call(
-          harpCore::scale_param,
-          c(list(x = obs,
-                col = {{prm_name}}),
-                prm_info$scale_obs)
-        )
-      }
-    } else {
-    
-      cat("Using forecast model",model_as_obs_name,"at lead_time=0 as observations!\n")
-      # Now do try_rpforecast 
-      all_valid <- harpCore::unique_valid_dttm(fcst[[1]]) %>% sort()
-      mm        <- list(NULL)
-      names(mm) <- model_as_obs_name
-      lm        <- list("0h")
-      names(lm) <- model_as_obs_name
-      if (grepl("AccPcp",prm_name,fixed = T)) {
-        obs_prm_name <- paste0("analysis_",prm_name)
-      } else {
-        obs_prm_name <- prm_name
-      }
-      cat("Using parameter name",obs_prm_name,"when reading lead_time=0 forecasts\n")
-      obs <- try_rpforecast(all_valid[1],
-                            tail(all_valid,1),
-                            model_as_obs_by,
-                            model_as_obs_name,
-                            fcst_type,
-                            obs_prm_name,
-                            0,
-                            mm,
-                            lm,
-                            model_as_obs_path,
-                            model_as_obs_tmpl,
-                            stations_filter,
-                            vertical_coordinate)
-      
-      if (is.null(obs)) {
-        message("Failure during the FCTABLE reading process for ",prm_name,
-                ", moving on to the next parameter")
-        return(missing_data)
-      }
-    
-      if (unique(obs[[1]]$parameter) != prm_name) {
-        if ((unique(obs[[1]]$parameter) == obs_prm_name) && (grepl("AccPcp",obs_prm_name,fixed = T))) {
-          obs[[1]]$parameter <- "Pcp"
-        } else {
-          stop("Something weird happened with the parameter name when reading forecasts as obs")
-        }
-      }
-    
-      # Now scale and drop columns
-      obs <- scale_fcst(obs,prm_info)
-      obs <- obs %>% dplyr::select(-fcst_model,-fcst_dttm,-lead_time,-fcst_cycle) %>%
-        dplyr::rename(!!prm_name:="fcst")
-      obs <- obs[[1]]
-    
-    }
-  
-    fcst <- tryCatch(
-      {
-        harpCore::join_to_fcst(fcst, obs)
-      },
-      error = function(cond){
-        cat("An error was detected during join_to_fcst for",prm_name,"\n")
-        cat("Here is the original message:\n")
-        message(conditionMessage(cond))
-        cat("And here is what the obs dataframe looked like:\n")
-        print(obs)
-        cat("And here is the forecast dataframe:\n")
-        print(fcst)
-        return(NULL)
-      }
-    )
-    if (is.null(fcst)) {
-      message("Failure during join_to_fcst for ",prm_name,
-              ", moving on to next parameter")
-      return(missing_data)
-    }
-  
-    fcst <- switch(
-      vertical_coordinate,
-      "pressure" = harpCore::common_cases(fcst, p),
-      "height"   = harpCore::common_cases(fcst, z),
-      harpCore::common_cases(fcst)
-    )
-  
-    et_read <- Sys.time()
-    dt_read <- round(as.numeric(et_read - st_read,units = "secs"))
-    cat("Finished the forecast and obs reading\n")
-
-    #================================================#
-    # QUALITY CHECKS, ADD VALID_HOUR, IF UA THEN ONLY
-    # LOOK AT CERTAIN HOURS
-    #================================================#
-    
-    fcst <- fcst_qc(fcst,
-                    {{prm_name}},
-                    prm_info,
-                    vertical_coordinate,
-                    num_days,
-                    model_as_obs,
-                    skip_qc = skip_qc)
-    if (is.null(fcst)) {
-      message("Failure after the QC check for parameter ",prm_name,
-              ", moving on to next parameter")
-      return(missing_data)
-    }
-    
-    # Add in one more common cases check to be safe
-    fcst <- switch(
-      vertical_coordinate,
-      "pressure" = harpCore::common_cases(fcst, p),
-      "height"   = harpCore::common_cases(fcst, z),
-      harpCore::common_cases(fcst)
-    )
-    
-    if (is.null(fcst)) {
-      message("Skipping parameter ",prm_name," as fcst is empty")
-      return(missing_data)
-    }
-  
-    # Add valid_hour to fcst
-    fcst <- harpCore::expand_date(fcst,valid_dttm)
+  # Add valid_hour to fcst
+  fcst <- harpCore::expand_date(fcst,valid_dttm)
+  fcst <- harpPoint::mutate_list(fcst,
+                                 valid_hour = sprintf("%02d",valid_hour))
+  if (valid_dttm_col == "valid_ymd" ){
     fcst <- harpPoint::mutate_list(fcst,
-                                  valid_hour = sprintf("%02d",valid_hour))
-    if (valid_dttm_col == "valid_ymd" ){
-      fcst <- harpPoint::mutate_list(fcst,
-                                    valid_ymd = as.Date(valid_dttm))
-    }
-    
-    # If UA variable, restrict to main valid hours i.e. 00, 06, 12, 18 Z
-    if (!is.na(vertical_coordinate)) {
-      if (ua_restrict_vh) {
-        tgvh      <- c("00","06","12","18")
-        availvh  <- intersect(unique(fcst[[1]]$valid_hour),
-                              tgvh) %>% sort()
-        if (length(availvh) > 0) {
-          fcst <- fcst %>% filter_list(valid_hour %in% availvh)
-          cat("Restricting UA variable",prm_name,"to valid hours",availvh,"Z\n")
-        } else {
-          cat("Did not find any valid hours",tgvh,"in the data, skipping restriction\n")
-        }
-      }
-    }
+                                   valid_ymd = as.Date(valid_dttm))
+  }
   
-    #================================================#
-    # HANDLE CASE OF ONE MEMBER FROM ENSEMBLES
-    #================================================#
-    
-    # Deal with reading one particular member in each ensemble.
-    # As such, fcst_type should be changed to "det" instead of "eps", and some
-    # renaming needs to be carried out. This is relevant, e.g., when comparing 
-    # control members in ensembles (and avoids having to re-convert)
-    
-    if (fcst_type == "eps") {
-      
-      # Sum over models and check if only one member exists in each ensemble
-      sum_total_members <- 0
-      for (cm in names(fcst)) {
-        cur_memebrs       <- sum(grepl("mbr0",names(fcst[[cm]]),fixed = TRUE))
-        sum_total_members <- sum_total_members + cur_memebrs
-      }
-      
-      if (sum_total_members == length(names(fcst))) {
-        cat("This looks like a determinstic comparison of ensemble members!\n")
-        cat("Switching to fcst_type = det and renaming models\n")
-      
-        new_model_name_vec   <- NULL
-        fcst                 <- harpCore::as_det(fcst)
-        for (cm in names(fcst)) {
-          new_model_name             <- paste0(cm,"mbr",
-                                              sprintf("%03d",
-                                                      members_list[[cm]]))
-          new_model_name_vec         <- c(new_model_name_vec,new_model_name)
-          fcst[[cm]][["fcst_model"]] <- new_model_name
-        }
-        names(fcst)          <- new_model_name_vec
-        verif_fcst_type      <- "det"
-        t_s_str              <- "det_threshold_scores"
-        ft_str               <- "det"
+  # If UA variable, restrict to main valid hours i.e. 00, 06, 12, 18 Z
+  if (!is.na(vertical_coordinate)) {
+    if (ua_restrict_vh) {
+      tgvh      <- c("00","06","12","18")
+      availvh  <- intersect(unique(fcst[[1]]$valid_hour),
+                            tgvh) %>% sort()
+      if (length(availvh) > 0) {
+        fcst <- fcst %>% filter_list(valid_hour %in% availvh)
+        cat("Restricting UA variable",prm_name,"to valid hours",availvh,"Z\n")
       } else {
-        verif_fcst_type      <- "eps"
+        cat("Did not find any valid hours",tgvh,"in the data, skipping restriction\n")
       }
     }
-    
-    #================================================#
-    # HANDLE THE STATION GROUPING
-    #================================================#
+  }
   
-    # Add a check to see if a domain choice is a single station
-    all_station_groups <- NULL
+  #================================================#
+  # HANDLE CASE OF ONE MEMBER FROM ENSEMBLES
+  #================================================#
+  
+  # Deal with reading one particular member in each ensemble.
+  # As such, fcst_type should be changed to "det" instead of "eps", and some
+  # renaming needs to be carried out. This is relevant, e.g., when comparing 
+  # control members in ensembles (and avoids having to re-convert)
+  
+  if (fcst_type == "eps") {
     
-    if (any(domains_to_run %in% harpCore::unique_stations(fcst))) {
-      single_sids <- harpCore::unique_stations(fcst)[harpCore::unique_stations(fcst) %in% domains_to_run]
-      for (qwe in single_sids) {
-        qwee               <- data.frame(qwe,as.character(qwe)) %>% tidyr::as_tibble()
-        names(qwee)        <- c("SID","station_group")
-        all_station_groups <- dplyr::bind_rows(all_station_groups,qwee)
-      }
-      rm(qwe,qwee)
-      # Remove this from domains_to_run as it does not need to be generated
-      domains_to_run <- setdiff(domains_to_run,single_sids)
-      cat("Adding single stations",single_sids,"to domains list\n")
+    # Sum over models and check if only one member exists in each ensemble
+    sum_total_members <- 0
+    for (cm in names(fcst)) {
+      cur_memebrs       <- sum(grepl("mbr0",names(fcst[[cm]]),fixed = TRUE))
+      sum_total_members <- sum_total_members + cur_memebrs
     }
     
-    # Dynamic generation of station lists
-    if (dynamic_sid_gen){
-      cs_list <- fn_station_selection(domain_choice = domains_to_run,
-                          param            = prm_name,
-                          generate_domains = FALSE,
-                          domains_to_gen   = domains_to_run,
-                          plot_domains     = plot_dynamic_sid,
-                          fcst_object      = fcst,
-                          obs_object       = obs,
-                          poly_dir         = here::here("verification/poly_files"),
-                          multlatlon_rmv   = TRUE)
+    if (sum_total_members == length(names(fcst))) {
+      cat("This looks like a determinstic comparison of ensemble members!\n")
+      cat("Switching to fcst_type = det and renaming models\n")
+     
+      new_model_name_vec   <- NULL
+      fcst                 <- harpCore::as_det(fcst)
+      for (cm in names(fcst)) {
+        new_model_name             <- paste0(cm,"mbr",
+                                             sprintf("%03d",
+                                                     members_list[[cm]]))
+        new_model_name_vec         <- c(new_model_name_vec,new_model_name)
+        fcst[[cm]][["fcst_model"]] <- new_model_name
+      }
+      names(fcst)          <- new_model_name_vec
+      verif_fcst_type      <- "det"
+      t_s_str              <- "det_threshold_scores"
+      ft_str               <- "det"
     } else {
-      # Get domains from station_selection
-      cs_list <- fn_station_selection(domain_choice = base::setdiff(domains_to_run,"All"),
-                                      param       = prm_name,
-                                      domain_file = sid_lists_fname)
+      verif_fcst_type      <- "eps"
     }
+  }
   
-    # Convert into suitable format and add
-    avail_domains <- base::intersect(names(cs_list),domains_to_run)
-    if (length(avail_domains) > 0) {
-      for (ad in avail_domains) {
-        cl <- cs_list[[ad]] %>% dplyr::mutate("station_group" = ad) %>% 
-          dplyr::select(SID,"station_group")
-        all_station_groups <- dplyr::bind_rows(all_station_groups,cl)
-      }
+  #================================================#
+  # HANDLE THE STATION GROUPING
+  #================================================#
+  
+  # Add a check to see if a domain choice is a single station
+  all_station_groups <- NULL
+  
+  if (any(domains_to_run %in% harpCore::unique_stations(fcst))) {
+    single_sids <- harpCore::unique_stations(fcst)[harpCore::unique_stations(fcst) %in% domains_to_run]
+    for (qwe in single_sids) {
+      qwee               <- data.frame(qwe,as.character(qwe)) %>% tidyr::as_tibble()
+      names(qwee)        <- c("SID","station_group")
+      all_station_groups <- dplyr::bind_rows(all_station_groups,qwee)
     }
+    rm(qwe,qwee)
+    # Remove this from domains_to_run as it does not need to be generated
+    domains_to_run <- setdiff(domains_to_run,single_sids)
+    cat("Adding single stations",single_sids,"to domains list\n")
+  }
+  
+  # Dynamic generation of station lists
+  if (dynamic_sid_gen){
+    cs_list <- fn_station_selection(domain_choice = domains_to_run,
+                         param            = prm_name,
+                         generate_domains = FALSE,
+                         domains_to_gen   = domains_to_run,
+                         plot_domains     = plot_dynamic_sid,
+                         fcst_object      = fcst,
+                         obs_object       = obs,
+                         poly_dir         = here::here("verification/poly_files"),
+                         multlatlon_rmv   = TRUE)
+  } else {
+    # Get domains from station_selection
+    cs_list <- fn_station_selection(domain_choice = base::setdiff(domains_to_run,"All"),
+                                    param       = prm_name,
+                                    domain_file = sid_lists_fname)
+  }
+  
+  # Convert into suitable format and add
+  avail_domains <- base::intersect(names(cs_list),domains_to_run)
+  if (length(avail_domains) > 0) {
+    for (ad in avail_domains) {
+      cl <- cs_list[[ad]] %>% dplyr::mutate("station_group" = ad) %>% 
+        dplyr::select(SID,"station_group")
+      all_station_groups <- dplyr::bind_rows(all_station_groups,cl)
+    }
+  }
 
-    # Extract all SIDS as a group
-    if (("All" %in% domains_to_run) & (!("All" %in% unique(all_station_groups$station_group)))) {
-      all_sids <- data.frame(harpCore::unique_stations(fcst),"All") %>%
-        tibble::as_tibble()
-      names(all_sids) <- c("SID","station_group")
-      # Filter out stations_to_rmv
-      all_sids <- all_sids %>%
-        dplyr::filter(!(SID %in% cs_list[["stations_to_rmv"]][["SID"]]))
-      all_station_groups <- dplyr::bind_rows(all_station_groups,all_sids)
-    }
-    
-    if (is.null(all_station_groups)) {
-      message("No domains found, skipping parameter ",prm_name)
+  # Extract all SIDS as a group
+  if (("All" %in% domains_to_run) & (!("All" %in% unique(all_station_groups$station_group)))) {
+    all_sids <- data.frame(harpCore::unique_stations(fcst),"All") %>%
+      tibble::as_tibble()
+    names(all_sids) <- c("SID","station_group")
+    # Filter out stations_to_rmv
+    all_sids <- all_sids %>%
+      dplyr::filter(!(SID %in% cs_list[["stations_to_rmv"]][["SID"]]))
+    all_station_groups <- dplyr::bind_rows(all_station_groups,all_sids)
+  }
+  
+  if (is.null(all_station_groups)) {
+    message("No domains found, skipping parameter ",prm_name)
+    return(missing_data)
+  } else {
+    fcst <- harpCore::join_to_fcst(fcst,all_station_groups,force = TRUE)
+    # Make sure something exists after joining
+    if (length(fcst[[1]][["SID"]]) == 0) {
+      message("No domain data found after joining, skipping parameter ",prm_name)
       return(missing_data)
-    } else {
-      fcst <- harpCore::join_to_fcst(fcst,all_station_groups,force = TRUE)
-      # Make sure something exists after joining
-      if (length(fcst[[1]][["SID"]]) == 0) {
-        message("No domain data found after joining, skipping parameter ",prm_name)
-        return(missing_data)
-      }
     }
-    
-    # Add back in lt_unit
-    attributes(fcst)[["lt_unit"]] <- lt_unit
-
-    # Calculate the number of stations in each station group for each cycle and valid hour.
-    # This ensures that the number of stations appearing in the subtitle is more
-    # accurate and consistent!
-    n_stations_1 <- fcst[[1]] %>% dplyr::group_by(station_group) %>%
-      dplyr::summarise(num_stations = length(unique(SID))) %>%
-      dplyr::mutate(fcst_cycle = "All", valid_hour = "All")
-    n_stations_2  <- fcst[[1]] %>% dplyr::group_by(station_group,fcst_cycle) %>%
-      dplyr::summarise(num_stations = length(unique(SID)))  %>%
-      dplyr::mutate(valid_hour = "All")
-    n_stations_3  <- fcst[[1]] %>% dplyr::group_by(station_group,valid_hour) %>%
-      dplyr::summarise(num_stations = length(unique(SID)))  %>%
-      dplyr::mutate(fcst_cycle = "All")
-    n_stations_4  <- fcst[[1]] %>% dplyr::group_by(station_group,fcst_cycle,valid_hour) %>%
-      dplyr::summarise(num_stations = length(unique(SID))) 
-    n_stations     <- bind(n_stations_1,n_stations_2,n_stations_3,n_stations_4) %>%
-      dplyr::distinct()
+  }
+  
+  # Add back in lt_unit
+  attributes(fcst)[["lt_unit"]] <- lt_unit
+  # Calculate the number of stations in each station group for each cycle and valid hour.
+  # This ensures that the number of stations appearing in the subtitle is more
+  # accurate and consistent!
+  n_stations_1 <- fcst[[1]] %>% dplyr::group_by(station_group) %>%
+    dplyr::summarise(num_stations = length(unique(SID))) %>%
+    dplyr::mutate(fcst_cycle = "All", valid_hour = "All")
+  n_stations_2  <- fcst[[1]] %>% dplyr::group_by(station_group,fcst_cycle) %>%
+    dplyr::summarise(num_stations = length(unique(SID)))  %>%
+    dplyr::mutate(valid_hour = "All")
+  n_stations_3  <- fcst[[1]] %>% dplyr::group_by(station_group,valid_hour) %>%
+    dplyr::summarise(num_stations = length(unique(SID)))  %>%
+    dplyr::mutate(fcst_cycle = "All")
+  n_stations_4  <- fcst[[1]] %>% dplyr::group_by(station_group,fcst_cycle,valid_hour) %>%
+    dplyr::summarise(num_stations = length(unique(SID))) 
+  n_stations     <- bind(n_stations_1,n_stations_2,n_stations_3,n_stations_4) %>%
+    dplyr::distinct()
 
     fcst_all[[i]] <- fcst
 
@@ -1138,19 +1126,19 @@ run_verif <- function(prm_info, prm_name) {
     
     st_verif <- Sys.time()
     verif_all[[i]] <- fn_run_verif_groups(fcst = fcst,
-                                    prm_name = prm_name,
-                                    vertical_coordinate = vertical_coordinate,
-                                    fcst_type = verif_fcst_type,
-                                    num_ref_members = num_ref_members,
-                                    grps_param = grps_param,
-                                    grps_threshold = grps_threshold,
-                                    grps_SID = grps_SID,
-                                    all_station_groups = all_station_groups,
-                                    thresholds_param = thresholds_param,
-                                    create_png = create_png,
-                                    force_valid_thr = force_valid_thr,
-                                    t_s_str = t_s_str,
-                                    run_sid = !skip_sid_verif)
+                                     prm_name = prm_name,
+                                     vertical_coordinate = vertical_coordinate,
+                                     fcst_type = verif_fcst_type,
+                                     num_ref_members = num_ref_members,
+                                     grps_param = grps_param,
+                                     grps_threshold = grps_threshold,
+                                     grps_SID = grps_SID,
+                                     all_station_groups = all_station_groups,
+                                     thresholds_param = thresholds_param,
+                                     create_png = create_png,
+                                     force_valid_thr = force_valid_thr,
+                                     t_s_str = t_s_str,
+                                     run_sid = !skip_sid_verif)
     et_verif <- Sys.time()
     dt_verif <- dt_verif + round(as.numeric(et_verif - st_verif,units = "secs"))
 
@@ -1162,11 +1150,11 @@ run_verif <- function(prm_info, prm_name) {
     stop("No data to verify", call. = FALSE)
   }
 
-  verif <- purrr::map(verif_all, "verif") %>% list_to_harp_verif()
-  verif_toplot <- purrr::map(verif_all, "verif_toplot") %>% list_to_harp_verif()
-  verif_sid <- purrr::map(verif_all, "verif_sid") %>% list_to_harp_verif()
+    verif <- purrr::map(verif_all, "verif") %>% list_to_harp_verif()
+    verif_toplot <- purrr::map(verif_all, "verif_toplot") %>% list_to_harp_verif()
+    verif_sid <- purrr::map(verif_all, "verif_sid") %>% list_to_harp_verif()
 
-  # If climatology is available, compute some skill scores relative to this
+    # If climatology is available, compute some skill scores relative to this
     if (use_climatology_local) {
       
       if (fcst_type == "det") {
@@ -1233,8 +1221,7 @@ run_verif <- function(prm_info, prm_name) {
     }
     et_aux <- Sys.time()
     dt_aux <- round(as.numeric(et_aux - st_aux,units = "secs"))
-
-
+    
     #================================================#
     # CALL PLOTTING SCRIPT FOR DIFFERENT GROUPS
     #================================================#
@@ -1249,18 +1236,18 @@ run_verif <- function(prm_info, prm_name) {
     
     if (prm_name %in% all_possible_UA_vars) {
       verif_toplot <- filter_verif(verif_toplot,
-                                  ft_str,
-                                  min_cases_filter)
+                                   ft_str,
+                                   min_cases_filter)
     }
     
     st_plot <- Sys.time()
     if (create_png) {
       
       fn_plot_point_verif(verif_toplot,
-                              plot_output,
+                               plot_output,
                                valid_dttm_col = valid_dttm_col,
                                png_projname  = png_projname,
-                              rolling_verif = rolling_verif,
+                               rolling_verif = rolling_verif,
                                cmap          = cmap,
                                map_cbar_d    = map_cbar_d,
                                fsd           = fsd,
@@ -1272,10 +1259,10 @@ run_verif <- function(prm_info, prm_name) {
                                fcst          = fcst)
       if ((is.na(vertical_coordinate)) & (!is.null(verif_sid))) {
         fn_plot_point_verif(verif_sid,
-                                plot_output,
+                                 plot_output,
                                  table_SIDS    = FALSE,
                                  png_projname  = png_projname,
-                                rolling_verif = rolling_verif,
+                                 rolling_verif = rolling_verif,
                                  cmap          = cmap,
                                  map_cbar_d    = map_cbar_d,
                                  fsd           = fsd,
@@ -1291,10 +1278,10 @@ run_verif <- function(prm_info, prm_name) {
         }
       }
     }
-  
+    
     et_plot <- Sys.time()
     dt_plot <- round(as.numeric(et_plot - st_plot,units = "secs"))
-  
+        
     #================================================#
     # SAVE TO RDS
     #================================================#
@@ -1303,26 +1290,26 @@ run_verif <- function(prm_info, prm_name) {
       
       if (!dir.exists(file.path(verif_path))) {
         dir.create(file.path(verif_path),
-                    showWarnings = TRUE,
-                    recursive    = FALSE)
+                   showWarnings = TRUE,
+                   recursive    = FALSE)
       }
       if (mod_def_rds) {
         custom_rds <- "{verif_path}/{projectname}.harpPointVerif.harp.{parameter}.harp.{start_date}-{end_date}.harp.{models}.rds"
         harpIO::save_point_verif(verif,
-                                  verif_path          = verif_path,
-                                  verif_file_template = custom_rds,
-                                  projectname         = project_name)
+                                 verif_path          = verif_path,
+                                 verif_file_template = custom_rds,
+                                 projectname         = project_name)
       } else {
         harpIO::save_point_verif(verif,
-                                  verif_path = verif_path)
+                                 verif_path = verif_path)
       }
-        
+      
       # Save the verification object used for plotting pngs if desired
       if (save_vofp) {
         vtpname <- paste(project_name,prm_name,start_date,end_date,sep = "_")
         saveRDS(object = verif_toplot,
                 file   = file.path(plot_output,
-                                    paste0(vtpname,".rds")))
+                                   paste0(vtpname,".rds")))
       }
       
     }
@@ -1334,7 +1321,7 @@ run_verif <- function(prm_info, prm_name) {
         
   } # Close the if (!gen_sc_only) condition
       
-
+      
   #================================================#
   # SCORECARDS
   #================================================#
