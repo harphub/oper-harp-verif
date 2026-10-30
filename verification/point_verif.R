@@ -1151,6 +1151,7 @@ run_verif <- function(prm_info, prm_name) {
     #================================================#
     
     st_verif <- Sys.time()
+    if (!gen_sc_only) {
     verif_all[[i]] <- fn_run_verif_groups(fcst = fcst,
                                      prm_name = prm_name,
                                      vertical_coordinate = vertical_coordinate,
@@ -1165,16 +1166,25 @@ run_verif <- function(prm_info, prm_name) {
                                      force_valid_thr = force_valid_thr,
                                      t_s_str = t_s_str,
                                      run_sid = !skip_sid_verif)
+    }
     et_verif <- Sys.time()
     dt_verif <- dt_verif + round(as.numeric(et_verif - st_verif,units = "secs"))
 
   }  # end loop over lead times
+  
+  fcst <- dplyr::bind_rows(fcst_all)
+  class(fcst) <- c("harp_list", "list") 
+  
+  # Define a list to store the sc data for this parameter over all domains
+  list_scrd_data <- list()
+  
+  if (!gen_sc_only) {
 
-  verif_all <- verif_all[purrr::map_lgl(verif_all, ~!is.null(.x))]
-
-  if (length(verif_all) < 1) {
-    stop("No data to verify", call. = FALSE)
-  }
+    verif_all <- verif_all[purrr::map_lgl(verif_all, ~!is.null(.x))]
+  
+    if (length(verif_all) < 1) {
+      stop("No data to verify", call. = FALSE)
+    }
 
     verif <- purrr::map(verif_all, "verif") %>% list_to_harp_verif()
     verif_toplot <- purrr::map(verif_all, "verif_toplot") %>% list_to_harp_verif()
@@ -1216,14 +1226,6 @@ run_verif <- function(prm_info, prm_name) {
       }
       
     }
-
-  fcst <- dplyr::bind_rows(fcst_all)
-  class(fcst) <- c("harp_list", "list") 
-
-  # Define a list to store the sc data for this parameter over all domains
-  list_scrd_data <- list()
-
-  if (!gen_sc_only) {
     
     #================================================#
     # AUX SCORES
