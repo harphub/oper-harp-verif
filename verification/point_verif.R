@@ -201,8 +201,8 @@ CONFIG          <- load_config(here::here(config_file))
 project_name    <- check_config_input(CONFIG,"verif","project_name")
 fcst_model      <- check_config_input(CONFIG,"verif","fcst_model")
 lead_time_str   <- check_config_input(CONFIG,"verif","lead_time")
-lead_time       <- eval(parse(text = lead_time_str))
-lead_time_UA    <- CONFIG$verif$lead_time_UA
+lead_time_param  <- check_config_input(CONFIG,"verif","lead_time_param")
+lt_batch_size   <- check_config_input(CONFIG,"verif","lead_time_batch_size")
 by_step         <- check_config_input(CONFIG,"verif","by_step")
 fcst_type       <- check_config_input(CONFIG,"verif","fcst_type")
 fcst_path       <- check_config_input(CONFIG,"verif","fcst_path")
@@ -462,7 +462,7 @@ if ((use_parallel) && (create_png)) {
 }
 
 # Set default lead_time
-lead_time_default <- lead_time
+lead_time_default <- lead_time_str
 
 #================================================#
 # FIND MODEL WITH MIN NUMBER OF STATIONS TO 
@@ -538,17 +538,24 @@ run_verif <- function(prm_info, prm_name) {
   } else {
     thresholds_param <- prm_info$thresholds
   }
-  
-  # Allow for specific leadtimes for UA variables
-  lead_time <- lead_time_default
-  prm_name_nolevel <- gsub('[0-9]+','',prm_name)
-  if (prm_name_nolevel %in% all_possible_UA_vars) {
-    if (!is.null(lead_time_UA)) {
-      lead_time <- eval(parse(text = lead_time_UA))
-      cat("Using lead_time_UA option i.e. leadtimes=",lead_time,"for variable",prm_name,"\n")
-    }
+
+  # Select correct lead time for param
+  if(prm_name %in% names(lead_time_param)){
+    lead_time <- eval(parse(text = lead_time_param[prm_name]))
+  } else if(prm_name %in% all_possible_UA_vars && "UA" %in% names(lead_time_param)) {
+    lead_time <- eval(parse(text = lead_time_param["UA"]))
+  } else {
+    lead_time <- eval(parse(text = lead_time_str))
   }
+  cat("Using lead times: ", lead_time, "\n")
   
+  # Split lead_time vector into smaller batches defined by lt_batch_size
+  if (is.null(lt_batch_size)) {
+    lt_batch_size <- length(lead_time)
+  }
+  lead_list <- split(lead_time, ceiling(seq_along(lead_time)/lt_batch_size))
+  num_iterations <- length(lead_list)
+
   # Initialise timings
   dt_read  <- 0
   dt_aux   <- 0
@@ -567,29 +574,58 @@ run_verif <- function(prm_info, prm_name) {
   # uses this list when reading all models
   if (!is.na(model_domain_min)) {
     fcst_tmp <- try_rpforecast(start_date,
-                               end_date,
-                               by_step,
-                               model_domain_min,
-                               fcst_type,
-                               prm_name,
-                               lead_time,
-                               members_domain_min,
-                               lags_domain_min,
-                               fcst_path,
-                               file_template_domain_min,
-                               NULL,
-                               vertical_coordinate)
+                             end_date,
+                             by_step,
+                             model_domain_min,
+                             fcst_type,
+                             prm_name,
+                             lead_list[[1]],
+                             members_domain_min,
+                             lags_domain_min,
+                             fcst_path,
+                             file_template_domain_min,
+                             NULL,
+                             vertical_coordinate)
     
     if (is.null(fcst_tmp)) {
       message("Failure during the FCTABLE reading process for ",prm_name,
               ", moving on to the next parameter")
       return(missing_data)
     }
-    
+
     stations_filter <- sort(harpCore::unique_stations(fcst_tmp))
     rm(fcst_tmp)
   } else {
     stations_filter <- NULL
+  }
+
+  verif_all <- list()
+  fcst_all <- list()
+  # Loop over iterations.
+  for (i in 1:num_iterations) {
+
+    cat("Lead time:", lead_list[[i]], "( Iteration", i, "of", num_iterations, ")\n")
+    cat(rep("=", 80), "\n", sep = "")
+
+    # Accumulated parameters can't be looped
+    harp_parameter <- harpIO::parse_harp_parameter(
+      prm_name,
+      vertical_coordinate = vertical_coordinate
+    )
+
+    if (harp_parameter$accum > 0 && any(lead_list[[i]] * 3600 < harp_parameter$accum)) {
+      warning_message <- paste0(
+        "Cannot accumulate ",
+        harpIO:::parse_accum(harp_parameter),
+        harp_parameter$acc_unit,
+        " ",
+        harp_parameter$basename,
+        " for lead time: ",
+        lead_list[[i]],
+        "h. Skipping to next iteration."
+      )
+      warning(warning_message, call. = FALSE, immediate. = TRUE)
+      next()
   }
   
   # Read all the models
@@ -599,7 +635,7 @@ run_verif <- function(prm_info, prm_name) {
                          fcst_model,
                          fcst_type,
                          prm_name,
-                         lead_time,
+                         lead_list[[i]],
                          members_list,
                          lags_list,
                          fcst_path,
@@ -984,9 +1020,11 @@ run_verif <- function(prm_info, prm_name) {
         fcst[[cm]][["fcst_model"]] <- new_model_name
       }
       names(fcst)          <- new_model_name_vec
-      fcst_type            <- "det"
+      verif_fcst_type      <- "det"
       t_s_str              <- "det_threshold_scores"
       ft_str               <- "det"
+    } else {
+      verif_fcst_type      <- "eps"
     }
   }
   
@@ -1063,7 +1101,6 @@ run_verif <- function(prm_info, prm_name) {
   
   # Add back in lt_unit
   attributes(fcst)[["lt_unit"]] <- lt_unit
-  
   # Calculate the number of stations in each station group for each cycle and valid hour.
   # This ensures that the number of stations appearing in the subtitle is more
   # accurate and consistent!
@@ -1080,44 +1117,18 @@ run_verif <- function(prm_info, prm_name) {
     dplyr::summarise(num_stations = length(unique(SID))) 
   n_stations     <- bind(n_stations_1,n_stations_2,n_stations_3,n_stations_4) %>%
     dplyr::distinct()
-  
-  # Define a list to store the sc data for this parameter over all domains
-  list_scrd_data <- list()
 
-  if (!gen_sc_only) {
-    
-    #================================================#
-    # AUX SCORES
-    #================================================#
-    
-    st_aux <- Sys.time()
-    if ((create_png) & (!skip_aux_plots)) {
-      fn_plot_aux_scores(fcst,
-                              plot_output,
-                              png_projname  = png_projname,
-                              rolling_verif = rolling_verif,
-                              cmap          = cmap,
-                              cmap_hex      = cmap_hex,
-                              lt_split      = lt_split,
-                              fsd           = fsd,
-                              fed           = fed,
-                              use_parallel  = use_parallel,
-                              vc            = vertical_coordinate,
-                              clim_name     = climatology_name_local,
-                              clim_in_plots = clim_in_plots)
-    }
-    et_aux <- Sys.time()
-    dt_aux <- round(as.numeric(et_aux - st_aux,units = "secs"))
-    
+    fcst_all[[i]] <- fcst
+
     #================================================#
     # VERIFICATION FOR DIFFERENT GROUPS
     #================================================#
     
     st_verif <- Sys.time()
-    verif_all <- fn_run_verif_groups(fcst = fcst,
+    verif_all[[i]] <- fn_run_verif_groups(fcst = fcst,
                                      prm_name = prm_name,
                                      vertical_coordinate = vertical_coordinate,
-                                     fcst_type = fcst_type,
+                                     fcst_type = verif_fcst_type,
                                      num_ref_members = num_ref_members,
                                      grps_param = grps_param,
                                      grps_threshold = grps_threshold,
@@ -1129,11 +1140,20 @@ run_verif <- function(prm_info, prm_name) {
                                      t_s_str = t_s_str,
                                      run_sid = !skip_sid_verif)
     et_verif <- Sys.time()
-    dt_verif <- round(as.numeric(et_verif - st_verif,units = "secs"))
-    verif        <- verif_all$verif
-    verif_toplot <- verif_all$verif_toplot
-    verif_sid    <- verif_all$verif_sid
-    
+    dt_verif <- dt_verif + round(as.numeric(et_verif - st_verif,units = "secs"))
+
+  }  # end loop over lead times
+
+  verif_all <- verif_all[purrr::map_lgl(verif_all, ~!is.null(.x))]
+
+  if (length(verif_all) < 1) {
+    stop("No data to verify", call. = FALSE)
+  }
+
+    verif <- purrr::map(verif_all, "verif") %>% list_to_harp_verif()
+    verif_toplot <- purrr::map(verif_all, "verif_toplot") %>% list_to_harp_verif()
+    verif_sid <- purrr::map(verif_all, "verif_sid") %>% list_to_harp_verif()
+
     # If climatology is available, compute some skill scores relative to this
     if (use_climatology_local) {
       
@@ -1170,6 +1190,37 @@ run_verif <- function(prm_info, prm_name) {
       }
       
     }
+
+  fcst <- dplyr::bind_rows(fcst_all)
+  class(fcst) <- c("harp_list", "list") 
+
+  # Define a list to store the sc data for this parameter over all domains
+  list_scrd_data <- list()
+
+  if (!gen_sc_only) {
+    
+    #================================================#
+    # AUX SCORES
+    #================================================#
+    
+    st_aux <- Sys.time()
+    if ((create_png) & (!skip_aux_plots)) {
+      fn_plot_aux_scores(fcst,
+                              plot_output,
+                              png_projname  = png_projname,
+                              rolling_verif = rolling_verif,
+                              cmap          = cmap,
+                              cmap_hex      = cmap_hex,
+                              lt_split      = lt_split,
+                              fsd           = fsd,
+                              fed           = fed,
+                              use_parallel  = use_parallel,
+                              vc            = vertical_coordinate,
+                              clim_name     = climatology_name_local,
+                              clim_in_plots = clim_in_plots)
+    }
+    et_aux <- Sys.time()
+    dt_aux <- round(as.numeric(et_aux - st_aux,units = "secs"))
     
     #================================================#
     # CALL PLOTTING SCRIPT FOR DIFFERENT GROUPS
