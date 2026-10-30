@@ -601,28 +601,28 @@ run_verif <- function(prm_info, prm_name) {
   # Loop over iterations.
   for (i in 1:num_iterations) {
 
-    cat("Lead time:", lead_list[[i]], "( Iteration", i, "of", num_iterations, ")\n")
-    cat(rep("=", 80), "\n", sep = "")
+  cat("Lead time:", lead_list[[i]], "( Iteration", i, "of", num_iterations, ")\n")
+  cat(rep("=", 80), "\n", sep = "")
 
-    # Accumulated parameters can't be looped
-    harp_parameter <- harpIO::parse_harp_parameter(
-      prm_name,
-      vertical_coordinate = vertical_coordinate
+  # Accumulated parameters can't be looped
+  harp_parameter <- harpIO::parse_harp_parameter(
+    prm_name,
+    vertical_coordinate = vertical_coordinate
+  )
+
+  if (harp_parameter$accum > 0 && any(lead_list[[i]] * 3600 < harp_parameter$accum)) {
+    warning_message <- paste0(
+      "Cannot accumulate ",
+      harpIO:::parse_accum(harp_parameter),
+      harp_parameter$acc_unit,
+      " ",
+      harp_parameter$basename,
+      " for lead time: ",
+      lead_list[[i]],
+      "h. Skipping to next iteration."
     )
-
-    if (harp_parameter$accum > 0 && any(lead_list[[i]] * 3600 < harp_parameter$accum)) {
-      warning_message <- paste0(
-        "Cannot accumulate ",
-        harpIO:::parse_accum(harp_parameter),
-        harp_parameter$acc_unit,
-        " ",
-        harp_parameter$basename,
-        " for lead time: ",
-        lead_list[[i]],
-        "h. Skipping to next iteration."
-      )
-      warning(warning_message, call. = FALSE, immediate. = TRUE)
-      next()
+    warning(warning_message, call. = FALSE, immediate. = TRUE)
+    next()
   }
   
   # Read all the models
