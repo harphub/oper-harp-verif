@@ -461,9 +461,6 @@ if ((use_parallel) && (create_png)) {
   }
 }
 
-# Set default lead_time
-lead_time_default <- lead_time_str
-
 #================================================#
 # FIND MODEL WITH MIN NUMBER OF STATIONS TO 
 # REDUCE INITIAL IO
