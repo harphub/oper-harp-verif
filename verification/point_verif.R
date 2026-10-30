@@ -569,14 +569,43 @@ run_verif <- function(prm_info, prm_name) {
   
   # This step reads the "smallest" model first, gets all stations, and then
   # uses this list when reading all models
+  # Can just read the first lead time as all we want is the available stations, 
+  # and this should not change with lead time for the forecasts!
+  # Need to be careful with Pcp though!
   if (!is.na(model_domain_min)) {
+    if (grepl("AccPcp",prm_name,fixed = T)) {
+      acc_period <- gsub("h","",gsub("AccPcp","",prm_name,fixed=T),fixed=T)
+      if (!numbers_only(acc_period)) {
+        stop("I don't recognise parameter ",prm_name)
+      }
+      acc_period <- as.double(acc_period)
+      lt_tmp <- lead_time[lead_time>=acc_period]
+      if (length(lt_tmp)==0) {
+        warning_message <- paste0(
+          "You are looking at parameter ",
+          prm_name,
+          " but all of your lead times ",
+          paste0(lead_time,collapse = ","),
+          " are below the accumulation period - skipping this parameter"
+        )
+        message(warning_message)
+        return(missing_data)
+      }
+      if (min(lt_tmp) == acc_period){
+        lt_tmp <- min(lt_tmp)
+      } else {
+        lt_tmp <- c(min(lt_tmp)-acc_period,min(lt_tmp))
+      }
+    } else {
+      lt_tmp <- lead_time[1]
+    }
     fcst_tmp <- try_rpforecast(start_date,
                                end_date,
                                by_step,
                                model_domain_min,
                                fcst_type,
                                prm_name,
-                               lead_list[[1]],
+                               lt_tmp,
                                members_domain_min,
                                lags_domain_min,
                                fcst_path,
