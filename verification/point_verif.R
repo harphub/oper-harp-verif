@@ -994,6 +994,8 @@ run_verif <- function(prm_info, prm_name) {
   # renaming needs to be carried out. This is relevant, e.g., when comparing 
   # control members in ensembles (and avoids having to re-convert)
   
+  # Initialise verif_fcst_type as input fcst_type, this is then used in verif fns
+  verif_fcst_type <- fcst_type 
   if (fcst_type == "eps") {
     
     # Sum over models and check if only one member exists in each ensemble
@@ -1020,8 +1022,6 @@ run_verif <- function(prm_info, prm_name) {
       verif_fcst_type      <- "det"
       t_s_str              <- "det_threshold_scores"
       ft_str               <- "det"
-    } else {
-      verif_fcst_type      <- "eps"
     }
   }
   
@@ -1154,7 +1154,7 @@ run_verif <- function(prm_info, prm_name) {
     # If climatology is available, compute some skill scores relative to this
     if (use_climatology_local) {
       
-      if (fcst_type == "det") {
+      if (verif_fcst_type == "det") {
         verif_toplot[[1]] <- verif_toplot[[1]] %>% 
           dplyr::mutate(mse = (rmse)**2)
         verif_ss_clim <- verif_toplot[[1]] %>%
@@ -1334,7 +1334,7 @@ run_verif <- function(prm_info, prm_name) {
                                {{prm_name}},
                                scrd_domain,
                                CONFIG,
-                               fcst_type,
+                               verif_fcst_type,
                                vertical_coordinate,
                                all_possible_UA_vars,
                                num_ref_members)
