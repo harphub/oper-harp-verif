@@ -461,9 +461,6 @@ if ((use_parallel) && (create_png)) {
   }
 }
 
-# Set default lead_time
-lead_time_default <- lead_time_str
-
 #================================================#
 # FIND MODEL WITH MIN NUMBER OF STATIONS TO 
 # REDUCE INITIAL IO
@@ -540,9 +537,9 @@ run_verif <- function(prm_info, prm_name) {
   }
 
   # Select correct lead time for param
-  if(prm_name %in% names(lead_time_param)){
+  if (prm_name %in% names(lead_time_param)){
     lead_time <- eval(parse(text = lead_time_param[prm_name]))
-  } else if(prm_name %in% all_possible_UA_vars && "UA" %in% names(lead_time_param)) {
+  } else if ((prm_name %in% all_possible_UA_vars) && ("UA" %in% names(lead_time_param))) {
     lead_time <- eval(parse(text = lead_time_param["UA"]))
   } else {
     lead_time <- eval(parse(text = lead_time_str))
@@ -572,20 +569,49 @@ run_verif <- function(prm_info, prm_name) {
   
   # This step reads the "smallest" model first, gets all stations, and then
   # uses this list when reading all models
+  # Can just read the first lead time as all we want is the available stations, 
+  # and this should not change with lead time for the forecasts!
+  # Need to be careful with Pcp though!
   if (!is.na(model_domain_min)) {
+    if (grepl("AccPcp",prm_name,fixed = T)) {
+      acc_period <- gsub("h","",gsub("AccPcp","",prm_name,fixed=T),fixed=T)
+      if (!numbers_only(acc_period)) {
+        stop("I don't recognise parameter ",prm_name)
+      }
+      acc_period <- as.double(acc_period)
+      lt_tmp <- lead_time[lead_time>=acc_period]
+      if (length(lt_tmp)==0) {
+        warning_message <- paste0(
+          "You are looking at parameter ",
+          prm_name,
+          " but all of your lead times ",
+          paste0(lead_time,collapse = ","),
+          " are below the accumulation period - skipping this parameter"
+        )
+        message(warning_message)
+        return(missing_data)
+      }
+      if (min(lt_tmp) == acc_period){
+        lt_tmp <- min(lt_tmp)
+      } else {
+        lt_tmp <- c(min(lt_tmp)-acc_period,min(lt_tmp))
+      }
+    } else {
+      lt_tmp <- lead_time[1]
+    }
     fcst_tmp <- try_rpforecast(start_date,
-                             end_date,
-                             by_step,
-                             model_domain_min,
-                             fcst_type,
-                             prm_name,
-                             lead_list[[1]],
-                             members_domain_min,
-                             lags_domain_min,
-                             fcst_path,
-                             file_template_domain_min,
-                             NULL,
-                             vertical_coordinate)
+                               end_date,
+                               by_step,
+                               model_domain_min,
+                               fcst_type,
+                               prm_name,
+                               lt_tmp,
+                               members_domain_min,
+                               lags_domain_min,
+                               fcst_path,
+                               file_template_domain_min,
+                               NULL,
+                               vertical_coordinate)
     
     if (is.null(fcst_tmp)) {
       message("Failure during the FCTABLE reading process for ",prm_name,
@@ -604,28 +630,28 @@ run_verif <- function(prm_info, prm_name) {
   # Loop over iterations.
   for (i in 1:num_iterations) {
 
-    cat("Lead time:", lead_list[[i]], "( Iteration", i, "of", num_iterations, ")\n")
-    cat(rep("=", 80), "\n", sep = "")
+  cat("Lead time:", lead_list[[i]], "( Iteration", i, "of", num_iterations, ")\n")
+  cat(rep("=", 80), "\n", sep = "")
 
-    # Accumulated parameters can't be looped
-    harp_parameter <- harpIO::parse_harp_parameter(
-      prm_name,
-      vertical_coordinate = vertical_coordinate
+  # Accumulated parameters can't be looped
+  harp_parameter <- harpIO::parse_harp_parameter(
+    prm_name,
+    vertical_coordinate = vertical_coordinate
+  )
+
+  if (harp_parameter$accum > 0 && any(lead_list[[i]] * 3600 < harp_parameter$accum)) {
+    warning_message <- paste0(
+      "Cannot accumulate ",
+      harpIO:::parse_accum(harp_parameter),
+      harp_parameter$acc_unit,
+      " ",
+      harp_parameter$basename,
+      " for lead time: ",
+      lead_list[[i]],
+      "h. Skipping to next iteration."
     )
-
-    if (harp_parameter$accum > 0 && any(lead_list[[i]] * 3600 < harp_parameter$accum)) {
-      warning_message <- paste0(
-        "Cannot accumulate ",
-        harpIO:::parse_accum(harp_parameter),
-        harp_parameter$acc_unit,
-        " ",
-        harp_parameter$basename,
-        " for lead time: ",
-        lead_list[[i]],
-        "h. Skipping to next iteration."
-      )
-      warning(warning_message, call. = FALSE, immediate. = TRUE)
-      next()
+    warning(warning_message, call. = FALSE, immediate. = TRUE)
+    next()
   }
   
   # Read all the models
@@ -997,6 +1023,8 @@ run_verif <- function(prm_info, prm_name) {
   # renaming needs to be carried out. This is relevant, e.g., when comparing 
   # control members in ensembles (and avoids having to re-convert)
   
+  # Initialise verif_fcst_type as input fcst_type, this is then used in verif fns
+  verif_fcst_type <- fcst_type 
   if (fcst_type == "eps") {
     
     # Sum over models and check if only one member exists in each ensemble
@@ -1023,8 +1051,6 @@ run_verif <- function(prm_info, prm_name) {
       verif_fcst_type      <- "det"
       t_s_str              <- "det_threshold_scores"
       ft_str               <- "det"
-    } else {
-      verif_fcst_type      <- "eps"
     }
   }
   
@@ -1125,6 +1151,7 @@ run_verif <- function(prm_info, prm_name) {
     #================================================#
     
     st_verif <- Sys.time()
+    if (!gen_sc_only) {
     verif_all[[i]] <- fn_run_verif_groups(fcst = fcst,
                                      prm_name = prm_name,
                                      vertical_coordinate = vertical_coordinate,
@@ -1139,16 +1166,25 @@ run_verif <- function(prm_info, prm_name) {
                                      force_valid_thr = force_valid_thr,
                                      t_s_str = t_s_str,
                                      run_sid = !skip_sid_verif)
+    }
     et_verif <- Sys.time()
     dt_verif <- dt_verif + round(as.numeric(et_verif - st_verif,units = "secs"))
 
   }  # end loop over lead times
+  
+  fcst <- dplyr::bind_rows(fcst_all)
+  class(fcst) <- c("harp_list", "list") 
+  
+  # Define a list to store the sc data for this parameter over all domains
+  list_scrd_data <- list()
+  
+  if (!gen_sc_only) {
 
-  verif_all <- verif_all[purrr::map_lgl(verif_all, ~!is.null(.x))]
-
-  if (length(verif_all) < 1) {
-    stop("No data to verify", call. = FALSE)
-  }
+    verif_all <- verif_all[purrr::map_lgl(verif_all, ~!is.null(.x))]
+  
+    if (length(verif_all) < 1) {
+      stop("No data to verify", call. = FALSE)
+    }
 
     verif <- purrr::map(verif_all, "verif") %>% list_to_harp_verif()
     verif_toplot <- purrr::map(verif_all, "verif_toplot") %>% list_to_harp_verif()
@@ -1157,7 +1193,7 @@ run_verif <- function(prm_info, prm_name) {
     # If climatology is available, compute some skill scores relative to this
     if (use_climatology_local) {
       
-      if (fcst_type == "det") {
+      if (verif_fcst_type == "det") {
         verif_toplot[[1]] <- verif_toplot[[1]] %>% 
           dplyr::mutate(mse = (rmse)**2)
         verif_ss_clim <- verif_toplot[[1]] %>%
@@ -1190,14 +1226,6 @@ run_verif <- function(prm_info, prm_name) {
       }
       
     }
-
-  fcst <- dplyr::bind_rows(fcst_all)
-  class(fcst) <- c("harp_list", "list") 
-
-  # Define a list to store the sc data for this parameter over all domains
-  list_scrd_data <- list()
-
-  if (!gen_sc_only) {
     
     #================================================#
     # AUX SCORES
@@ -1337,7 +1365,7 @@ run_verif <- function(prm_info, prm_name) {
                                {{prm_name}},
                                scrd_domain,
                                CONFIG,
-                               fcst_type,
+                               verif_fcst_type,
                                vertical_coordinate,
                                all_possible_UA_vars,
                                num_ref_members)
