@@ -571,18 +571,18 @@ run_verif <- function(prm_info, prm_name) {
   # uses this list when reading all models
   if (!is.na(model_domain_min)) {
     fcst_tmp <- try_rpforecast(start_date,
-                             end_date,
-                             by_step,
-                             model_domain_min,
-                             fcst_type,
-                             prm_name,
-                             lead_list[[1]],
-                             members_domain_min,
-                             lags_domain_min,
-                             fcst_path,
-                             file_template_domain_min,
-                             NULL,
-                             vertical_coordinate)
+                               end_date,
+                               by_step,
+                               model_domain_min,
+                               fcst_type,
+                               prm_name,
+                               lead_list[[1]],
+                               members_domain_min,
+                               lags_domain_min,
+                               fcst_path,
+                               file_template_domain_min,
+                               NULL,
+                               vertical_coordinate)
     
     if (is.null(fcst_tmp)) {
       message("Failure during the FCTABLE reading process for ",prm_name,
