@@ -537,9 +537,9 @@ run_verif <- function(prm_info, prm_name) {
   }
 
   # Select correct lead time for param
-  if(prm_name %in% names(lead_time_param)){
+  if (prm_name %in% names(lead_time_param)){
     lead_time <- eval(parse(text = lead_time_param[prm_name]))
-  } else if(prm_name %in% all_possible_UA_vars && "UA" %in% names(lead_time_param)) {
+  } else if ((prm_name %in% all_possible_UA_vars) && ("UA" %in% names(lead_time_param))) {
     lead_time <- eval(parse(text = lead_time_param["UA"]))
   } else {
     lead_time <- eval(parse(text = lead_time_str))
