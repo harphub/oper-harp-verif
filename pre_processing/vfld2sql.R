@@ -237,9 +237,9 @@ while(length(lead_time) > 0){
     file_template       = file_template,
     output_file_opts    = harpIO::sqlite_opts(path = fcst_path,
                                               remove_model_elev = remove_m_elev),
-  transformation_opts = harpIO::interpolate_opts(correct_t2m = correct_t2m,
-                                                 keep_model_t2m = keep_uncort2m,
-                                                  stations = stations_rf),
+    transformation_opts = harpIO::interpolate_opts(correct_t2m = correct_t2m,
+                                                   keep_model_t2m = keep_uncort2m,
+                                                   stations = stations_rf),
     return_data         = FALSE
   )
 }
