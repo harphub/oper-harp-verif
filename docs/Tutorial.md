@@ -11,73 +11,137 @@ Little to no prior knowledge of harp is assumed, although users are encouraged t
 
 # harp installation instructions
 
-The instructions for installing harp can be found [here](https://harphub.github.io/harp/)
+The general instructions for installing harp can be found [here](https://harphub.github.io/harp/)
 and in the [2024 tutorial page](https://harphub.github.io/harp_training_2024/get-started.html#).
-This should install fairly easily on the atos supercomputer at ECMWF.
 
-To install packages required by this repo, you can use:
-``` r
-pkg_list <- c("here","argparse","yaml","dplyr","tidyr",
-              "purrr","forcats","stringr","RColorBrewer","grid",
-              "gridExtra","pracma","RSQLite","scales","pals",
-              "shiny","shinyWidgets","lubridate","scico","cowplot","sf",
-              "rnaturalearth","rnaturalearthdata","future.apply")
-for (pkg in pkg_list) {
-  install.packages(pkg)
-}
+## Install on Atos
+
+An install script is provided under `install/atos` to create an isolated R environment (a "renv") which contains harp and a number of related R packages required by the scripts in this repo. It is recommended to install your renv on $PERM or $HPCPERM. The scripting was created for an MQA working week in November 2026. The Atos modules loaded in `renv_setup.R` and R package versions listed in `specific_pacakges.R` were chosen to get things working at that time; they are not necessarily "optimal"!
+
+The instructions below go through the install step-by-step, but you can also do everything in one go. Please first read the instructions before deciding on what approach you would like to follow.
+
+To create a new "renv" under directory "/your/new/renv", do the following from the root of this repo:
+
+```
+cd install/atos
+./renv_setup.R -r /your/new/renv
 ```
 
-Note that installation of the package `sf` can sometimes be problematic. These scripts only require `sf` for polygon station filtering. If you do not require polygon filtering, then `sf` does not have to be installed. If you try to use polygon filtering and `sf` is not found, polygon filtering will simply be skipped.
-In order to install the latest version of harp from the main branch in github, you can use:
+To install CRAN packages in the renv, use:
+
+```
+./renv_setup.R -r /your/new/renv -c
+```
+
+This will install the latest version of R packages listed in `latest_packages.R` and some specific R package versions listed in `specific_packages.R` (these packages are generally a bit awkward to install, such as "arrow"). The renv is completely isolated from your system libraries and cache, and as a result all packages must be built from source. This slows things down considerably; the time taken to install all CRAN packages is approx 35 mins. To confirm that your install worked as expected, simply run
+
+```
+./renv_setup.R -r /your/new/renv -c
+```
+
+once again. If the required package is found in the renv it will be skipped, and hence the command above should complete in a few seconds.
+
+Once you have installed all the CRAN packages, you can then move on to installing harp. The branches of harp (and related repos such as meteogrid etc) are specified in `specific_packages.R`. Before installing harp, it is useful to generate a Github personal acccess token in order to avoid rate-limiting, which can result in frustrating errors during install such as:
+
+```
+Error: HTTP error 403.
+ API rate limit exceeded for ???
+ ....
+Error: Failed to install 'unknown package' from GitHub:
+```
+
+When creating a [classic personal access token](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens#creating-a-personal-access-token-classic), it is sufficent to use:
+
+- Note: "harp install"
+- Expiration: "7 days"
+- Select scopes: No need to tick anything
+
+Once you have the token, copy and paste it into the `GITHUB_PAT` at `install/atos/.Renviron`. ***WARNING: DO NOT COMMIT THE UPDATED .Renviron FILE WITH YOUR GITHUB_PAT TO GITHUB!***
+
+Then install harp via:
+
+```
+./renv_setup.R -r /your/new/renv -H
+```
+
+The harp install should take approximately 15 mins. You can confirm that the installation worked correctly by running the same command again, i.e.
+
+```
+./renv_setup.R -r /your/new/renv -H
+```
+
+where harp packages will be skipped if they are found in the renv. If you need to change the branch of a specific harp package, you can do so by changing the options for `harp_version` in `specific_packages.R`. Note that if you want to re-install harp (e.g. if changing a branch or updating to the latest version), you should use
+
+```
+./renv_setup.R -r /your/new/renv -H -f
+
+```
+
+where the `-f` flag forces that the harp packages are installed over an existing installation.  
+
+Finally, you can do all of this in one step by using:
+
+```
+./renv_setup.R -r /your/new/renv -c -H
+```
+
+but you should configure your Github personal access token before this.
+
+## Using your renv on Atos
+
+When submitting an R job via a shell script, you can use your renv by adding the following to your script:
+
+```
+MY_VENV="/your/new/renv/renv/library/linux-rhel-8.10/R-4.4/x86_64-pc-linux-gnu/"
+module load R/4.4.3
+export R_LIBS_USER="${MY_VENV}"
+```
+
+If you want to use rstudio on Atos with your renv, you can do the following. It is highly recommended to be logged into Atos via the Linux VDI, otherwise rstudio is too laggy to use in practice. 
+
+-  Add the following to your .bashrc or .bash_profile:
+```
+module load R
+module load rstudio
+module load R/4.4.3
+alias rstu="rstudio > /dev/null 2>&1 &"
+```
+- Make a directory for your R project e.g. /your/R/project.
+- Soft link your renv to this R project directory using `install/link_renv.sh` (usage below). This allows for your renv to be easily used in several places without going through the renv installation process again.
+```
+./link_renv.sh /your/new/renv /your/R/project
+```
+- Open rstudio (e.g. via `rstu` alias), navigate to /your/R/project, and do "File -> New Project -> Existing Directory -> /your/R/project -> Create Project".
+- Rstudio will then restart. Now every time you load the R project via the `.Rproj` file in the directory your renv will be loaded in your Rstudio session. You can confirm that renv is loaded by inspecting `Sys.getenv("R_LIBS_USER")`; it should point to a renv path in /your/R/project, which is just a soft link to /your/new/renv. Note that if you try to install a new package in rstudio via `install.packages` or similar, you will get a message similar to:
+```
+packages will be installed into "/your/new/renv/renv/..."
+```
+which is the correct behaviour. You can test that harp is available in your session by using `library(harp)`.
+
+## Install elsewhere
+
+You can follow the Atos installation tempalte when installing on your own system - it can follow the same process but may differ by system modules, specific R pacakge versions, etc.
+
+Note that installation of the package `sf` can sometimes be problematic. These scripts only require `sf` for polygon station filtering and to improve map plotting appearance. If you do not require polygon filtering, then `sf` does not have to be installed. If you try to use polygon filtering and `sf` is not found, polygon filtering will simply be skipped.
+
+Note also that the installation of the `tidyverse` package can sometimes be problematic. It is not included in the scripts for Atos installation detailed above.
+
+## General information related to harp installation 
+
+In order to install the latest version of harp from the main branch in Github, you can use:
 ``` r
 install.packages("remotes")
-library(remotes)
-install_github("harphub/harp")
+remotes::install_github("harphub/harp")
 ```
 If you want to use a specific release of harp, you can use:
 ``` r
-install_github("harphub/harp@v0.2.2")
+remotes::install_github("harphub/harp@v0.2.2")
 ```
 or a specific branch or a single repository:
 ``` r
-install_github("harphub/harpPoint@develop")
+remotes:install_github("harphub/harpPoint@develop")
 ```
 All development versions are in the "develop" branch for each of the harp packages. Note that harp installation can take some time, and you will be asked about updating dependencies.
-
-## PAT issue
-Occasionally the harp installation can fail with a message like:
-``` r
-Downloading GitHub repo andrew-MET/harp@master
-Error: HTTP error 403.
- API rate limit exceeded for 130.226.71.190. (But here's the good news: Authenticated requests get a hi
-gher rate limit. Check out the documentation for more details.)
-```
-or:
-``` r
-Error: Failed to install 'unknown package' from GitHub:
-```
-If this happens, you need to create a personal token. Follow the instructions [here](https://happygitwithr.com/https-pat.html#get-a-pat) to get yourself a token.
-Once you do that, follow these instructions
-``` r
-gitcreds::gitcreds_set()
-<Enter token here>
-```
-Then use:
-``` r
-usethis::edit_r_environ()
-```
-This will open an editor to edit the file `.Renviron`, where you can write GITHUB_PAT=thetokenabove.
-
-The system will ask you to restart R to take effect. Then try to install harp again.
-
-## Updating harp version
-To update harp (or a single package, like `harpPoint`) to the latest main branch, do the following:
-``` r
-library("remotes")
-install_github("harphub/harpPoint") 
-```
-
-You generally have the option to update package dependencies.
 
 # Create your config file
 
@@ -87,8 +151,9 @@ Create a configuration file for your project using the structure provided in the
 | ---  | --- | --- | --- |   
 | verif | project_name | A descriptive name for the verification project. This is the same as the the project name variable PROJECT in monitor’s configuration file scr/Env_exp. | project_name: "TEST" |
 | verif | fcst_model   | The names of the forecast models to consider. | fcst_model: <br> - model_A  <br> - model_B |
-| verif | lead_time    | Lead times to consider in the verification e.g. 0 to 48 in steps of 3 hours. `seq` and `c()` will be parsed and evaluated by R. | lead_time: seq(0,48,3) | 
-| verif | lead_time_UA | If you want to use specific lead times for upper-air variables. The default is NULL, which means that upper-air variables will use lead times specfied by `verif:lead_time`. Useful if you are verifying a list of surface and upper-air parameters, e.g. "T2m,T,Pmsl", and want to change the lead times used without having to change the config. | Default: <br> lead_time_UA: NULL <br> <br> Use hours 0-24 in steps of 1 for upper-air variables <br> lead_time_UA: seq(0,24,1) | 
+| verif | lead_time    | Lead times to consider in the verification e.g. 0 to 48 in steps of 3 hours. `seq` and `c()` will be parsed and evaluated by R. | lead_time: seq(0,48,3) |
+| verif | lead_time_param | If you want to use specific lead times for variables. Useful if you are verifying a list of surface and upper-air parameters, e.g. "T2m,T,Pmsl", or accumulated variables and want to change the lead times used without having to change the config. Use of "UA" to specify lead times for all upper-air variables. | Use hours 0-24 in steps of 1 for upper-air variables and 6-24 in steps 6 for accumulated precipitation <br><br> lead_time_param: <br> &nbsp; UA: seq(0,24,1) <br> &nbsp; AccPcp6h: seq(6, 24, 6)|
+| verif   | lead_time_batch_size | Divides lead_time in batches of a specific size for processing. This can help to avoid Out of memory problems. | lead_time_batch_size: 7 |
 | verif | by_step      | Interval (in hours) between cycles to be used for verification i.e. cycles considered are `start_date` to `end_date` in steps of `verif:by_step`. | by_step: "6h" |
 | verif | fcst_type    | Forecast type, either `det` or `eps`. | fcst_type: "det" |
 | verif | domains      | What SID lists to verify (equivalent to SURFSELECTION/TEMPSELECTION in monitor, where the station lists are defined in scr/selection.pm). The choice "All" will use all stations available in the data. SID lists, either defined explicitly or based on a geographic area, can be defined in `fn_station_selection` (see the documentation below for more information). Alternatively you can select a single SID by using it's SID number as a domain. | domains: <br> -"All" <br> <br> domains: <br> - "IRL" <br> - "IE_EN" <br> <br> Verify domain "IRL" and a single station (SID=3953): <br> domains: <br> - "IRL" <br> - "3953" |
@@ -113,11 +178,13 @@ Create a configuration file for your project using the structure provided in the
 | verif$model_as_obs | model_as_obs_tmpl | The file template to use for the forcast database to read as observations | model_as_obs_tmpl: "fctable" | 
 | pre   | fcst_model   | Carry out the vfld to sqlite conversion for these forecast models. Note that this can differ from `verif:fcst_model` (e.g. the sqlite tables may already exist for some models, and you may want to skip regenerating these). | fcst_model: <br> - model_A  <br> - model_B | 
 | pre   | lead_time    | Which lead times to use when converting the vfld. Can differ from `verif:lead_time`. | lead_time: seq(0,48,1) |
+| pre   | lead_time_batch_size | Divides lead_time in batches of a specific size for processing. This can help to avoid Out of memory problems. | lead_time_batch_size: 7 |
 | pre   | vfld_path    | Path to where the vfld files are stored (note that the full file names to be read are constructed from `pre:vfld_path` and `pre:vfld_template`). The vfld files for each `pre:fcst_model` should exist in this directory. | vfld_path: "/path/to/vfld" |
 | pre   | vfld_by      | Interval (in hours) between cycles to be used when generating the sqlite tables from vfld i.e. read vfld files from `start_date` to `end_date` in steps of `pre:vfld_by`. This can differ from `verif:by_step`. | vfld_by: "3h" |
-| pre   | vfld_template | The template used to construct the vfld file names. See `harpIO::show_file_templates`. For deterministic/ensemble experiments, the standard choices are “vfld” and "vfld_eps". If different templates are to be used for different forecast models, then include a `pre:vfld_template` entry corresponding to each forecast model. Custom templates can also be created. | Standard: <br> vfld_template: <br> - "det" <br> <br> Custom: <br> vfld_template: <br> - "{fcst_model}/{YYYY}/{MM}/vfld{fcst_model}{YYYY}{MM}{DD}{HH}{LDT2}" | 
+| pre   | vfld_template | The template used to construct the vfld file names. See `harpIO::show_file_templates`. For deterministic/ensemble experiments, the standard choices are “vfld” and "vfld_eps". If different templates are to be used for different forecast models, then include a `pre:vfld_template` entry corresponding to each forecast model. Custom templates can also be created. | Standard: <br> vfld_template: <br> - "det" <br> <br> Custom: <br> vfld_template: <br> -"{fcst_model}/{YYYY}/{MM}/vfld{fcst_model}{YYYY}{MM}{DD}{HH}{LDT2}" | 
 | pre   | vobs_path    | Path to where the vobs files are stored. | vobs_path: "/path/to/vobs" |
 | pre   | vobs_by      | Interval (in hours) between the vobs files i.e. read vobs files from `start_date` to `end_date` in steps of `pre:vobs_by`. | vobs_by: "1h" | 
+| pre   | vobs_template | The template used to construct the vobs file names. See `harpIO::show_file_templates`. The standard choice is "vobs". See `harpIO::read_obs`for more information. | vobs_template: "{YYYY}/{MM}/vobs{YYYY}{MM}{DD}{HH}" |
 | pre   | custom_asl_path | Path to a specific HARMONIE-AROME allsynop.list to use when converting the vfld data. If not specified, harp's default stationlist is used (`harpCore::station_list`). | custom_asl_path: "/path/to/allsynop.list" | 
 | pre   | members      | Which members to read for each ensemble. If only one option is set for members, it will be repeated for each `pre:fcst_model`. Set to NULL for a deterministic experiment. Note: this variable is different from `verif:members` as the two can differ in general. | For deterministic models: <br> members: <br> - NULL <br> <br> For ensembles: <br> - seq(0,6) |
 | pre   | lags         | How the ensemble members are lagged for each `pre:fcst_model`. For a given model, `pre:lags` should be the same length as `pre:members`. Include a list if the lags differ for each of the `pre:fcst_model`. Note: this variable is different from `verif:lags` as the notation used for each is different. | For deterministic models: <br> lags: <br> - NULL <br> <br> For ensemble models: <br> lags: <br> - c(0,0,0,0,3,3,3) | 
