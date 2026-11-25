@@ -25,6 +25,8 @@ fn_plot_point_verif <- function(harp_verif_input,
                                      use_parallel = FALSE,
                                      cyc_summary = c("00","12","All"),
                                      clim_name = NULL,
+                                     ava_ref = NULL,
+                                     ava_metric = NULL,
                                      plot_num_obs = FALSE,
                                      fcst = NULL){
  
@@ -106,11 +108,15 @@ fn_plot_point_verif <- function(harp_verif_input,
     
     # Scores as a fn of threshold
     scores_th  <- c("threat_score",
+                    "hit_rate",
                     "false_alarm_rate",
                     "false_alarm_ratio",
+                    "heidke_skill_score",
+                    "pierce_skill_score",
                     "kuiper_skill_score",
                     "frequency_bias",
                     "equitable_threat_score",
+                    "odds_ratio_skill_score",
                     "extreme_dependency_score")
     
     # Map scores (combining scores won't work here)
@@ -167,7 +173,8 @@ fn_plot_point_verif <- function(harp_verif_input,
                     "threshold_val",
                     "SID",
                     "p_leadtime",
-                    "p_prof")
+                    "p_prof",
+                    "act_diff")
     if (rolling_verif) {
       xgroups  <- c("lead_time",valid_dttm_col,"SID")
     }
@@ -366,9 +373,15 @@ fn_plot_point_verif <- function(harp_verif_input,
     fh_map  <- 7.5
   }
   
-  # Define the colour scheme used in line plots
-  mcolors <- fn_gen_model_colors(model_names,cmap)
-  
+  # Define the colour scheme used in line plots 
+  # If cmap is a named list, then it comes from a mc_file. If not, then
+  # use the standard (old) method
+  if (is.null(names(cmap))) {
+    mcolors     <- fn_gen_model_colors(model_names,cmap)
+  } else {
+    mcolors     <- fn_populate_model_colors(model_names,cmap)
+  }
+
   # Line stylces
   line_styles <- c("solid","dashed","dotted","dotdash")
   
@@ -432,7 +445,9 @@ fn_plot_point_verif <- function(harp_verif_input,
                         "score_sep"    = score_sep, 
                         "comp_val"     = attributes(verif)$comp_val,
                         "thr_brks"     = attributes(verif)$thr_brks,
-                        "clim_name"    = clim_name)
+                        "clim_name"    = clim_name,
+                        "ava_ref"      = ava_ref,
+                        "ava_metric"   = ava_metric)
   
   #=====================================================#
   # NOW DO THE PLOTTING
@@ -482,6 +497,9 @@ fn_plot_point_verif <- function(harp_verif_input,
     } else if (xgroup == "p_prof") {
       xg_str <- "pr"
       scores <- p_scores_pr
+    } else if (xgroup == "act_diff") {
+      xg_str <- "ad"
+      scores <- c("acc_diff")
     } else {
       stop("The xgroup ",xgroup," is not considered! Aborting")
     }
@@ -528,7 +546,7 @@ fn_plot_point_verif <- function(harp_verif_input,
       # when multiple xgroups are available. Not relevant for UA variables
       # as fcst_cycle is not a grouping variable.
       # This ensures that values relevant to this xgroup are used
-      if ((xgroup %in% c("lead_time","valid_hour","valid_dttm","valid_ymd","threshold_val")) &
+      if ((xgroup %in% c("lead_time","valid_hour","valid_dttm","valid_ymd","threshold_val","act_diff")) &
           (xgroup %in% cnames)) {
         c_ver          <- c_ver %>% dplyr::filter(get(xgroup) != "All")
       }
@@ -1157,18 +1175,22 @@ fn_plot_point_verif <- function(harp_verif_input,
             } # if validhour exists 
               
           # UA scores
-          } else if ((xgroup %in% c("p_leadtime","p_prof")) &
+          } else if ((xgroup %in% c("p_leadtime","p_prof","act_diff")) &
                      (all(strsplit(score,score_sep)[[1]] %in% cnames)) &
                      ("p" %in% cnames)) {
            
-            if ((xgroup == "p_leadtime") & ("lead_time" %in% cnames)) {
+            if ((xgroup %in% c("p_leadtime","act_diff")) & ("lead_time" %in% cnames)) {
               
               if (c_ind) {
                 cat("Plotting for xgroup:",xgroup,"\n")
                 c_ind <- FALSE
               }
               
-              vroption_list$xgroup <- "lead_time"
+              if (xgroup == "act_diff") {
+                vroption_list$xgroup <- "act_diff"
+              } else {
+                vroption_list$xgroup <- "lead_time"
+              }
               
               # Get the available pressure levels
               p_label <- "hPa"
@@ -1185,9 +1207,14 @@ fn_plot_point_verif <- function(harp_verif_input,
               # Loop over pressure levels and plot summary scores
               for (pl in p_levels) {
                 
-                verif_III    <- harpPoint::filter_list(verif_II,
-                                                       p == pl,
-                                                       valid_hour == "All")
+                if (xgroup == "act_diff") {
+                  verif_III    <- harpPoint::filter_list(verif_II,
+                                                         p == pl)
+                } else {
+                  verif_III    <- harpPoint::filter_list(verif_II,
+                                                         p == pl,
+                                                         valid_hour == "All")
+                }
                 param_rename <- paste0(stringr::str_to_title(param),pl)
                 c_title_str  <- gsub(paste0(stringr::str_to_title(param)," : "),
                                      paste0(param_rename,p_label," : "),title_str)
@@ -1281,7 +1308,7 @@ fn_plot_point_verif <- function(harp_verif_input,
                 if (nrow(verif_III[[c_tstr]]) == 0) {
                   next
                 }
-                if (!use_parallel) {
+                #if (!use_parallel) {
                 p_c <- fn_plot_profile(verif_III,
                                        c_title_str,
                                        c_subtitle,
@@ -1295,21 +1322,21 @@ fn_plot_point_verif <- function(harp_verif_input,
                             fcst_type     = fcst_type,
                             score         = score_orig,
                             vlt           = vh)
-                } else {
-                p_info <- list("verif"     = fn_drop_verif_attr(verif_III),
-                               "title"     = c_title_str,
-                               "subtitle"  = c_subtitle,
-                               "vroptions" = vroption_list,
-                               "vlt"       = vh,
-                               "vth"       = "NA",
-                               "fcst_type" = fcst_type,
-                               "score"     = score_orig,
-                               "p_cases"   = plot_num_cases,
-                               "p_map"     = FALSE,
-                               "p_prof"    = TRUE)
-                plot_list[[counter]] <- p_info
-                counter              <- counter + 1
-                }
+                #} else {
+                #p_info <- list("verif"     = fn_drop_verif_attr(verif_III),
+                #               "title"     = c_title_str,
+                #               "subtitle"  = c_subtitle,
+                #               "vroptions" = vroption_list,
+                #               "vlt"       = vh,
+                #               "vth"       = "NA",
+                #               "fcst_type" = fcst_type,
+                #               "score"     = score_orig,
+                #               "p_cases"   = plot_num_cases,
+                #               "p_map"     = FALSE,
+                #               "p_prof"    = TRUE)
+                #plot_list[[counter]] <- p_info
+                #counter              <- counter + 1
+                #}
 
               } # validhour
               } else {

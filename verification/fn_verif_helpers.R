@@ -55,6 +55,41 @@ load_config <- function(path) {
 }
 
 #================================================#
+# HANDLE MODEL COLOURS FILE
+#================================================#
+
+try_model_colours <- function(mc_file,cmap,fcst_model) {
+
+  if (!is.null(mc_file)) {
+    mc_file <- here("visualization","model_colours",mc_file)
+    cat("Using fixed model colours from file",mc_file,"\n")
+    if (!file.exists(mc_file)) {
+      stop("Did not find ",mc_file," - aborting!")
+    }
+    source(mc_file)
+    # Check if variable model_colours exists and is a list
+    if (!exists("model_colours")) {
+      stop("Did not find model_colours after sourcing ",mc_file)
+    } else {
+      if (!is.list(model_colours)) {
+        stop("model_colorus should be a list - see the example!")
+      }
+      model_colours <- unlist(model_colours)
+      # Overwrite cmap to this array if at least one model is found in model_colours
+      if (length(intersect(fcst_model,names(model_colours))) > 0) {
+        cmap <- model_colours
+      } else {
+        cat("Warning: Your model colours file does not contain any of the forecast models you are considering!\n")
+        cat("Defaulting to post:cmap palette as a result!\n")
+      }
+    }
+  }
+  
+  return(cmap)
+  
+}
+
+#================================================#
 # PARSE INPUT params_list INTO A SET OF PARAMETERS
 # BASED ON params
 #================================================#
@@ -281,6 +316,8 @@ conv_allsynop <- function(input_list){
   synop_c     <- synop_c %>% dplyr::mutate(name = synop_n$name)
   synop_list  <- tibble::as_tibble(synop_c)
   rm(synop,synop_n,synop_c)
+  # Filter out station 89009, see https://github.com/harphub/harpIO/issues/133
+  synop_list <- synop_list %>% dplyr::filter(SID != 89009)
   return(synop_list)
 }
 
@@ -292,47 +329,73 @@ conv_allsynop <- function(input_list){
 
 modify_station_elev <- function(stations_rf,
                                 obs_path,
+                                obs_template,
+                                obs_format,
                                 start_date,
                                 output_diag = FALSE) {
   
-  # Read in the obstable
-  yyyy <- substr(start_date,0,4)
-  sql_file <- file.path(obs_path,paste0("OBSTABLE_",yyyy,".sqlite"))
+  # Generalise for obs_template/obs_format
+  # Only need to worry about T2m and Ps as these are the variables used for
+  # elevation correction
+  param_info <- list()
+  obs_t2m <- try_rpobs("not_used",
+                       "T2m",
+                       param_info,
+                       obs_path,
+                       obs_template,
+                       obs_format,
+                       NA_character_,
+                       dttm_sel = start_date,
+                       stations_sel = NULL) %>% 
+    dplyr::select(SID,elev)
+  obs_ps  <- try_rpobs("not_used",
+                       "Ps",
+                       param_info,
+                       obs_path,
+                       obs_template,
+                       obs_format,
+                       NA_character_,
+                       dttm_sel = start_date,
+                       stations_sel = NULL) %>%
+    dplyr::select(SID,elev)
   
-  if (!file.exists(sql_file)) {
-    
-    cat("Could not find OBSTABLE for correcting station elev, skipping\n")
-    return(stations_rf)
-    
-  } else {
-    
-    con        <- DBI::dbConnect(drv    = RSQLite::SQLite(),
-                                 dbname = sql_file)
-    sql_synop  <- DBI::dbGetQuery(conn      = con,
-                                  statement = "SELECT SID,elev FROM SYNOP") %>%
-      as_tibble() %>% distinct() %>% filter(elev != -99) %>%
-      group_by(SID) %>% summarise(obs_elev = mean(elev))
-    DBI::dbDisconnect(con)
-    
-    # Join and update elev with OBSTABLE elev if it exists
-    onames      <- colnames(stations_rf)
-    stations_rf <- left_join(stations_rf,sql_synop,by = "SID") %>%
-      mutate(obs_elev_filtered = case_when(
-        is.na(obs_elev) ~ elev,
-        .default = obs_elev),
-        asl_elev = elev) %>% 
-      mutate(elev_diff = abs(asl_elev - obs_elev_filtered)) %>%
-      mutate(elev = obs_elev_filtered)
-    
-    if (output_diag) {
-      out_name <- "asl_corrected_elev.rds"
-      cat("Saving",out_name,"with updated station elev info\n")
-      saveRDS(stations_rf, file = here("pre_processing/",out_name))
-    }
-    
-    stations_rf <- stations_rf %>% select(all_of(onames))
+  if (is.null(obs_t2m) || is.null(obs_ps)) {
+    cat("Could not read T2m and Ps from the observation database for correcting station elev, skipping\n")
     return(stations_rf)
   }
+  
+  # Combine the two
+  sql_synop  <- dplyr::bind_rows(obs_t2m,obs_ps) %>%
+    dplyr::distinct() %>% dplyr::filter(elev != -99) %>%
+    dplyr::group_by(SID) %>% dplyr::summarise(obs_elev = mean(elev))
+  
+  # Check if obs SID is character, can cause issues when joining
+  obs_SID_type  <- typeof(sql_synop$SID)
+  srf_SID_type <- typeof(stations_rf$SID)
+  if (obs_SID_type == "character") {
+    if (srf_SID_type != "character") {
+      stations_rf <- stations_rf %>% dplyr::mutate(SID = as.character(SID))
+    }
+  }
+  
+  # Join and update elev with OBSTABLE elev if it exists
+  onames      <- colnames(stations_rf)
+  stations_rf <- left_join(stations_rf,sql_synop,by = "SID") %>%
+    mutate(obs_elev_filtered = case_when(
+      is.na(obs_elev) ~ elev,
+      .default = obs_elev),
+      asl_elev = elev) %>% 
+    mutate(elev_diff = abs(asl_elev - obs_elev_filtered)) %>%
+    mutate(elev = obs_elev_filtered)
+  
+  if (output_diag) {
+    out_name <- "asl_corrected_elev.rds"
+    cat("Saving",out_name,"with updated station elev info\n")
+    saveRDS(stations_rf, file = here("pre_processing/",out_name))
+  }
+    
+  stations_rf <- stations_rf %>% select(all_of(onames))
+  return(stations_rf)
   
 }
 
@@ -351,6 +414,7 @@ fn_run_verif_groups <- function(fcst = "",
                                 grps_SID = "",
                                 all_station_groups = "",
                                 thresholds_param = "",
+                                comparator = "gt",
                                 create_png = "",
                                 force_valid_thr = "",
                                 t_s_str = "",
@@ -370,6 +434,8 @@ fn_run_verif_groups <- function(fcst = "",
     verif_fn              <- "ens_verify"
     verif_options_list_nm <- list(parameter       = {{prm_name}},
                                   num_ref_members = num_ref_members,
+                                  comparator      = comparator,
+                                  include_low     = FALSE,
                                   verify_members  = FALSE,
                                   rank_hist       = FALSE,
                                   crps            = FALSE,
@@ -377,14 +443,26 @@ fn_run_verif_groups <- function(fcst = "",
                                   hexbin          = FALSE)
     verif_options_list    <- list(parameter       = {{prm_name}},
                                   num_ref_members = num_ref_members,
+                                  comparator      = comparator,
+                                  include_low     = FALSE,
                                   verify_members  = TRUE,
                                   hexbin          = FALSE)
   } else if (fcst_type == "det") {
     verif_fn              <- "det_verify"
-    verif_options_list    <- list(parameter = {{prm_name}},
-                                  hexbin    = FALSE)
+    verif_options_list    <- list(parameter   = {{prm_name}},
+                                  comparator  = comparator,
+                                  include_low = FALSE,
+                                  hexbin      = FALSE)
     verif_options_list_nm <- verif_options_list
   }
+  # comparator was not an option before harp v0.3. Including it raises as error
+  if (as.numeric(substr(packageVersion("harpPoint"),1,3)) < 0.3) {
+    verif_options_list$comparator  <- NULL
+    verif_options_list$include_low <- NULL
+    verif_options_list_nm$comparator  <- NULL
+    verif_options_list_nm$include_low <- NULL
+  }
+    
   
   # Get units
   par_unit <- unique(fcst[[1]][["units"]])
@@ -683,10 +761,10 @@ fn_split_thr <- function(vo){
           thr_vals2  <- as.double(unlist(lapply(str_split(vo[[2]]$threshold,"_"),"[",4)))
           # Use midpoint as thr_vals
           thr_vals   <- (thr_vals1 + thr_vals2)/2
-          thr_brks   <- unique(thr_vals1,thr_vals2)
-          if (comp_vals1 == "ge") {
+          thr_brks   <- unique(c(thr_vals1,thr_vals2))
+          if (comp_vals1 %in% c("ge","gt")) {
             comp_val <- "between"
-          } else if (comp_vals1 == "le") {
+          } else if (comp_vals1 %in% c("le","lt")) {
             comp_val <- "outside"
           } else {
             stop("Threshold split issue")
@@ -699,14 +777,14 @@ fn_split_thr <- function(vo){
         
       } else {
         # No comparator, so assumed gt (which was the default before "comparator" 
-        # argument was introduced). Can convert straight to double
+        # argument was introduced, see src/eps_tools.cpp). Can convert straight to double
         vo[[2]]  <- vo[[2]] %>% mutate(threshold_val = as.double(threshold))
         comp_val <- "gt"
         thr_brks <- unique(vo[[2]]$threshold_val)
       }
     } else {
       # No comparator, so assumed gt (which was the default before "comparator" 
-      # argument was introduced).
+      # argument was introduced, see src/eps_tools/cpp).
       vo[[2]] <- vo[[2]] %>% mutate(threshold_val = threshold)
       comp_val <- "gt"
       thr_brks <- unique(vo[[2]]$threshold_val)
@@ -868,6 +946,7 @@ create_station_filter <- function(dttm,
                                   param,
                                   fctable_dir,
                                   file_template,
+                                  file_format,
                                   station_list_dir){
 
   YYYY <- substr(dttm,0,4)
@@ -875,6 +954,11 @@ create_station_filter <- function(dttm,
   HH   <- substr(dttm,9,10)
   if (grepl("AccPcp",param,fixed = TRUE)) {
     param <- "Pcp"
+  }
+  if (file_format != "fctable") {
+    message("File format ",file_format," not recognised in create_station_filter")
+    message("create_station_filter did not run and the FCTABLE read may not be optimal!\n")
+    return(NA_character_)
   }
   
   # Read the standard list of synop sids from Harmonie allsynop.list (pointing 
@@ -951,36 +1035,101 @@ try_rpforecast <- function(start_date,
                            lags,
                            fcst_path,
                            file_template,
+                           file_format,
                            stations,
-                           vc){
+                           vc,
+                           parallel_read = FALSE,
+                           use_ml = NULL){
   
-  # With harp v0.3+ it's best to use merge lags directly when reading. Confirmed
-  # that this works fine for surface and UA variables.
-  if (as.numeric(substr(packageVersion("harpIO"),1,3)) >= 0.3) {
-    ml <- T
+  if (is.null(use_ml)){
+    # With harp v0.3+ it's best to use merge lags directly when reading. Confirmed
+    # that this works fine for surface and UA variables.
+    if (as.numeric(substr(packageVersion("harpIO"),1,3)) >= 0.3) {
+      ml <- T
+    } else {
+      ml <- F
+    }
   } else {
-    ml <- F
+    if (!isTRUE(use_ml) && !isFALSE(use_ml)) {
+      stop("use_ml must be TRUE or FALSE")
+    }
+    ml <- use_ml
   }
-  
+
   fcst <- tryCatch(
     {
-      harpIO::read_point_forecast(
-        dttm                = harpCore::seq_dttm(start_date,
-                                                 end_date,
-                                                 by = by_step),
-        fcst_model          = fcst_model,
-        fcst_type           = fcst_type,
-        parameter           = param,
-        lead_time           = lead_time,
-        members             = members,
-        lags                = lags,
-        file_path           = fcst_path,
-        file_template       = file_template, 
-        stations            = stations,
-        get_lat_and_lon     = TRUE, # Useful when lat/lon missing from vobs files
-        merge_lags          = ml,
-        vertical_coordinate = vc
-      )
+      if (parallel_read) {
+        qwe <- furrr::future_imap(
+          lead_time,
+          ~ harpIO::read_point_forecast(
+            dttm                = harpCore::seq_dttm(start_date,
+                                                     end_date,
+                                                     by = by_step),
+            fcst_model          = fcst_model,
+            fcst_type           = fcst_type,
+            parameter           = param,
+            lead_time           = .x,
+            members             = members,
+            lags                = lags,
+            file_path           = fcst_path,
+            file_template       = file_template, 
+            file_format         = file_format, 
+            stations            = stations,
+            get_lat_and_lon     = TRUE, # Useful when lat/lon missing from vobs files
+            merge_lags          = ml,
+            vertical_coordinate = vc
+          ),
+          .options = furrr::furrr_options(seed = NULL)
+        )
+        if ("fcst_model" %in% names(qwe[[1]])) {
+          harpCore::bind(qwe) %>% dplyr::arrange(fcst_dttm,SID)
+        } else {
+          qwe2 <- lapply(names(qwe[[1]]), function(cm) {
+            dplyr::bind_rows(lapply(qwe, `[[`, cm)) %>%
+            dplyr::arrange(fcst_dttm, SID)
+          })
+          harpCore::as_harp_list(qwe2)
+        }
+      } else {
+        if (as.numeric(substr(packageVersion("harpIO"),1,3)) >= 0.3) {
+        harpIO::read_point_forecast(
+          dttm                = harpCore::seq_dttm(start_date,
+                                                   end_date,
+                                                   by = by_step),
+          fcst_model          = fcst_model,
+          fcst_type           = fcst_type,
+          parameter           = param,
+          lead_time           = lead_time,
+          members             = members,
+          lags                = lags,
+          file_path           = fcst_path,
+          file_template       = file_template, 
+          file_format         = file_format,
+          stations            = stations,
+          get_lat_and_lon     = TRUE, # Useful when lat/lon missing from vobs files
+          merge_lags          = ml,
+          vertical_coordinate = vc
+        )
+        } else {
+        harpIO::read_point_forecast(
+          dttm                = harpCore::seq_dttm(start_date,
+                                                   end_date,
+                                                   by = by_step),
+          fcst_model          = fcst_model,
+          fcst_type           = fcst_type,
+          parameter           = param,
+          lead_time           = lead_time,
+          members             = members,
+          lags                = lags,
+          file_path           = fcst_path,
+          file_template       = file_template, 
+          stations            = stations,
+          get_lat_and_lon     = TRUE, # Useful when lat/lon missing from vobs files
+          merge_lags          = ml,
+          vertical_coordinate = vc
+        )
+        }
+      }
     },
     error = function(cond){
       cat("An error was detected during the FCTABLE reading for",param,"\n")
@@ -1326,19 +1475,46 @@ try_rpobs <- function(fcst,
                       param,
                       param_info,
                       obs_path,
-                      vc){
+                      file_template,
+                      file_format,
+                      vc,
+                      dttm_sel = NULL,
+                      stations_sel = NA_character_){
+  
+  if (is.null(dttm_sel)) {
+    dttm_sel <- harpCore::unique_valid_dttm(fcst)
+  }
+  if (!is.null(stations_sel)) {
+    if (is.na(stations_sel)) {
+      stations_sel <- harpCore::unique_stations(fcst)
+    }
+  }
   
   obs <- tryCatch(
     {
+      if (as.numeric(substr(packageVersion("harpIO"),1,3)) >= 0.3) {
       harpIO::read_point_obs(
-        dttm                = harpCore::unique_valid_dttm(fcst),
+        dttm                = dttm_sel,
         parameter           = param,
         obs_path            = obs_path,
-        stations            = harpCore::unique_stations(fcst),
+        stations            = stations_sel,
+        min_allowed         = param_info$obsmin_val,
+        max_allowed         = param_info$obsmax_val,
+        file_template       = file_template, 
+        file_format         = file_format,
+        vertical_coordinate = vc
+      )
+      } else {
+      harpIO::read_point_obs(
+        dttm                = dttm_sel,
+        parameter           = param,
+        obs_path            = obs_path,
+        stations            = stations_sel,
         min_allowed         = param_info$obsmin_val,
         max_allowed         = param_info$obsmax_val,
         vertical_coordinate = vc
       )
+      }
     },
     error = function(cond){
       cat("An error was detected during the obs read for",param,"\n")

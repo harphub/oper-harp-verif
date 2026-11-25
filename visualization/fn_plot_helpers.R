@@ -18,11 +18,18 @@ fn_gen_sc_plots <- function(verif,
                             verif_path,
                             fsd,
                             fed,
+                            lplot = FALSE,
+                            tile_only = FALSE,
+                            model_as_obs = FALSE,
                             png_projname = NA_character_,
                             tile_lts = seq(0,66,3)) {
   
   model_names <- NULL
   score_names <- NULL
+  if (lplot) {
+  model_names <- unique(verif[[1]][[1]][[1]][["fcst_model"]])
+  score_names <- unique(verif[[1]][[1]][[1]][["score"]])
+  } else {
   for (ii in seq(1,length(verif))) {
     if (length(verif[[ii]][["sc_data"]]) > 0) {
       # First domain, first tibble (i.e. summary scores)
@@ -32,8 +39,8 @@ fn_gen_sc_plots <- function(verif,
       score_names <- unique(c(score_names,qwe2))
     }
   }
-  sc_models <- c(CONFIG$scorecards$ref_model,
-                 CONFIG$scorecards$fcst_model)
+  }
+  sc_models <- unique(c(CONFIG$scorecards$ref_model,model_names))
   
   # Check fcst/ref model consistency
   for (ii in seq(1,length(sc_models))) {
@@ -66,33 +73,74 @@ fn_gen_sc_plots <- function(verif,
     }
   }
   
+  # Loop over all models and plot scores relative to ref_model
+  reference <- CONFIG$scorecards$ref_model
+  models_to_consider <- setdiff(sc_models,reference)
+  if (length(models_to_consider) == 0) {
+    stop("Something weird happened in the scorecard generation!")
+  }
+  
+  # Remove AccPcp6h is looking at MERA vs MERA analysis
+  params_to_use <- CONFIG$scorecards$parameters
+  if (reference == "MERA") {
+    if (!isFALSE(model_as_obs)) {
+      if (model_as_obs %in% c("MERA_analysis","MERA")) {
+        params_to_use <- params_to_use[params_to_use != "AccPcp6h"]
+      }
+    }
+  }
+
+  for (cmodel in models_to_consider) {
+  scard_fname_out <- NA_character_
+  if (!tile_only) {
   scard_fname_out <- fn_scorecard_signif(verif,
                                          sc_scores,
-                                         CONFIG$scorecards$parameters,
-                                         sc_models[2],
-                                         sc_models[1],
+                                         params_to_use,
+                                         cmodel,
+                                         reference,
                                          plot_output,
                                          plot_signif = CONFIG$scorecards$plot_signif,
                                          verif_path = verif_path,
                                          png_projname = png_projname,
                                          fsd  = fsd,
                                          fed  = fed)
+  }
   # Plot the "tile" scorecards
-  if (!is.na(scard_fname_out)) {
-    if (file.exists(scard_fname_out)) {
-      sc_data <- readRDS(scard_fname_out)
+  if (!is.na(scard_fname_out) || (lplot)) {
+    if (file.exists(scard_fname_out) || (lplot)) {
+      if (lplot) {
+        sc_data <- verif
+      } else {
+        sc_data <- readRDS(scard_fname_out)
+      }
       fn_plot_tile_scorecard(sc_data,
                              sc_scores,
-                             sc_models[2],
-                             sc_models[1],
+                             cmodel,
+                             reference,
                              plot_output,
+                             params_to_plot = params_to_use,
                              significance = 0.95,
                              png_projname = png_projname,
                              leadtimes = tile_lts,
                              fsd  = fsd,
                              fed  = fed)
+      # And then do it for each individual score over different signifs
+      for (cs in sc_scores) {
+        fn_plot_tile_scorecard(sc_data,
+                               cs,
+                               cmodel,
+                               reference,
+                               plot_output,
+                               params_to_plot = params_to_use,
+                               significance = c(0.68,0.95,0.997),
+                               png_projname = png_projname,
+                               leadtimes = tile_lts,
+                               fsd  = fsd,
+                               fed  = fed)
+      }
     }
   }
+  } # Model loop
   
 }
 
@@ -114,9 +162,16 @@ fn_drop_verif_attr <- function(verif) {
 
 fn_plot_parallel <- function(plot_list,fxoption_list,world = NULL) {
   
-  future_lapply(plot_list,future.seed = TRUE,function(x) {
+  message("Total number of plots to generate: ",length(plot_list))
+  future_lapply(seq_along(plot_list),
+                future.seed = TRUE,
+                function(i) {
+                  
     options(dplyr.summarise.inform = FALSE)
+    x <- plot_list[[i]]
     
+    tryCatch({
+
     if (x$p_map) {
       
       p_c <- fn_plot_map(x$verif,
@@ -183,6 +238,14 @@ fn_plot_parallel <- function(plot_list,fxoption_list,world = NULL) {
       }
       
     } # p_map/p_prof
+      
+    TRUE
+    }, error = function(e) {
+    message("FAILED: ",i)
+    message(conditionMessage(e))
+    str(x)
+    FALSE
+    })
   })
   
 }
@@ -481,6 +544,8 @@ fn_plot_point <- function(verif,
   comp_val     <- fxoption_list$comp_val
   thr_brks     <- fxoption_list$thr_brks
   clim_name    <- fxoption_list$clim_name
+  ava_ref      <- fxoption_list$ava_ref
+  ava_metric   <- fxoption_list$ava_metric
   if (all(grepl("_scores",names(verif)))) {
     df <- verif[[paste0(c_ftyp,"_",c_typ,"_scores")]]
   } else {
@@ -523,6 +588,12 @@ fn_plot_point <- function(verif,
     stroke_size <- 0
     point_size  <- 0
     qobs_diag   <- TRUE
+  } else if (xgroup == "act_diff") {
+    xl <- "Relative diff in NFA (%)"
+    yl <- paste0("Relative diff in ",stringr::str_to_title(ava_metric)," (%)")
+    point_size  <- 2.0
+    stroke_size <- 0
+    line_size   <- 0.5
   }
   
   # A check on the type of xgroup (in case of character type for 
@@ -555,6 +626,11 @@ fn_plot_point <- function(verif,
       title_scores <- "Quantile-Quantile difference"
       yl <- paste0("Sorted forecasts - obs. (",par_unit,")")
       qobs_diag <- FALSE
+    } else if (title_scores == "Acc diff"){
+      title_scores <- "Accuracy vs Activity difference"
+      if (!is.null(ava_ref)) {
+        subtitle_str <- paste0(subtitle_str," : Relative to ",ava_ref)
+      }
     }
   }
   ptitle <- paste0(paste0(title_scores,collapse = ", ")," : ",title_str)
@@ -759,10 +835,20 @@ fn_plot_point <- function(verif,
         ggplot2::ggplot(aes(x     = get(xgroup),
                             color = forcats::fct_inorder(fcst_model))) +
         ggplot2::geom_line(aes(y     = get(all_scores)),
-                           linewidth = line_size) +
-        ggplot2::geom_point(aes(y  = get(all_scores)),
-                            stroke = stroke_size,
-                            size   = point_size)
+                           linewidth = line_size) 
+      if (xgroup == "act_diff") {
+        p_out <- p_out +
+          ggplot2::geom_point(aes(y     = get(all_scores),
+                                  alpha = lead_time),
+                              stroke = stroke_size,
+                              size   = point_size)
+      } else {
+        p_out <- p_out +
+          ggplot2::geom_point(aes(y  = get(all_scores)),
+                              stroke = stroke_size,
+                              size   = point_size)
+      }
+
       tsns  <- 8
       add_colour_lab <- T
     } else if (num_scores == 2) {
@@ -856,16 +942,47 @@ fn_plot_point <- function(verif,
                                              color      = "black",
                                              linetype   = "dashed")
       }
+      if (all_scores == "acc_diff") {
+        p_out <- p_out + ggplot2::geom_hline(yintercept = 0,
+                                             linewidth  = line_size,
+                                             color      = "black",
+                                             linetype   = "dashed") +
+          ggplot2::geom_vline(xintercept = 0,
+                              linewidth  = line_size,
+                              color      = "black",
+                              linetype   = "dashed") +
+          ggplot2::scale_alpha_continuous(range=c(0.25,1),guide = "none") +
+          ggplot2::labs(alpha = "")
+      }
+      if (all_scores == "frequency_bias") {
+        p_out <- p_out + ggplot2::geom_hline(yintercept = 1,
+                                             linewidth  = line_size,
+                                             color      = "black",
+                                             linetype   = "dashed")
+      }
     }
     
     # Change to log axis for precip threshold scores, and add breaks
     if (xgroup == "threshold_val") {
+      
+      pb_use <- fn_thr_brks_for_plot(p_out,thr_brks)
+
       if (grepl("AccPcp",param,fixed = TRUE)) {
-        p_out <- p_out + ggplot2::scale_x_continuous(trans = "log10",
-                                                     breaks = thr_brks,
+        if (pb_use[1] == 0) {
+          min_pb_use <- NA
+          pb_use     <- pb_use[pb_use>0]
+        } else {
+          min_pb_use <- min(pb_use)
+        }
+        p_out <- p_out + ggplot2::scale_x_continuous(trans        = "log10",
+                                                     breaks       = pb_use,
+                                                     labels       = pb_use,
+                                                     limits       = c(min_pb_use,max(pb_use)),
                                                      minor_breaks = NULL)
       } else {
-        p_out <- p_out + ggplot2::scale_x_continuous(breaks = thr_brks,
+        p_out <- p_out + ggplot2::scale_x_continuous(breaks       = pb_use,
+                                                     labels       = pb_use,
+                                                     limits       = c(min(pb_use),max(pb_use)),
                                                      minor_breaks = NULL)
       }
       p_out <- p_out + ggplot2::theme(
@@ -885,21 +1002,8 @@ fn_plot_point <- function(verif,
       p_out <- p_out + ggplot2::scale_x_continuous(breaks = seq(0,21,3),
                                                    minor_breaks = NULL)
     } else if (xgroup == "mids") {
-      p_breaks <- vroption_list$p_breaks
-      p_xlim   <- layer_scales(p_out)$x$range$range
-      pbi      <- grep(TRUE,dplyr::between(p_breaks,p_xlim[1],p_xlim[2]))
-      if (length(pbi) == 0) {
-        cat("Something weird happened in the frequency dist - investigate!\n")
-        pb_use <- p_breaks
-      } else {
-        if (pbi[1] > 1) {
-          pbi = c(pbi[1]-1,pbi)
-        }
-        if (pbi[length(pbi)] != length(p_breaks)) {
-          pbi = c(pbi,pbi[length(pbi)]+1)
-        }
-        pb_use <- p_breaks[pbi]
-      }
+      
+      pb_use <- fn_thr_brks_for_plot(p_out,vroption_list$p_breaks)
       
       if (vroption_list$log_ind) {
         if (pb_use[1] == 0) {
@@ -924,7 +1028,7 @@ fn_plot_point <- function(verif,
 
       p_ylim <- ggplot2::layer_scales(p_out)$y$range$range
       if ("freq_bias" %in% names(df)) {
-        c_breaks <- c(seq(0,2,0.5),3,4,seq(5,15,2.5))
+        c_breaks <- c(seq(0,2,0.5),3,4,seq(5,15,2.5),seq(20,100,10))
       } else {
         c_breaks <- round(pracma::logseq(max(1,p_ylim[1]),p_ylim[2],6),0)
       }
@@ -951,6 +1055,31 @@ fn_plot_point <- function(verif,
     return(p_out)
   }
 }
+
+#================================================#
+# HELPER FUNCTION FOR BREAKS TO USE IN THR PLOTS
+#================================================#
+
+fn_thr_brks_for_plot <- function(p_out,p_breaks) {
+  
+  p_xlim   <- layer_scales(p_out)$x$range$range
+  pbi      <- grep(TRUE,dplyr::between(p_breaks,p_xlim[1],p_xlim[2]))
+  if (length(pbi) == 0) {
+    cat("Something weird happened in the frequency dist - investigate!\n")
+    pb_use <- p_breaks
+  } else {
+    if (pbi[1] > 1) {
+      pbi = c(pbi[1]-1,pbi)
+    }
+    if (pbi[length(pbi)] != length(p_breaks)) {
+      pbi = c(pbi,pbi[length(pbi)]+1)
+    }
+    pb_use <- p_breaks[pbi]
+  }
+  
+  return(pb_use)
+  
+} 
 
 #================================================#
 # HELPER FUNCTION FOR PLOTTING THE NUMBER OF CASES
@@ -1043,12 +1172,25 @@ fn_plot_numcases <- function(verif,
   
   # Change to log axis for precip threshold scores, and add breaks
   if (xgroup == "threshold_val") {
+    
+    pb_use <- fn_thr_brks_for_plot(p_out,thr_brks)
+    
     if (grepl("AccPcp",param,fixed = TRUE)) {
-      p_out <- p_out + ggplot2::scale_x_continuous(trans = "log10",
-                                                   breaks = thr_brks,
+      if (pb_use[1] == 0) {
+        min_pb_use <- NA
+        pb_use     <- pb_use[pb_use>0]
+      } else {
+        min_pb_use <- min(pb_use)
+      }
+      p_out <- p_out + ggplot2::scale_x_continuous(trans        = "log10",
+                                                   breaks       = pb_use,
+                                                   labels       = pb_use,
+                                                   limits       = c(min_pb_use,max(pb_use)),
                                                    minor_breaks = NULL)
     } else {
-      p_out <- p_out + ggplot2::scale_x_continuous(breaks = thr_brks,
+      p_out <- p_out + ggplot2::scale_x_continuous(breaks       = pb_use,
+                                                   labels       = pb_use,
+                                                   limits       = c(min(pb_use),max(pb_use)),
                                                    minor_breaks = NULL)
     }
     p_out <- p_out + ggplot2::theme(
@@ -1186,8 +1328,10 @@ fn_plot_map <- function(verif,
   	   return(NA_character_)
       }
     } else {
-      c_min <- df[[score]] %>% unlist() %>% min()
-      c_max <- df[[score]] %>% unlist() %>% max()
+      c_min <- df[[score]] %>% unlist()
+      c_min <- min(c_min,na.rm = T)
+      c_max <- df[[score]] %>% unlist()
+      c_max <- max(c_max,na.rm = T)
     }
     
     if (geo_check) {
@@ -1394,13 +1538,13 @@ fn_get_map_cbar <- function(map_cbar_d,c_min,c_max,score,param,par_unit,
 
   # If we are outside the limits defined by brks, add in the extremes
   if ((!is.null(bl_val)) & (score %in% c("bias","mean_bias"))) {
-    if (bl_val != c_min) {
+    if (bl_val != min(brks_out)) {
       brks_out <- c(bl_val,brks_out)
       cmap_out <- c("darkorchid3",cmap_out)
     }
   }
   if (!is.null(bu_val)){
-    if (bu_val != c_max) {
+    if (bu_val != max(brks_out)) {
       brks_out <- c(brks_out,bu_val)
       if (score %in% c("bias","mean_bias")) {
         up_col <- "hotpink2"
@@ -2017,7 +2161,6 @@ fn_nfa <- function(fc,
                    vc = NA_character_){
   
   # Read options
-  p_info     <- list()
   score      <- vroption_list$score
   station    <- vroption_list$station
   param      <- fxoption_list$param
@@ -2115,7 +2258,7 @@ fn_nfa <- function(fc,
     
   }
     
-  return(p_info)
+  return(fc_act)
   
 }
 
@@ -2504,7 +2647,7 @@ get_param_classes <- function(param,par_unit,score = "freq") {
       scale_round <- 0
     }
     
-  } else if ((param %in% c("T2m","Td2m","Tmax","Tmin","2t","t2m","skt")) || 
+  } else if ((param %in% c("T2m","Td2m","Tmax","Tmin","2t","2d","t2m","skt")) || 
              (grepl("T2m",param,fixed=TRUE)) || 
              (gsub('[0-9]+$','',param) == "T") ||
              (gsub('[0-9]+$','',param) == "Td") || 
@@ -2537,7 +2680,9 @@ get_param_classes <- function(param,par_unit,score = "freq") {
       }
     }
     
-  } else if ((param %in% c("Q2m")) || (gsub('[0-9]+$','',param) == "Q")) {
+  } else if ((param %in% c("Q2m","q")) || 
+             (gsub('[0-9]+$','',param) == "Q") || 
+             (gsub('[0-9]+$','',param) == "q")) {
     
     # Assuming g/kg as default
     if (score %in% c("bias","mean_bias")) {
@@ -2921,6 +3066,81 @@ fn_get_lts_used <- function(vh,cyc,allcycles,alllts){
 
 #================================================#
 # HELPER FUNCTION FOR DEFINING FIXED LINE COLOURS
+# (SUPERSEEDS fn_gen_model_colors)
+#================================================#
+
+fn_populate_model_colors <- function(in_names,
+                                     cmap,
+                                     withobs=FALSE){
+  
+  # What models exist in cmap
+  existing_models  <- intersect(in_names,names(cmap))
+  existing_colors  <- cmap[existing_models]
+  
+  # Additional models to add 
+  additional_models <- setdiff(in_names,names(cmap))
+  if (length(additional_models) > 0) {
+    for (ii in seq_along(additional_models)) {
+      new_color <- fn_most_distinct_color(existing_colors)
+      existing_colors <- c(existing_colors,new_color)
+      names(existing_colors) <- c(setdiff(names(existing_colors),""),
+                                  additional_models[ii])
+    }
+  }
+  
+  # Then output and add OBS if needed
+  model_colors <- unname(existing_colors)
+  am           <- names(existing_colors)
+  if (withobs) {
+    model_colors <- c(model_colors,'#4F4F4F')
+    am           <- c(am,"OBS")
+  }
+  names(model_colors) <- am
+  
+  return(model_colors)
+  
+}
+
+#================================================#
+# HELPER FUNCTION FOR GENERATING DISTINCT COLORS
+# USED BY fn_populate_model_colors
+#================================================#
+
+fn_most_distinct_color <- function(in_colors,n=51) {
+  
+  # Generate candidate colours
+  candidates_hsv <- data.frame(
+    h = seq(0, 359, length.out = n),
+    s = 0.75,
+    v = 0.7
+  )
+  
+  candidates_lab <- farver::convert_colour(
+    candidates_hsv,
+    from = "hsv",
+    to =  "lab"
+  )
+  
+  existing <- farver::decode_colour(in_colors,to = "lab")
+  
+  distances <- farver::compare_colour(
+    candidates_lab,
+    existing,
+    from_space = "lab",
+    method = "euclidean"
+  )
+  
+  score <- apply(distances, 1, min)
+  best  <- candidates_hsv[which.max(score),,drop=FALSE]
+  out   <- farver::encode_colour(best,from = "hsv") %>% unname()
+  
+  return(out)
+  
+}
+
+#================================================#
+# HELPER FUNCTION FOR DEFINING FIXED LINE COLOURS
+# (DEPRECATED IN FAVOUR OF fn_populate_model_colors )
 #================================================#
 
 fn_gen_model_colors <- function(in_names,

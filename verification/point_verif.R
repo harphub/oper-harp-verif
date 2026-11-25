@@ -196,6 +196,7 @@ source(here::here(params_file))
 #================================================#
 
 cat("%%%%%%%%% point_verif: Using config file",config_file,"and parameter file",params_file,"%%%%%%%%%\n")
+ttime_start <- Sys.time()
 
 CONFIG          <- load_config(here::here(config_file))
 project_name    <- check_config_input(CONFIG,"verif","project_name")
@@ -203,29 +204,40 @@ fcst_model      <- check_config_input(CONFIG,"verif","fcst_model")
 lead_time_str   <- check_config_input(CONFIG,"verif","lead_time")
 lead_time_param  <- check_config_input(CONFIG,"verif","lead_time_param",default=NULL)
 lt_batch_size   <- check_config_input(CONFIG,"verif","lead_time_batch_size",default=NULL)
+lead_time_aux   <- CONFIG$verif$lead_time_aux
 by_step         <- check_config_input(CONFIG,"verif","by_step")
 fcst_type       <- check_config_input(CONFIG,"verif","fcst_type",default="none")
 fcst_path       <- check_config_input(CONFIG,"verif","fcst_path")
+fcst_template   <- check_config_input(CONFIG,"verif","fcst_template",default="fctable")
+fcst_format     <- check_config_input(CONFIG,"verif","fcst_format",default="fctable")
 obs_path        <- check_config_input(CONFIG,"verif","obs_path")
+obs_template    <- check_config_input(CONFIG,"verif","obs_template",default="obstable")
+obs_format      <- check_config_input(CONFIG,"verif","obs_format",default="obstable")
 model_as_obs    <- check_config_input(CONFIG,"verif","model_as_obs",default=FALSE)
 if (!isFALSE(model_as_obs)) {
-  model_as_obs_name <- check_config_input(CONFIG,"verif","model_as_obs",z="model_as_obs_name")
-  model_as_obs_path <- check_config_input(CONFIG,"verif","model_as_obs",z="model_as_obs_path")
-  model_as_obs_by   <- check_config_input(CONFIG,"verif","model_as_obs",z="model_as_obs_by",default = "1h")
-  model_as_obs_tmpl <- check_config_input(CONFIG,"verif","model_as_obs",z="model_as_obs_tmpl",default = "fctable")
+  model_as_obs_name   <- check_config_input(CONFIG,"verif","model_as_obs",z="model_as_obs_name")
+  model_as_obs_path   <- check_config_input(CONFIG,"verif","model_as_obs",z="model_as_obs_path")
+  model_as_obs_by     <- check_config_input(CONFIG,"verif","model_as_obs",z="model_as_obs_by",default = "1h")
+  model_as_obs_tmpl   <- check_config_input(CONFIG,"verif","model_as_obs",z="model_as_obs_tmpl",default = "fctable")
+  model_as_obs_format <- check_config_input(CONFIG,"verif","model_as_obs",z="model_as_obs_format",default = "fctable")
+} else {
+  model_as_obs_name   <- FALSE
 }
 use_climatology <- check_config_input(CONFIG,"verif","use_climatology",default=FALSE)
 if (!isFALSE(use_climatology)) {
-  climatology_name <- check_config_input(CONFIG,"verif","use_climatology",z="climatology_name")
-  climatology_path <- check_config_input(CONFIG,"verif","use_climatology",z="climatology_path")
-  climatology_year <- check_config_input(CONFIG,"verif","use_climatology",z="climatology_year")
-  climatology_by   <- check_config_input(CONFIG,"verif","use_climatology",z="climatology_by",default = "1h")
-  climatology_tmpl <- check_config_input(CONFIG,"verif","use_climatology",z="climatology_tmpl",default = "fctable")
-  clim_in_plots    <- check_config_input(CONFIG,"verif","use_climatology",z="clim_in_plots",default = FALSE)
-  use_climatology  <- TRUE
+  climatology_name   <- check_config_input(CONFIG,"verif","use_climatology",z="climatology_name")
+  climatology_path   <- check_config_input(CONFIG,"verif","use_climatology",z="climatology_path")
+  climatology_year   <- check_config_input(CONFIG,"verif","use_climatology",z="climatology_year")
+  climatology_by     <- check_config_input(CONFIG,"verif","use_climatology",z="climatology_by",default = "1h")
+  climatology_tmpl   <- check_config_input(CONFIG,"verif","use_climatology",z="climatology_tmpl",default = "fctable")
+  climatology_format <- check_config_input(CONFIG,"verif","use_climatology",z="climatology_format",default = "fctable")
+  clim_in_plots      <- check_config_input(CONFIG,"verif","use_climatology",z="clim_in_plots",default = FALSE)
+  ava_model          <- check_config_input(CONFIG,"verif","use_climatology",z="ava_model",default=FALSE)
+  ava_acc_metric     <- check_config_input(CONFIG,"verif","use_climatology",z="ava_acc_metric",default="msss")
+  use_climatology    <- TRUE
 } else {
-  climatology_name <- NULL
-  clim_in_plots    <- FALSE
+  climatology_name   <- NULL
+  clim_in_plots      <- FALSE
 }
 verif_path      <- check_config_input(CONFIG,"verif","verif_path")
 domains         <- check_config_input(CONFIG,"verif","domains",default="All")
@@ -233,19 +245,21 @@ domains_UA      <- check_config_input(CONFIG,"verif","domains_UA",default=list(N
 members         <- CONFIG$verif$members
 lags            <- check_config_input(CONFIG,"verif","lags")
 shifts          <- check_config_input(CONFIG,"verif","shifts",default=list(NULL))
-file_template   <- check_config_input(CONFIG,"verif","file_template",default="fctable")
 num_ref_members <- check_config_input(CONFIG,"verif","num_ref_members",default="Inf")
 ua_fcst_cycle   <- check_config_input(CONFIG,"verif","ua_fcst_cycle",default=F)
 ua_restrict_vh  <- check_config_input(CONFIG,"verif","ua_restrict_vh",default=T)
 lt_split        <- check_config_input(CONFIG,"verif","lt_split",default=F)
 force_valid_thr <- check_config_input(CONFIG,"verif","force_valid_thr",default=F)
 skip_qc         <- check_config_input(CONFIG,"verif","skip_qc",default=F)
+parallel_read   <- check_config_input(CONFIG,"verif","parallel_read",default=F)
+parallel_read_c <- check_config_input(CONFIG,"verif","parallel_read_c",default=-1)
 plot_output     <- check_config_input(CONFIG,"post","plot_output",default="default")
 create_png      <- check_config_input(CONFIG,"post","create_png",default=T)
 use_parallel    <- check_config_input(CONFIG,"post","use_parallel",default=F)
 use_parallel_c  <- check_config_input(CONFIG,"post","use_parallel_c",default = -1)
 save_vofp       <- check_config_input(CONFIG,"post","save_vofp",default=F)
 save_sidrds     <- check_config_input(CONFIG,"post","save_sidrds",default=F)
+mc_file         <- check_config_input(CONFIG,"post","mc_file",default=NULL)
 cmap            <- check_config_input(CONFIG,"post","cmap",default="Set2")
 cmap_hex        <- check_config_input(CONFIG,"post","cmap_hex",default="magma")
 map_cbar_d      <- check_config_input(CONFIG,"post","map_cbar_d",default=F)
@@ -255,7 +269,7 @@ create_scrd     <- check_config_input(CONFIG,"scorecards","create_scrd",default=
 members_list    <- get_named_list(members,fcst_model,"members")
 lags_list       <- get_named_list(lags,fcst_model,"lags")
 shifts_list     <- get_named_list(shifts,fcst_model,"shifts")
-file_template   <- get_named_list(file_template,fcst_model,"file_template",skip_parse=T)
+fcst_template   <- get_named_list(fcst_template,fcst_model,"fcst_template",skip_parse=T)
 
 # Abort if directories do not exist
 check_dirs_exist(c(fcst_path,obs_path,verif_path))
@@ -464,23 +478,64 @@ if (use_fixed_dates) {
   fed <- NA_character_
 }
 
-# Check for parallel image generation
-if ((use_parallel) && (create_png)) {
-  if ("future.apply" %in% rownames(installed.packages())) {
-    if (use_parallel_c>1) {
-      use_parallel_c <- floor(use_parallel_c)
-      cat("Starting",use_parallel_c,"workers for parallel image generation\n")
-      library(future.apply)
-      plan(multisession,workers=use_parallel_c)
+# Check for parallel sqlite reading
+# Do not start up multiple sessions for reading and image generation (former
+# taking preference!)
+if (parallel_read) {
+  if (all(c("future","furrr") %in% rownames(installed.packages()))) {
+    if (parallel_read_c>1) {
+      parallel_read_c <- floor(parallel_read_c)
+      cat("Starting",parallel_read_c,"workers for sqlite reading\n")
+      library(future)
+      library(furrr)
+      plan(multisession,workers=parallel_read_c)
     } else {
-      cat("use_parallel_c =",use_parallel_c,"- it should be a whole number >1!\n")
-      use_parallel <- FALSE
+      cat("parallel_read_c =",parallel_read_c,"- it should be a whole number >1!\n")
+      parallel_read <- FALSE
     }
   } else {
-    cat("use_parallel is TRUE but future.apply was not found, switching off\n")
-    use_parallel <- FALSE
+    cat("parallel_read is TRUE but future and furrr were not found, switching off\n")
+    parallel_read <- FALSE
+  }
+  # Load in future.apply if parallel image gen is on too
+  if ((use_parallel) && (create_png)) {
+    if ("future.apply" %in% rownames(installed.packages())) {
+      library(future.apply)
+    } else {
+      cat("use_parallel is TRUE but future.apply was not found, switching off\n")
+      use_parallel <- FALSE
+    }
+  }
+} else {
+  # Check for parallel image generation
+  if ((use_parallel) && (create_png)) {
+    if ("future.apply" %in% rownames(installed.packages())) {
+      if (use_parallel_c>1) {
+        use_parallel_c <- floor(use_parallel_c)
+        cat("Starting",use_parallel_c,"workers for parallel image generation\n")
+        library(future.apply)
+        plan(multisession,workers=use_parallel_c)
+      } else {
+        cat("use_parallel_c =",use_parallel_c,"- it should be a whole number >1!\n")
+        use_parallel <- FALSE
+      }
+    } else {
+      cat("use_parallel is TRUE but future.apply was not found, switching off\n")
+      use_parallel <- FALSE
+    }
   }
 }
+
+# Lead times to use in aux plots
+if (!is.null(lead_time_aux)) {
+  lead_time_aux <- eval(parse(text = lead_time_aux))
+} else {
+  # Default before this option was introduced
+  lead_time_aux <- seq(3,48,3)
+}
+
+# Check if model_colours file was provided
+cmap <- try_model_colours(mc_file,cmap,fcst_model)
 
 #================================================#
 # FIND MODEL WITH MIN NUMBER OF STATIONS TO 
@@ -492,14 +547,15 @@ model_domain_min <- create_station_filter(start_date,
                                           fcst_model,
                                           param_csf,
                                           fcst_path,
-                                          file_template,
+                                          fcst_template,
+                                          fcst_format,
                                           sl_dir)
 
 # Get members and lags corresponding to this model_domain_min
 if (!is.na(model_domain_min)) {
   members_domain_min <- members_list[[model_domain_min]]
   lags_domain_min    <- lags_list[[model_domain_min]]
-  file_template_domain_min <- file_template[[model_domain_min]]
+  fcst_template_domain_min <- fcst_template[[model_domain_min]]
 }
 
 #================================================#
@@ -630,9 +686,12 @@ run_verif <- function(prm_info, prm_name) {
                                members_domain_min,
                                lags_domain_min,
                                fcst_path,
-                               file_template_domain_min,
+                               fcst_template_domain_min,
+                               fcst_format,
                                NULL,
-                               vertical_coordinate)
+                               vertical_coordinate,
+                               parallel_read = parallel_read,
+                               use_ml = FALSE)
     
     if (is.null(fcst_tmp)) {
       message("Failure during the FCTABLE reading process for ",prm_name,
@@ -686,9 +745,11 @@ run_verif <- function(prm_info, prm_name) {
                          members_list,
                          lags_list,
                          fcst_path,
-                         file_template,
+                         fcst_template,
+                         fcst_format,
                          stations_filter,
-                         vertical_coordinate)
+                         vertical_coordinate,
+                         parallel_read = parallel_read)
   
   if (is.null(fcst)) {
     message("Failure during the FCTABLE reading process for ",prm_name,
@@ -783,6 +844,7 @@ run_verif <- function(prm_info, prm_name) {
                                 lm,
                                 climatology_path,
                                 climatology_tmpl,
+                                climatology_format,
                                 stations_filter,
                                 vertical_coordinate)
     if (is.null(clim_data)) {
@@ -867,6 +929,8 @@ run_verif <- function(prm_info, prm_name) {
                    prm_name_obs,
                    prm_info,
                    obs_path,
+                   obs_template,
+                   obs_format,
                    vertical_coordinate)
   if (prm_name_obs != prm_name) {
     obs <- dplyr::rename(obs,!!prm_name:=all_of(prm_name_obs))
@@ -923,6 +987,7 @@ run_verif <- function(prm_info, prm_name) {
                           lm,
                           model_as_obs_path,
                           model_as_obs_tmpl,
+                          model_as_obs_format,
                           stations_filter,
                           vertical_coordinate)
     
@@ -946,6 +1011,16 @@ run_verif <- function(prm_info, prm_name) {
       dplyr::rename(!!prm_name:="fcst")
     obs <- obs[[1]]
     
+  }
+  
+  # Check if obs SID is character, can cause issues when joining
+  obs_SID_type  <- typeof(obs$SID)
+  fcst_SID_type <- typeof(fcst[[1]]$SID)
+  if (obs_SID_type == "character") {
+    if (fcst_SID_type != "character") {
+      message("Converting forecast SID from ",fcst_SID_type," to character to match obs")
+      fcst <- fcst %>% harpPoint::mutate_list(SID = as.character(SID))
+    }
   }
   
   fcst <- tryCatch(
@@ -1119,6 +1194,9 @@ run_verif <- function(prm_info, prm_name) {
     for (ad in avail_domains) {
       cl <- cs_list[[ad]] %>% dplyr::mutate("station_group" = ad) %>% 
         dplyr::select(SID,"station_group")
+      if ((typeof(cl$SID) != "character") && (typeof(all_station_groups$SID) == "character") ) {
+        cl <- cl %>% dplyr::mutate(SID = as.character(SID))
+      }
       all_station_groups <- dplyr::bind_rows(all_station_groups,cl)
     }
   }
@@ -1164,6 +1242,34 @@ run_verif <- function(prm_info, prm_name) {
     dplyr::summarise(num_stations = length(unique(SID))) 
   n_stations     <- bind(n_stations_1,n_stations_2,n_stations_3,n_stations_4) %>%
     dplyr::distinct()
+  
+  # Additional handling of thresholds_param when set to "default" and for
+  # using the comparator.
+  if (!is.null(thresholds_param)) {
+    if (all(thresholds_param == "default")) {
+      par_unit         <- unique(fcst[[1]][["units"]])
+      gpc              <- get_param_classes(prm_name,par_unit,score = "freq")
+      thresholds_param <- gpc$brks
+      cat("Using the default threshold breaks",thresholds_param,"for",prm_name,"\n")
+    }
+  }
+  # Get the comparator
+  if (is.null(prm_info$comparator)) {
+    comparator <- "ge"
+  } else {
+    comparator <- prm_info$comparator
+    # If the comparator is between, create a list of length 2 vectors which are
+    # the start and end of each interval. Assuming that thresholds in params
+    # file is just a sequence of these.
+    if (comparator == "between") {
+      if (!is.null(thresholds_param)) {
+        thresholds_param <- purrr::map(
+          seq_along(thresholds_param)[-length(thresholds_param)],
+          ~ thresholds_param[.x:(.x + 1)]
+        )
+      }
+    }
+  }
 
     fcst_all[[i]] <- fcst
 
@@ -1183,6 +1289,7 @@ run_verif <- function(prm_info, prm_name) {
                                      grps_SID = grps_SID,
                                      all_station_groups = all_station_groups,
                                      thresholds_param = thresholds_param,
+                                     comparator = comparator,
                                      create_png = create_png,
                                      force_valid_thr = force_valid_thr,
                                      t_s_str = t_s_str,
@@ -1228,6 +1335,9 @@ run_verif <- function(prm_info, prm_name) {
         if ("mean_fcst" %in% colnames(verif_ss_clim)) {
           verif_ss_clim <- verif_ss_clim %>% dplyr::select(-mean_fcst,-mean_obs)
         }
+        if ("mse_bias" %in% colnames(verif_ss_clim)) {
+          verif_ss_clim <- verif_ss_clim %>% dplyr::select(-mse_bias,-mse_var,-mse_miss,-corr,-act,-varr)
+        }
         cnames = setdiff(intersect(colnames(verif_ss_clim),
                                    colnames(verif_toplot[[1]])),
                          c("fcst_model","mse_clm"))
@@ -1250,6 +1360,107 @@ run_verif <- function(prm_info, prm_name) {
         }
       }
       
+      # Now prepare data for accuracy vs activity plot
+      if (!isFALSE(ava_model)) {
+        nfa <- aux_scores_out$nfa %>% dplyr::ungroup()
+        if (!(ava_model %in% unique(nfa$fcst_model))) {
+          cat("Did not find ava_model",ava_model,"in the NFA data - skipping AVA plot!\n")
+        } else {
+          # Grab accuracy data from computed scores
+          if (!(ava_acc_metric) %in% colnames(verif_toplot[[1]])) {
+            cat("Did not find accuracy metric",ava_acc_metric,"for the AVA plots, skipping!\n")
+          } else {
+            
+            acc_data <- verif_toplot[[1]] %>%
+              dplyr::filter(lead_time %in% unique(nfa$lead_time),
+                            station_group %in% unique(nfa$station_group),
+                            fcst_model %in% unique(nfa$fcst_model))
+            cols_to_sel <- c("fcst_model","lead_time","station_group",
+                             "num_stations","num_cases",ava_acc_metric)
+  
+            if ("fcst_cycle" %in% colnames(acc_data)) {
+              acc_data <- acc_data %>%
+                dplyr::filter(fcst_cycle %in% unique(nfa$fcst_cycle))
+              cols_to_sel <- c(cols_to_sel,"fcst_cycle")
+            }
+            
+            # Handle UA data
+            if (max(nfa$iter) > 0) {
+              if ("p" %in% colnames(nfa)) {
+                acc_data <- acc_data %>%
+                  dplyr::filter(p %in% unique(nfa$p))
+                cols_to_sel <- c(cols_to_sel,"p")
+              } else if ("z" %in% colnames(nfa)) {
+                acc_data <- acc_data %>%
+                  dplyr::filter(z %in% unique(nfa$z))
+                cols_to_sel <- c(cols_to_sel,"z")
+              } else {
+                stop("How did this happen?")
+              }
+            }
+            
+            # Now grab columns that you need 
+            acc_data <- acc_data %>% 
+              dplyr::select(all_of(cols_to_sel)) %>%
+              dplyr::mutate(lead_time = as.integer(lead_time))
+            
+            # Now merge with nfa data
+            common_cols <- intersect(colnames(nfa),
+                                     colnames(acc_data))
+            nfa <- dplyr::inner_join(nfa,
+                                     acc_data,
+                                     by = common_cols,
+                                     relationship = "one-to-one")
+            
+            # Now get the reference data and compute relative diff in 
+            # accuracy and activity
+            ava_acc_metric_ref <- paste0(ava_acc_metric,"_ref")
+            nfa_ref <- nfa %>% dplyr::filter(fcst_model == ava_model) %>%
+              dplyr::mutate(nfa_ref = nfa,
+                            !!ava_acc_metric_ref := get(ava_acc_metric)) %>%
+              dplyr::select(-nfa,-all_of(ava_acc_metric),-fcst_model,-fcact,-obact)
+            nfa <- nfa %>% dplyr::filter(fcst_model != ava_model)
+            gcols <- setdiff(colnames(nfa),
+                             c("fcst_model","fcact","obact","nfa",ava_acc_metric))
+            nfa <- inner_join(
+              nfa,
+              nfa_ref,
+              relationship = "many-to-one",
+              by = gcols
+            ) %>%
+              dplyr::mutate(act_diff = 100*(nfa - nfa_ref)/(nfa_ref),
+                            acc_diff = 100*(get(ava_acc_metric) - get(ava_acc_metric_ref))/(get(ava_acc_metric_ref)))
+            
+            # Then select cols you need
+            cols_to_sel <- c(setdiff(cols_to_sel,ava_acc_metric),"act_diff","acc_diff")
+            nfa <- nfa %>% dplyr::select(all_of(cols_to_sel))
+            
+            # Then pass to plotting
+            verif_ava <- verif_toplot
+            if (length(verif_ava) > 1) {
+              verif_ava[[2]] <- NULL
+            }
+            verif_ava[[1]] <- nfa
+            fn_plot_point_verif(verif_ava,
+                                plot_output,
+                                valid_dttm_col = valid_dttm_col,
+                                png_projname   = png_projname,
+                                rolling_verif  = rolling_verif,
+                                cmap           = cmap,
+                                map_cbar_d     = map_cbar_d,
+                                fsd            = fsd,
+                                fed            = fed,
+                                n_stations     = n_stations,
+                                use_parallel   = use_parallel,
+                                plot_num_cases = FALSE,
+                                clim_name      = climatology_name_local,
+                                ava_ref        = ava_model,
+                                ava_metric     = ava_acc_metric)
+          }
+        }
+        
+      }
+      
     }
     
     #================================================#
@@ -1269,6 +1480,7 @@ run_verif <- function(prm_info, prm_name) {
                               fed           = fed,
                               use_parallel  = use_parallel,
                               vc            = vertical_coordinate,
+                              lt_to_use     = lead_time_aux,
                               clim_name     = climatology_name_local,
                               clim_in_plots = clim_in_plots)
     }
@@ -1385,6 +1597,14 @@ run_verif <- function(prm_info, prm_name) {
     for (scrd_domain in unique(fcst[[1]][["station_group"]])) {
       
       fcst_scrd      <- filter_list(fcst,station_group == scrd_domain)
+      # Then remove climatology from plotting if desired
+      if (!clim_in_plots) {
+        avail_names  <- names(fcst_scrd)
+        if (!is.null(climatology_name)) {
+          avail_names  <- avail_names[avail_names != climatology_name]
+        }
+        fcst_scrd    <- fcst_scrd[avail_names]
+      }
       list_scrd_data <- gen_sc(list_scrd_data,
                                fcst_scrd,
                                {{prm_name}},
@@ -1446,8 +1666,11 @@ if ((create_scrd) & (sc_data_exists)) {
                   fsd,
                   fed,
                   png_projname = png_projname,
-                  tile_lts = seq(0,66,3))
+                  model_as_obs = model_as_obs_name,
+                  tile_lts = seq(3,72,3))
   
 }
 
-cat("%%%%%%%%%%%% point_verif: Finished config file",config_file,"%%%%%%%%%%%%\n")
+ttime_end <- Sys.time()
+ttime     <- round(as.numeric(ttime_end - ttime_start,units = "mins"),1)
+cat("%%%%%%%%%%%% point_verif: Finished config file",config_file,"in",ttime,"mins %%%%%%%%%%%%\n")

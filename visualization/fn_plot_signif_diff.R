@@ -15,6 +15,7 @@ fn_plot_signif_diff <- function(x,
                                 significance = 0.95,
                                 conf = c("ribbon", "errorbar"),
                                 alpha = 0.5,
+                                plot_percentage = FALSE,
                                 domain = "NA",
                                 num_cycles = "NA"){
   
@@ -60,6 +61,12 @@ fn_plot_signif_diff <- function(x,
         TRUE                                 ~ sig_text[3]
       )
     )
+  # Add in percentage diffs relative to mean score
+  plot_data <- plot_data %>% dplyr::mutate(
+    difference_mean_per  = 100*(difference_mean)/(ref_score_mean),
+    difference_lower_per = 100*(difference_lower)/(ref_score_mean),
+    difference_upper_per = 100*(difference_upper)/(ref_score_mean)
+  )
   
   dttm_avail <- attributes(x)$dttm
   if (is.list(dttm_avail)) {
@@ -91,20 +98,34 @@ fn_plot_signif_diff <- function(x,
                            num_stations," stations")
   }
   
+  ylab <- paste(harpVis:::totitle(gsub("_", " ", plot_score)),
+                collapse = "; ")
+  if (plot_percentage) {
+    mstr <- "difference_mean_per"
+    lstr <- "difference_lower_per"
+    ustr <- "difference_upper_per"
+    ylab <- paste0(ylab," (%)")
+    
+  } else {
+    mstr <- "difference_mean"
+    lstr <- "difference_lower"
+    ustr <- "difference_upper"
+
+  }
+  
   p <- ggplot2::ggplot(
     plot_data, 
     aes(
       x        = lead_time,
-      y        = difference_mean, 
-      ymin     = difference_lower, 
-      ymax     = difference_upper, 
+      y        = get(mstr), 
+      ymin     = get(lstr), 
+      ymax     = get(ustr), 
       linetype = score
     )
   ) + 
     ggplot2::labs(
       x        = "Lead Time [h]", 
-      y        = paste(harpVis:::totitle(gsub("_", " ", plot_score)),
-                       collapse = "; "),
+      y        = ylab,
       colour   = NULL, 
       linetype = NULL,
       shape    = NULL,
@@ -138,7 +159,7 @@ fn_plot_signif_diff <- function(x,
     ggplot2::scale_colour_manual(values = colours) +
     ggplot2::scale_fill_manual(values = colours) +
     ggplot2::scale_shape_manual(values = shapes) +
-    ggplot2::scale_x_continuous(breaks = seq(0, 48, 6)) +
+    ggplot2::scale_x_continuous(breaks = seq(0, 72, 6)) +
     ggplot2::guides(
       colour = ggplot2::guide_legend(nrow = 3),
       fill   = ggplot2::guide_legend(NULL, nrow = 3),

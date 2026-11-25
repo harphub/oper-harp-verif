@@ -26,6 +26,7 @@ params <- list(
       obsmin_val = 273.15 - 50,
       obsmax_val = 273.15 + 50,
       error_sd   = 6,
+      comparator = NULL,
       models_to_scale = NULL
     ),
     T2m_uncorrected = list(

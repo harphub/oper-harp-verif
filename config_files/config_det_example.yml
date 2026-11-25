@@ -18,8 +18,6 @@ verif:
     - "0h"
   shifts:                                   # Experimental: Used to shift forecasts forward/backward in time using "shift_forecast". Follows the same format as members/lags. Set to NULL in most cases.
     - NULL
-  file_template:                            # FCTABLE template, generally should conform to "fctable". Follows same logic as members/lags
-    - "fctable"
   num_ref_members: "Inf"                    # Number of reference members to use when computing fair scores for an ensemble (e.g. "Inf"). Not used for det runs.
   ua_fcst_cycle: FALSE                      # For upper air variables, do you want to group by fcst_cycle? Either TRUE or FALSE
   ua_restrict_vh: TRUE                      # For upper air variables, restict forecast-observation data to valid hours 00, 06, 12, 18Z. 
@@ -27,7 +25,12 @@ verif:
   lt_split: FALSE                           # Split some auxiliary scores (e.g. scatterplots, freq hist) between short (<=24), long (>24), and all leadtimes 
   skip_qc: FALSE                            # Skip all quality control checks
   fcst_path: "/path/to/FCTABLE"
+  fcst_template:                             # FCTABLE template, generally should conform to "fctable". Follows same logic as members/lags
+    - "fctable"
+  fcst_format: "fctable"
   obs_path: "/path/to/OBSTABLE"
+  obs_template: "obstable"
+  obs_format: "obstable"
   verif_path: "/path/to/rds_output"
 pre:
   fcst_model:
@@ -39,9 +42,11 @@ pre:
   vfld_by: "6h"
   vfld_template:                            # See harpIO::show_file_templates(). Include one for each model if they are different
     - "vfld"
+  fcst_format: "fctable"
   vobs_path: "/path/to/vobs"
   vobs_by: "1h"
   vobs_template: "vobs"
+  obs_format: "obstable"
   custom_asl_path: "/path/to/allsynop.list" # Local Harmonie allsynop list (activated with use_custom_asl flag in vfld2sql.R)
   members:                                  # Members to convert. Include a list of members for fcst_model if they are different
     - NULL
@@ -76,13 +81,13 @@ post:
   use_parallel_c: 4                         # If use_parallel=TRUE, how many cores to use for image generation
   save_vofp: TRUE                           # Save the verification object used for plotting pngs (over station groups)
   save_sidrds: FALSE                        # Save the verification object used for individual SID scores (i.e. maps)
-  cmap: "trubetskoy"                        # A palette from RColorBrewer or trubetskoy (in pals). Defaults to Set2
+  mc_file: "example.R"                      # Assign model colours according to this file. Must exist in visualisation/model_colours. Set to NULL to use "cmap" instead.
+  cmap: "trubetskoy"                        # A palette from RColorBrewer or trubetskoy (in pals). Defaults to Set2. Not used if "model_colours" is set.
   cmap_hex: "magma"                         # Colour pallete for scatterplots (one of "paired", "magma", "viridis", or a scico pallette). Defaults to magma
   map_cbar_d: FALSE                         # Use discrete breaks instead of a continuous colourbar for the station map plots
 scorecards:
   create_scrd: TRUE                         # Flag to run scorecard generation or not
   ref_model: model_1
-  fcst_model: model_2
   parameters:                               # Which parameters to include in the scorecard?
     - T2m
     - Td2m
