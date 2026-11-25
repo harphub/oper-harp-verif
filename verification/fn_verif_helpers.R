@@ -1712,6 +1712,9 @@ list_to_harp_verif <- function(.l) {
   group_vars_attr <- compare_attrs(
     lapply(res_attrs, function(x) x[["group_vars"]])
   )
+  units_vars_attr <- compare_attrs(
+    lapply(res_attrs, function(x) x[["par_unit"]])
+  )
 
   structure(
     res[which(vapply(res, nrow, integer(1)) > 0)],
@@ -1719,7 +1722,8 @@ list_to_harp_verif <- function(.l) {
     parameter  = param_attr,
     dttm       = dttm_attr,
     stations   = stations_attr,
-    group_vars = group_vars_attr
+    group_vars = group_vars_attr,
+    par_unit   = units_vars_attr
   )
 }
 
