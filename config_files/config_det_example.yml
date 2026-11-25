@@ -4,7 +4,8 @@ verif:
     - model_1
     - model_2
   lead_time: seq(0,24,3)
-  lead_time_UA: NULL
+  lead_time_param: NULL
+  lead_time_batch_size: NULL
   by_step: "6h"
   fcst_type: "det"                          # det or eps
   domains:                                  # what domains to verify ("All" will use all stations available)
@@ -33,12 +34,14 @@ pre:
     - model_1
     - model_2
   lead_time: seq(0,24,1)
+  lead_time_batch_size: NULL
   vfld_path: "/path/to/vfld"
   vfld_by: "6h"
   vfld_template:                            # See harpIO::show_file_templates(). Include one for each model if they are different
     - "vfld"
   vobs_path: "/path/to/vobs"
   vobs_by: "1h"
+  vobs_template: "vobs"
   custom_asl_path: "/path/to/allsynop.list" # Local Harmonie allsynop list (activated with use_custom_asl flag in vfld2sql.R)
   members:                                  # Members to convert. Include a list of members for fcst_model if they are different
     - NULL
