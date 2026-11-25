@@ -354,12 +354,33 @@ if (params_list == "ALL") {
 }
 
 # Make the grps for different verification types
-grps_surface_default   <- harpCore::make_verif_groups(c("lead_time",
-                     "valid_hour","valid_dttm"),c("fcst_cycle","station_group"))
-grps_UA_default        <- harpCore::make_verif_groups(c("lead_time",
-                     "valid_hour"),c("fcst_cycle","station_group"))
-grps_SID_default       <- list("SID",c("SID","valid_hour"))
-grps_threshold_default <- list("station_group",c("station_group","fcst_cycle"))
+# If you are using lead_time_batch_size, do not group over valid_hour, valid_dttm
+# as this is not handled correctly. Also turn off SID verif as this requires valid_hour, 
+# and do not run threshold verif over all lead times.
+if (!is.null(lt_batch_size)) {
+  grps_surface_default   <- harpCore::make_verif_groups(c("lead_time"),
+                                                        c("fcst_cycle","station_group"))
+  grps_UA_default        <- harpCore::make_verif_groups(c("lead_time"),
+                                                        c("fcst_cycle","station_group"))
+  grps_SID_default       <- NULL
+  grps_threshold_default <- NULL
+  skip_sid_verif         <- TRUE
+  message("===== WARNING FOR lead_time_batch_size =====")
+  message("You have activated lead_time_batch_size. As a result:")
+  message("1) grouping over valid hour/dttm is disabled as this functionality is not supported")
+  message("2) As a result of 1), upper-air profiles at valid hours are disabled")
+  message("3) station maps are disabled as the valid hours are not handled correctly")
+  message("4) threshold scores over all lead times are disabled")
+  message("To disable this warning, use lead_time_batch_size: NULL")
+  message("===== END OF WARNING FOR lead_time_batch_size =====")
+} else {
+  grps_surface_default   <- harpCore::make_verif_groups(c("lead_time",
+                       "valid_hour","valid_dttm"),c("fcst_cycle","station_group"))
+  grps_UA_default        <- harpCore::make_verif_groups(c("lead_time",
+                       "valid_hour"),c("fcst_cycle","station_group"))
+  grps_SID_default       <- list("SID",c("SID","valid_hour"))
+  grps_threshold_default <- list("station_group",c("station_group","fcst_cycle"))
+}
 
 # Do not group over "station_group"!
 grps_surface_default <- grps_surface_default[grepl("station_group",

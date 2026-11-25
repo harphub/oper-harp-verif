@@ -554,6 +554,10 @@ fn_plot_point_verif <- function(harp_verif_input,
       }
       leadtimes        <- tmp_out$leadtimes
       leadtime_vals    <- base::intersect(tleadtimes,leadtimes)
+      if ((length(leadtime_vals) == 0) && (xgroup %in% c("threshold_val","other"))) {
+        # Try just 24 and 48 by default
+        leadtime_vals  <- base::intersect(c("24","48"),leadtimes)
+      }
       # If all_lts_avail is an attribute, we can also use this in the subtitle
       if (!is.null(attributes(verif_input)$all_lts_avail)) {
         alta <- attributes(verif_input)$all_lts_avail
