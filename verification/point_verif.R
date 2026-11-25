@@ -201,10 +201,10 @@ CONFIG          <- load_config(here::here(config_file))
 project_name    <- check_config_input(CONFIG,"verif","project_name")
 fcst_model      <- check_config_input(CONFIG,"verif","fcst_model")
 lead_time_str   <- check_config_input(CONFIG,"verif","lead_time")
-lead_time_param  <- check_config_input(CONFIG,"verif","lead_time_param")
-lt_batch_size   <- check_config_input(CONFIG,"verif","lead_time_batch_size")
+lead_time_param  <- check_config_input(CONFIG,"verif","lead_time_param",default=NULL)
+lt_batch_size   <- check_config_input(CONFIG,"verif","lead_time_batch_size",default=NULL)
 by_step         <- check_config_input(CONFIG,"verif","by_step")
-fcst_type       <- check_config_input(CONFIG,"verif","fcst_type")
+fcst_type       <- check_config_input(CONFIG,"verif","fcst_type",default="none")
 fcst_path       <- check_config_input(CONFIG,"verif","fcst_path")
 obs_path        <- check_config_input(CONFIG,"verif","obs_path")
 model_as_obs    <- check_config_input(CONFIG,"verif","model_as_obs",default=FALSE)
@@ -331,7 +331,7 @@ if (fcst_type == "eps") {
 } else if (fcst_type == "det") {
   ft_str <- fcst_type
 } else {
-  stop("fcst_type ",fcst_type," is not recognised, aborting!")
+  stop("fcst_type '",fcst_type,"' is not recognised (only 'det' or 'eps' allowed), aborting!")
 }
 # Define string for threhsolds
 t_s_str <- paste0(ft_str,"_threshold_scores")
@@ -1188,7 +1188,11 @@ run_verif <- function(prm_info, prm_name) {
 
     verif <- purrr::map(verif_all, "verif") %>% list_to_harp_verif()
     verif_toplot <- purrr::map(verif_all, "verif_toplot") %>% list_to_harp_verif()
-    verif_sid <- purrr::map(verif_all, "verif_sid") %>% list_to_harp_verif()
+    if (!is.null(verif_all[[1]]$verif_sid)) {
+      verif_sid <- purrr::map(verif_all, "verif_sid") %>% list_to_harp_verif()
+    } else {
+      verif_sid <- NULL
+    }
 
     # If climatology is available, compute some skill scores relative to this
     if (use_climatology_local) {
