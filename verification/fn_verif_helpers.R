@@ -399,7 +399,9 @@ fn_run_verif_groups <- function(fcst = "",
     grps_param     <- lapply(grps_param,function(x) x[x != "fcst_cycle"])
     grps_param     <- grps_param[lapply(grps_param,length) > 0]
     grps_param     <- unique(grps_param)
-    grps_threshold <- list("station_group")
+    if (!is.null(grps_threshold)) {
+      grps_threshold <- list("station_group")
+    }
   }
   
   cat("Running standard verification...\n")
@@ -428,7 +430,9 @@ fn_run_verif_groups <- function(fcst = "",
   # Only required if:
   # 1) threshold scores are activated
   # 2) valid_dttm/hour have not been used above i.e. force_valid_thr=F
-  if ((!is.null(thresholds_param)) & (!force_valid_thr)) {
+  if ((!is.null(thresholds_param)) &&
+      (!force_valid_thr) &&
+      (length(grps_param[!grepl("lead_time",grps_param)]) > 0)) {
     # First store the threshold type in verif
     vttype <- typeof(verif[[2]]$threshold[[1]])
     
@@ -561,7 +565,7 @@ fn_run_verif_groups <- function(fcst = "",
     #================================================#
     
     # Compute the standard threshold scores over all lead_times and add
-    if (!(is.null(thresholds_param))) {
+    if ((!(is.null(thresholds_param))) && (!is.null(grps_threshold))) {
       cat("Running all threshold verification...\n")
       verif_alllt <- do.call(
         get(verif_fn),
@@ -1712,6 +1716,9 @@ list_to_harp_verif <- function(.l) {
   group_vars_attr <- compare_attrs(
     lapply(res_attrs, function(x) x[["group_vars"]])
   )
+  units_vars_attr <- compare_attrs(
+    lapply(res_attrs, function(x) x[["par_unit"]])
+  )
 
   structure(
     res[which(vapply(res, nrow, integer(1)) > 0)],
@@ -1719,7 +1726,8 @@ list_to_harp_verif <- function(.l) {
     parameter  = param_attr,
     dttm       = dttm_attr,
     stations   = stations_attr,
-    group_vars = group_vars_attr
+    group_vars = group_vars_attr,
+    par_unit   = units_vars_attr
   )
 }
 
