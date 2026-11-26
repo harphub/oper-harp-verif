@@ -71,10 +71,11 @@ end_date   <- sedate$end_date
 # READ OPTIONS FROM THE CONFIG FILE
 #================================================#
 
-CONFIG     <- yaml::yaml.load_file(here::here(config_file))
-vobs_path  <- check_config_input(CONFIG,"pre","vobs_path")
-obs_path   <- check_config_input(CONFIG,"verif","obs_path")
-by_val     <- check_config_input(CONFIG,"pre","vobs_by")
+CONFIG       <- load_config(here::here(config_file))
+vobs_path    <- check_config_input(CONFIG,"pre","vobs_path")
+obs_path     <- check_config_input(CONFIG,"verif","obs_path")
+by_val       <- check_config_input(CONFIG,"pre","vobs_by")
+out_format   <- check_config_input(CONFIG,"pre","obs_format",default="obstable")
 file_template <- check_config_input(CONFIG,"pre","vobs_template",default="vobs")
 
 #================================================#
@@ -88,6 +89,15 @@ if (!(by_val %in% paste0(seq(0,200),"h"))) {
   stop("Aborting")
 }
 
+# Output as sqlite or parquet
+if (out_format == "obsparquet") {
+  of_opts <- harpIO::obsparquet_opts(path = obs_path)
+} else if (out_format == "obstable") {
+  of_opts <- harpIO::obstable_opts(path = obs_path)
+} else {
+  stop("Did not recognise out_format = ",out_format)
+}
+
 #================================================#
 # VOBS CONVERT
 #================================================#
@@ -98,7 +108,7 @@ obs_data <- harpIO::read_obs(
   dttm               = harpCore::seq_dttm(start_date,end_date,by = by_val),
   file_path          = vobs_path,
   file_template      = file_template,
-  output_format_opts = harpIO::obstable_opts(path = obs_path)
+  output_format_opts = of_opts
 )
 
 cat("Finished vobs conversion\n")

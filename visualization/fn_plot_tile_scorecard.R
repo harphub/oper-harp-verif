@@ -11,6 +11,7 @@ fn_plot_tile_scorecard <- function(sc_input,
                                    fcstmodel,
                                    refmodel,
                                    png_archive,
+                                   params_to_plot = "All",
                                    significance = 0.95,
                                    png_projname = NA_character_,
                                    leadtimes = "All",
@@ -85,8 +86,14 @@ fn_plot_tile_scorecard <- function(sc_input,
   if (leadtimes[1] != "All") {
     df_all <- df_all %>% dplyr::filter(lead_time %in% leadtimes)
   }
+  # Filter parameters
+  if (params_to_plot[1] != "All") {
+    df_all <- df_all %>% dplyr::filter(parameter %in% params_to_plot)
+  }
+  
 
   # Make some additions
+  significance <- sort(significance)
   df_all <- df_all %>% dplyr::mutate(
     difference_mean_round = signif(difference_mean,2),
     percent_diff_mean     = 100*((fcst_score_mean - ref_score_mean)/(ref_score_mean)))
@@ -94,11 +101,25 @@ fn_plot_tile_scorecard <- function(sc_input,
     percent_diff_mean     = signif(percent_diff_mean,2))
   df_all <- df_all %>% dplyr::mutate(
     sig = dplyr::case_when(
-      percent_better >= significance       ~ "Better",
-      percent_better <= (1 - significance) ~ "Worse",
-      TRUE                                 ~ "Neutral"
+      percent_better >= min(significance)       ~ "Better",
+      percent_better <= (1 - min(significance)) ~ "Worse",
+      TRUE                                      ~ "Neutral"
     )
   )
+  if (length(significance) > 1) {
+    df_all <- df_all %>% dplyr::mutate(sig_level = "")
+    for (sl in significance) {
+      df_all <- df_all %>% dplyr::mutate(
+        sig_level = dplyr::case_when(
+          percent_better >= sl     ~ paste0(sig_level,"/"),
+          percent_better <= (1-sl) ~ paste0(sig_level,"/"),
+          TRUE                     ~ sig_level
+        )
+      )
+    }
+    sig_levels <- sort(unique(df_all$sig_level))
+    sig_levels <- sig_levels[sig_levels != ""]
+  }
   df_all$signed_percent_diff_mean                          <- 
     df_all$percent_diff_mean
   df_all$signed_percent_diff_mean[df_all$sig == "Better"]  <-
@@ -106,10 +127,15 @@ fn_plot_tile_scorecard <- function(sc_input,
   df_all$signed_percent_diff_mean[df_all$sig == "Worse"]   <-
     -abs(df_all$signed_percent_diff_mean[df_all$sig == "Worse"])
   df_all$signed_percent_diff_mean[df_all$sig == "Neutral"] <- 0
-  df_all$diff_text                                         <- 
-    df_all$difference_mean_round
+  if (length(significance) > 1) {
+    df_all$diff_text                                         <- 
+      df_all$sig_level
+  } else {
+    df_all$diff_text                                         <- 
+      df_all$difference_mean_round
+  }
   df_all$diff_text[df_all$sig == "Neutral"]                <- NA
-
+  
   #================================================#
   # LOOP OVER DOMAINS
   #================================================#
@@ -139,7 +165,7 @@ fn_plot_tile_scorecard <- function(sc_input,
     
     # Set figure height
     sc_fh <- 10
-    if (length(unique(data_cur$parameter)) > 12) {
+    if ((length(unique(data_cur$parameter)) > 12) && (length(scores_to_plot) > 1)) {
       sc_fh <- 14
     }
     if (length(scores_to_plot) > 3) {
@@ -151,14 +177,24 @@ fn_plot_tile_scorecard <- function(sc_input,
     sc_title2 <- paste0("Station selection: ",dc,", Period: ",
       format(harpIO::str_datetime_to_datetime(tstart_date),"%Y-%m-%d-%H")," - ",
       format(harpIO::str_datetime_to_datetime(tend_date),"%Y-%m-%d-%H"),
-      " (",num_cycles," cycles), Significance level: ",100*significance,"%")
-    
+      " (",num_cycles," cycles), Significance level: ")
+    if (length(significance) == 1) {
+      sc_title2 <- paste0(sc_title2,100*significance,"%")
+    } else {
+      sc_title2 <- paste0(sc_title2,paste0(100*significance,"%(",sig_levels,")",collapse = ", "))
+    }
+      
     qwe_all <- list()
     cbar_opts_bias <- fn_get_map_cbar(T,-100,100,"bias","sc_percentage","NA")
+    lt_diff <- min(diff(sort(unique(data_cur$lead_time))))/2
     for (ii in seq(1,length(scores_to_plot))) {
       qwe  <- data_cur %>% dplyr::filter(score == scores_to_plot[ii])
       cmin <- max(min(tidyr::drop_na(qwe)[["signed_percent_diff_mean"]]) - 0.1,-100)
       cmax <- min(max(tidyr::drop_na(qwe)[["signed_percent_diff_mean"]]) + 0.1,100)
+      if (cmax < cmin) {
+        cmin <- min(tidyr::drop_na(qwe)[["signed_percent_diff_mean"]])
+        cmax <- max(tidyr::drop_na(qwe)[["signed_percent_diff_mean"]])
+      }
       # Get the cmap and brks
       cbar_opts <- fn_get_map_cbar(T,cmin,cmax,"bias","sc_percentage","NA")
       param_order <- unique(qwe$parameter)
@@ -194,6 +230,8 @@ fn_plot_tile_scorecard <- function(sc_input,
           ggplot2::theme_bw() +
           ggplot2::ylim(rev(param_order)) +
           ggplot2::scale_x_continuous(breaks = unique(qwe$lead_time),
+                                      limits = c(min(qwe$lead_time)-lt_diff,
+                                                 max(qwe$lead_time)+lt_diff),
                                       expand = c(0,0)) +
           ggplot2::theme(panel.grid.major = ggplot2::element_blank(),
                          panel.grid.minor = ggplot2::element_blank(),
@@ -252,6 +290,8 @@ fn_plot_tile_scorecard <- function(sc_input,
           ggplot2::theme_bw() +
           ggplot2::ylim(rev(param_order)) +
           ggplot2::scale_x_continuous(breaks = unique(qwe$lead_time),
+                                      limits = c(min(qwe$lead_time)-lt_diff,
+                                                 max(qwe$lead_time)+lt_diff),
                                       expand = c(0,0)) +
           ggplot2::theme(panel.grid.major = ggplot2::element_blank(),
                          panel.grid.minor = ggplot2::element_blank(),
@@ -277,8 +317,12 @@ fn_plot_tile_scorecard <- function(sc_input,
                                 hjust = 0))
     
     # Save
+    scrd_str <- "altscard"
+    if (length(scores_to_plot) == 1) {
+      scrd_str <- paste0(scrd_str,"_",scores_to_plot)
+    }
     png_fname <- fn_png_name(fcst_type,
-                             "altscard",
+                             scrd_str,
                              "lt",
                              "All",
                              "All",

@@ -7,10 +7,11 @@ Once the configuration file is set and the sqlite tables are created, the point 
 This parameter list file is used to specify the parameters considered by the `point_verif.R` script and their associated options, in particular:
 - **scale_fcst**: Forecast scaling (e.g. Kelvin to degress). If you only want to apply the forecast scaling to certain models in `verif:fcst_model` for certain paramters, this can be controlled by the flag `models_to_scale` in your parameter list file (e.g. set_params.R, see below).
 - **scale_obs**: Observation scaling.
-- **thresholds**: Thresholds used when computing threshold skill scores.
+- **thresholds**: Thresholds used when computing threshold skill scores. You can set this to "default" to use the built-in thresholds (which exist for most parameters and units, see the function `get_param_classes` in `visualization/fn_plot_helpers.R`). 
 - **obsmin/max_val**: Max/min observation values allowed.
 - **fctmax_val**: Max forecast values allowed (experimental).
 - **error_sd**: Number of standard deviations used in `harpPoint::check_obs_against_fcst`.
+- **comparator**: The comparator to use when computing the threshold skill scores. Only relevant if you are using harp v0.3+ where this option was first introduced. For older version of harp, this comparator option will do nothing and the threshold skill scores will be computed using the "greater than" comparator (i.e. the default before harp v0.3). See `harpPoint::det_verify` for the possible options. Note that if you are using `comparator=between` (i.e. what you would do for generating scores as a function of classes) then the scripting assumes that `thresholds` is a sequence of bounds for the classes. If this options is `NULL` or missing from the parameters file, the default used is "greater than or equal to".
 - **models_to_scale**: What specific models to scale using `scale_fcst` for this parameter. If missing or NULL for a given parameter, the same scaling will be applied to all models specified by `verif:fcst_model` in the config file if `scale_fcst` is specified. If `models_to_scale` contains a model which is not found in the forecast data, the `point_verif.R` script will abort. For example, suppose you read in two models ("Model_A" and "Model_B") and you only want to scale "Model_A" for T2m and "Model_B" for S10m. Then you should add `models_to_scale = c("Model_A")` under the T2m list and `models_to_scale=c("Model_B")` under the S10m list. For all other parameters where `scale_fcst` is specified, the same scaling will be applied to both "Model_A" and "Model_B". 
 - **vc**: The vertical coordinate. This is required to recognise upper-air variables over multiple levels e.g. `vc=pressure` for parameter `T`. For surface variables (e.g. T2m) or for a single level (e.g. T925), there is no need to set `vc`.
 
@@ -80,7 +81,7 @@ If `post:create_png: TRUE`, then a suite of standard verification scores are plo
 
 If you are also generating a scorecard (`scorecards:create_scrd: TRUE`), then all the underlying scorecard data (for each domain) will be saved to:
 ```
-{verif:verif_path}/{verif:project_name}/harpScData-{start_date}-{end_date}-{scorecards:ref_model}-{scorecards:fcst_model).rds
+{verif:verif_path}/{verif:project_name}/harpScData-{start_date}-{end_date}-{scorecards:ref_model}-{other_models).rds
 ```
 Scorecard plots will also be available in
 ```
@@ -112,8 +113,27 @@ runApp("visapp")
 
 ### Fixed colours for certain models
 
-In many cases you may want to associate a given forecast model with a fixed colour in the png plots e.g. "model_A" is always coloured red. To do this, search for `model_names` in `visualization/fn_plot_helpers.R`, which defaults to:
+In many cases you may want to associate a given forecast model with a fixed colour in the png plots e.g. "model_A" is always coloured red. There are two possible ways to do this, as outlined below. The first is a new more flexible approach using the config file option `post:mc_file` and is the preferred method. The second is a legacy approach using the config file option `post:cmap`. The latter functionality is retained for backwards compatibility.
 
+#### New method: Set model colours using a named list
+
+The easiest approach is to simply create a file which contains a list named `model_colours` which specifies the colours associated with each model, e.g. see `visualization/model_colours/example.R`;
+
+``` r
+model_colours <- list("model_1" = "firebrick",
+                      "model_2" = "steelblue")
+```
+
+and then point to this file in the config file option `post:mc_file` e.g. `post:mc_file: example.R`. Note that your file must exist under the directory `visualization/model_colours` in the repo. Model colours can be specified via [known names](https://r-charts.com/colors/) or a hex code. It is sensible to avoid using gray or black (as these are used by the scripting for other puroposes), clashing colours, amd those which are hard to see against a white background (e.g. yellow).
+
+The below summarises what happens based on the intersection between `model_colours` and the forecast models you are considering:
+- If all of your forecast models are found in `model_colours`, the specified colours are used for each model. Easy!
+- If some of your forecast models are found in `model_colours`, but not all, then the specified colours are used for the known models while new colours are generated for the unknown models. The new colours are generated in such a way that they should be distinct from the specified colours.
+- If none of your forecast models are found in `model_colours`, then the scripting reverts back to using the `post:cmap` option and a warning message is issued.
+
+#### Legacy method: When the colour palette is set via via post:cmap
+
+If you are not using the config file option `post:mc_file` as described above, then the colour palette used for the line colours is being specified via `post:cmap`. To then fix a forecast model to a certain colour in this palette, search for `model_names` in `visualization/fn_plot_helpers.R`, which defaults to:
 
 ``` r
 # Some fixed model names which the verification scripts know about.
@@ -143,7 +163,7 @@ model_names  <- c("c1",
                   "c20")
 ```
 
-Then take a look at your chosen colour pallete (as specfied by cmap in your config file) from the [pals](https://cran.r-project.org/web/packages/pals/vignettes/pals_examples.html) or [RColorBrewer](https://r-graph-gallery.com/38-rcolorbrewers-palettes.html) packages and replace "cX" by your model name for the colour you want. Note that the index of your model in `model_names` is assoicated with the colour for that index in the palette. For example, if you use `cmap:trubetskoy` in your config file and set:
+Then take a look at your chosen colour pallete (as specfied by `post:cmap` in your config file) from the [pals](https://cran.r-project.org/web/packages/pals/vignettes/pals_examples.html) or [RColorBrewer](https://r-graph-gallery.com/38-rcolorbrewers-palettes.html) packages and replace "cX" by your model name for the colour you want. Note that the index of your model in `model_names` is assoicated with the colour for that index in the palette. For example, if you use `cmap:trubetskoy` in your config file and set:
 
 ``` r
 model_names  <- c("model_A",

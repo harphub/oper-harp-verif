@@ -16,6 +16,7 @@ suppressPackageStartupMessages({
   library(RSQLite)
 })
 source(here::here("verification/fn_verif_helpers.R"))
+numbers_only <- function(x) !grepl("\\D", x)
 
 #================================================#
 # READ COMMAND LINE ARGUMENTS
@@ -81,9 +82,9 @@ if (!interactive()) {
   start_date     <- "2025010100"
   end_date       <- "2025010100"
   config_file    <- "config_files/config_det_example.yml"
-  use_custom_asl <- F
+  use_custom_asl <- T
   remove_m_elev  <- F
-  params_list    <- "T2m,Pmsl,Ps"
+  params_list    <- "T2m,Ps"
   use_obs_elev   <- T
   
 }
@@ -107,10 +108,11 @@ end_date   <- sedate$end_date
 # READ OPTIONS FROM THE CONFIG FILE
 #================================================#
 
-CONFIG        <- yaml::yaml.load_file(here::here(config_file))
+CONFIG        <- load_config(here::here(config_file))
 vfld_path     <- check_config_input(CONFIG,"pre","vfld_path")
 fcst_model    <- check_config_input(CONFIG,"pre","fcst_model")
 file_template <- check_config_input(CONFIG,"pre","vfld_template")
+out_format    <- check_config_input(CONFIG,"pre","fcst_format",default="fctable")
 params        <- CONFIG$pre$params
 by_val        <- check_config_input(CONFIG,"pre","vfld_by")
 fcst_path     <- check_config_input(CONFIG,"verif","fcst_path")
@@ -142,7 +144,9 @@ if (is.null(lt_batch_size)) {
 
 # If use_obs_elev, then you need the OBSTABLE from the config
 if (use_obs_elev) {
-  obs_path <- check_config_input(CONFIG,"verif","obs_path")
+  obs_path     <- check_config_input(CONFIG,"verif","obs_path")
+  obs_template <- check_config_input(CONFIG,"verif","obs_template",default = "obstable")
+  obs_format   <- check_config_input(CONFIG,"verif","obs_format",default = "obstable")
 }
 
 #================================================#
@@ -187,6 +191,8 @@ if (use_obs_elev) {
   cat("Trying to correct station elevation using observations\n")
   stations_rf <- modify_station_elev(stations_rf,
                                      obs_path,
+                                     obs_template,
+                                     obs_format,
                                      start_date,
                                      output_diag = T)
 }
@@ -207,6 +213,52 @@ if (length(CONFIG$pre$members) == 1) {
 if (params_list[1] != "MISSING") {
   params <- stringr::str_split_1(gsub(" ","",params_list),",")
   cat("Only converting",params,"as params_list has been specified\n")
+}
+
+# Output as sqlite or parquet
+if (out_format == "fcparquet") {
+  of_opts <- harpIO::fcparquet_opts(path = fcst_path)
+} else if (out_format == "fctable") {
+  of_opts <- harpIO::fctable_opts(path = fcst_path,
+                                  remove_model_elev = remove_m_elev)
+} else {
+  stop("Did not recognise out_format = ",out_format)
+}
+
+# Check what SID type is expected by reading in a single forecast
+cat("Read in the first file as a sample\n")
+qwe <- NULL
+qwe <- harpIO::read_forecast(
+  dttm                = harpCore::seq_dttm(start_date,start_date,by = by_val),
+  fcst_model          = fcst_model[1],
+  parameter           = params,
+  lead_time           = lead_time[1],
+  members             = members_list[1],
+  lags                = lags_list[1],
+  file_path           = vfld_path,
+  file_template       = file_template[1],
+  return_data         = TRUE
+)
+if (is.null(qwe)) {
+  sid_required_type <- "double"
+} else {
+  sid_required_type <- typeof(qwe$SID)
+}
+# Check that stations_rf SID has the correct type and change if required
+if ((typeof(stations_rf$SID) == "character") && (sid_required_type != "character")) {
+  cat("Changing stations_rf SID type\n")
+  stations_rf_orig <- stations_rf
+  stations_rf      <- stations_rf[numbers_only(stations_rf$SID),] %>%
+    dplyr::mutate(SID = as.double(SID))
+  lost_sids        <- setdiff(unique(stations_rf_orig$SID),
+                              as.character(unique(stations_rf$SID)))
+  if (length(lost_sids) > 0) {
+    cat("Lost the following stations due to SID character change in vfld processing\n")
+    print(lost_sids)
+  } else {
+    cat("No stations lost due to SID type change\n")
+  }
+  rm(stations_rf_orig)
 }
 
 #================================================#
@@ -235,8 +287,7 @@ while(length(lead_time) > 0){
     lags                = lags_list,
     file_path           = vfld_path,
     file_template       = file_template,
-    output_file_opts    = harpIO::sqlite_opts(path = fcst_path,
-                                              remove_model_elev = remove_m_elev),
+    output_file_opts    = of_opts,
     transformation_opts = harpIO::interpolate_opts(correct_t2m = correct_t2m,
                                                    keep_model_t2m = keep_uncort2m,
                                                    stations = stations_rf),

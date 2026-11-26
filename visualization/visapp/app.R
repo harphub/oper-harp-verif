@@ -53,6 +53,26 @@ library(purrr)
 library(shinyFiles)
 rm(list=ls()) # clear all
 
+# From fn_verif_helpers, copied here to avoid full source
+conv_allsynop <- function(input_list){
+  synop  <- utils::read.table(input_list,
+                              header    = FALSE,
+                              sep       = "",
+                              fill      = TRUE,
+                              col.names = paste0("V",seq_len(20)))
+  # Reorganise synop into something that looks like a harp station list
+  synop_n     <- synop %>% dplyr::select(-V1,-V2,-V3,-V4)
+  synop_n     <- tidyr::unite(synop_n,"name",V5,V6,V7,V8,V9,V10,V11,V12,V13,V14,
+                              V15,V16,V17,V18,V19,V20,sep = " ",na.rm = TRUE) %>% 
+    dplyr::mutate("name" = stringr::str_trim(name))
+  synop_c     <- synop %>% dplyr::select(V1,V2,V3,V4)
+  colnames(synop_c) <- c("SID","lat","lon","elev")
+  synop_c     <- synop_c %>% dplyr::mutate(name = synop_n$name)
+  synop_list  <- tibble::as_tibble(synop_c)
+  rm(synop,synop_n,synop_c)
+  return(synop_list)
+}
+
 #================================================#
 # USER INTERACTION HERE
 #================================================#
@@ -76,6 +96,15 @@ if ((is.null(img_dir)) || (!dir.exists(img_dir))){
 img_type <- shiny::getShinyOption("img_type",
                                   default = "webp|png")
 img_vec  <- unlist(strsplit(img_type,"|",fixed=T)) 
+
+# Include path to allsynop.list in order to have station name
+# displayed alongside station number
+stn_list <- shiny::getShinyOption("stn_list",
+                                  default = NA_character_)
+if (!is.na(stn_list)) {
+  stn_list <- conv_allsynop(stn_list)
+  stn_list <- stn_list %>% dplyr::mutate(display_name = paste0(SID," (",name,")"))
+}
 
 # Seasonal/Monthly/Rolling switch for date display in the app.
 # To be use in oper context, assumes that Seasonal/Monthly/Rolling directories
@@ -270,6 +299,7 @@ all_stations             <- list("All stations"      = "All",
                                  "M6 Buoy"           = "M6Buoy",
                                  "UK Synop"          = "UnitedKingdomSynop",
                                  "Scandinavia"       = "SCD",
+                                 "Scandinavia Sea"   = "SCDSea",
                                  "Finland Synop"     = "FinlandSynop",
                                  "Sweden Synop"      = "SwedenSynop",
                                  "Norway Synop"      = "NorwaySynop",
@@ -294,6 +324,13 @@ inland_names  <- paste0(unlist(all_stations),"_INLAND")
 inland_names  <- setNames(inland_names,paste0(names(all_stations)," (inland)"))
 all_stations  <- c(all_stations,coastal_names,inland_names)
 all_stations  <- all_stations[order(names(all_stations))]
+
+# If stn_list is specified then add in single stations
+if (!all(is.na(stn_list))) {
+  stns <- stn_list$SID
+  stns <- setNames(stns,stn_list$display_name)
+  all_stations <- c(all_stations,stns)
+}
 
 # Score separator
 score_sep="AND"
@@ -365,7 +402,8 @@ all_det_ssum_scores      <- list("Bias RMSE"            = paste0("bias",score_se
                                  "Q-Q"                  = "quant-qobs",
                                  "Q-Q diff"             = "qdiff-qobs",
                                  "NFA"                  = "nfa-lt",
-                                 "MSSS"                 = "msss-lt"
+                                 "MSSS"                 = "msss-lt",
+                                 "AvA"                  = "acc_diff-ad"
 )
 # Add SCAT scores
 all_scat_ssum_scores_2b  <- list("HY-2B Bias RMSE"      = paste0("SCAThy2bbias",score_sep,"rmse-lt"),
@@ -381,9 +419,10 @@ all_det_ssum_scores      <- c(all_det_ssum_scores,all_scat_ssum_scores_2b,
 skill_scores_ens         <- c("fair_brier_score","brier_score","brier_skill_score","brier_score_reliability",
                               "brier_score_resolution","brier_score_uncertainty","roc_area")
 skill_scores_ens_other   <- c("reliability","roc","economic_value")
-skill_scores_det         <- c("threat_score","false_alarm_rate","false_alarm_ratio","kuiper_skill_score",
-                              "frequency_bias","equitable_threat_score","extreme_dependency_score",
-                              "symmetric_eds","extreme_dependency_index","symmetric_edi")
+skill_scores_det         <- c("threat_score","hit_rate","false_alarm_rate","false_alarm_ratio",
+                              "heidke_skill_score","pierce_skill_score","kuiper_skill_score",
+                              "frequency_bias","equitable_threat_score","odds_ratio_skill_score",
+                              "extreme_dependency_score","symmetric_eds","extreme_dependency_index","symmetric_edi")
 
 skill_scores_ens         <- setNames(as.list(skill_scores_ens),gsub("_"," ",str_to_title(skill_scores_ens)))
 skill_scores_ens_other   <- setNames(as.list(skill_scores_ens_other),gsub("_"," ",str_to_title(skill_scores_ens_other)))
@@ -454,7 +493,8 @@ all_det_pl_scores        <- list("Bias RMSE" = paste0("bias",score_sep,"rmse"),
                                  "MSSS"      = "msss")
 all_det_pl_scores        <- lapply(all_det_pl_scores,function(x) paste0(x,"-lt"))
 # Add obsfreq
-add_det_pl_scores        <- list("Obs. Frequency" = "obsfreq-mp")
+add_det_pl_scores        <- list("Obs. Frequency" = "obsfreq-mp",
+                                 "AvA"            = "acc_diff-ad")
 all_det_pl_scores        <- c(all_det_pl_scores,add_det_pl_scores)
 
 # Profiles
@@ -506,18 +546,29 @@ all_ens_sdiffs_scores <- list("Mean Bias"    = "mean_bias-lt",
                               "Spread"       = "spread-lt",
                               "CRPS"         = "crps-lt",
                               "Fair CRPS"    = "fair_crps-lt")
-all_ens_sdiffs_scores <- lapply(all_ens_sdiffs_scores,function(x) paste0("sdiff",x))
+all_ens_sdiffs_scores_p        <- all_ens_sdiffs_scores
+names(all_ens_sdiffs_scores_p) <- paste0(names(all_ens_sdiffs_scores)," (%)") 
+all_ens_sdiffs_scores1 <- lapply(all_ens_sdiffs_scores,function(x) paste0("sdiff",x))
+all_ens_sdiffs_scores2 <- lapply(all_ens_sdiffs_scores_p,function(x) paste0("pdiff",x))
+all_ens_sdiffs_scores  <- c(all_ens_sdiffs_scores1,all_ens_sdiffs_scores2)
 
 # Deterministic score diffs
 all_det_sdiffs_scores <- list("Bias"    = "bias-lt",
                               "RMSE"    = "rmse-lt",
                               "STDV"    = "stde-lt",
                               "MAE"     = "mae-lt")
-all_det_sdiffs_scores <- lapply(all_det_sdiffs_scores,function(x) paste0("sdiff",x))
+all_det_sdiffs_scores_p        <- all_det_sdiffs_scores
+names(all_det_sdiffs_scores_p) <- paste0(names(all_det_sdiffs_scores)," (%)") 
+all_det_sdiffs_scores1 <- lapply(all_det_sdiffs_scores,function(x) paste0("sdiff",x))
+all_det_sdiffs_scores2 <- lapply(all_det_sdiffs_scores_p,function(x) paste0("pdiff",x))
+all_det_sdiffs_scores  <- c(all_det_sdiffs_scores1,all_det_sdiffs_scores2)
 
 # Scorecard 
 all_scorecard_scores <- list("Scorecard" = "scard-lt",
-                             "Tile Scorecard" = "altscard-lt")
+                             "Tile Scorecard" = "altscard-lt",
+                             "Tile Scorecard (Bias)" = "altscard_bias-lt",
+                             "Tile Scorecard (RMSE)" = "altscard_rmse-lt",
+                             "Tile Scorecard (STDV)" = "altscard_stde-lt")
 
 #================================================#
 # UI
@@ -569,6 +620,23 @@ ui <- shiny::tags$html(
     "))
   ),
   
+  # Wrap text for radio buttons (due to long station names)
+  shiny::tags$head(
+    shiny::tags$style(HTML("
+    /* Allow each option's text to wrap */
+    .pretty .state label span {
+      white-space: normal !important;
+      overflow-wrap: anywhere;
+    }
+
+    /* Keep the radio icon aligned with the first line */
+    .pretty .state label::before,
+    .pretty .state label::after {
+      top: 0;
+    }
+  "))
+  ),
+
   # Start
   shiny::includeCSS("sample_style.css"),
   

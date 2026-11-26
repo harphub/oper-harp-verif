@@ -33,6 +33,11 @@ if (!interactive()) {
                       default = FALSE,
                       help    = "Dsiplay panelification tab. [Default %(default)s]",
                       metavar = "Boolean")
+  parser$add_argument("-stn_list",
+                      type    = "character",
+                      default = "none",
+                      help    = "Path to an allsynop.list. [Default %(default)s]",
+                      metavar = "String")
   
   args      <- parser$parse_args()
   app_dir   <- args$app_dir
@@ -40,6 +45,7 @@ if (!interactive()) {
   port      <- args$port
   smr_ind   <- args$smr_ind
   panel_ind <- args$panel_ind
+  stn_list  <- args$stn_list
   
   # Always print help
   cat('\n')
@@ -55,12 +61,16 @@ if (!interactive()) {
   port    <- "9999"
   smr_ind <- FALSE
   panel_ind <- FALSE
+  stn_list <- NA_character_
   
 }
 
 # Define port and host
 shinyport <- port
 host      <- Sys.getenv("HOST")
+if (stn_list == "none") {
+  stn_list <- NA_character_
+}
 
 # Display information for setting up the Shiny app
 cat('\n')
@@ -79,6 +89,7 @@ cat('\n')
 shiny::shinyOptions(app_dir = app_dir,
                     img_dir = img_dir,
                     smr_ind = smr_ind,
-                    panelification_ind = panel_ind)
+                    panelification_ind = panel_ind,
+                    stn_list = stn_list)
 # Run the Shiny app
 runApp(file.path(app_dir,"app.R"), port = strtoi(shinyport))

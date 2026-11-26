@@ -26,6 +26,7 @@ fn_plot_aux_scores <- function(fcst_input,
                                     use_parallel = FALSE,
                                     clim_name = NULL,
                                     clim_in_plots = FALSE,
+                                    lt_to_use = seq(3,48,3),
                                     vc = NA_character_,
                                     fsd = NA_character_,
                                     fed = NA_character_){
@@ -50,6 +51,11 @@ fn_plot_aux_scores <- function(fcst_input,
   station_group_var <- "station_group"
   models_vec        <- names(fcst_input)
   num_models        <- length(models_vec)
+  if (clim_in_plots) {
+    num_models_plot <- num_models 
+  } else {
+    num_models_plot <- models_vec[!grepl("climatology",models_vec,fixed=T)] %>% length()
+  }
   
   # DET or ENS?
   fcst_type <- "det"
@@ -155,7 +161,7 @@ fn_plot_aux_scores <- function(fcst_input,
   # USER INTERACTION
   #=================================================#
   
-  lt_to_use   <- seq(3,48,3) # What lead_times to use (hours)?
+  #lt_to_use   <- seq(3,48,3) # What lead_times to use (hours)?
   if (!is.null(attr(fcst_input,"lt_unit"))){
     if (attr(fcst_input,"lt_unit") != "h") {
       stop("Lead time generalisation required - raise an issue!")
@@ -247,14 +253,20 @@ fn_plot_aux_scores <- function(fcst_input,
   fig_dpi     <- 200
 
   # Define the colour scheme used in line plots 
-  mcolors     <- fn_gen_model_colors(models_vec,cmap,withobs = TRUE)
+  # If cmap is a named list, then it comes from a mc_file. If not, then
+  # use the standard (old) method
+  if (is.null(names(cmap))) {
+    mcolors     <- fn_gen_model_colors(models_vec,cmap,withobs = TRUE)
+  } else {
+    mcolors     <- fn_populate_model_colors(models_vec,cmap,withobs = TRUE)
+  }
   
   # Line stylces
   line_styles <- c("solid","dashed","dotted","dotdash")
   
   # Some sizes
   line_size   <- 1
-  point_size  <- 1.0
+  point_size  <- 0.5
   stroke_size <- 1.0
   
   # Score spearator
@@ -293,7 +305,7 @@ fn_plot_aux_scores <- function(fcst_input,
   fxoption_list <- list("param"             = param,
                         "sdate"             = sdate,
                         "edate"             = edate, 
-                        "num_models"        = num_models,
+                        "num_models"        = num_models_plot,
                         "par_unit"          = par_unit,
                         "fw"                = fw,
                         "fh"                = fh,
@@ -323,7 +335,8 @@ fn_plot_aux_scores <- function(fcst_input,
   #=================================================#
   
   fcst_all <- fcst
-  p_list <- list()
+  p_list   <- list()
+  nfa_data <- NULL
   
   # Add a loop over leadtime combinations
   for (jj in seq(1,length(lt_to_use_list))) {
@@ -412,14 +425,21 @@ fn_plot_aux_scores <- function(fcst_input,
             vroption_list$xgroup  <- "lead_time"
             vroption_list$lt_used <- "NA"
             vroption_list$xg_str  <- "lt"
-            p <- fn_nfa(cc_fcst,
+            nfa <- fn_nfa(cc_fcst,
                         title_str,
                         subtitle_str,
                         fxoption_list,
                         vroption_list,
                         clim_name,
                         vc = vc)
-            p_list <- c(p_list,p)
+            nfa[["fcst_cycle"]] <- cycle
+            nfa[[station_group_var]] <- station 
+            if (is.null(nfa_data)) {
+              nfa_data <- nfa
+            } else {
+              nfa_data <- dplyr::bind_rows(nfa_data,nfa)
+            }
+            
             # Reset
             vroption_list$score   <- "score"
             vroption_list$xgroup  <- "xgroup"
@@ -543,4 +563,9 @@ fn_plot_aux_scores <- function(fcst_input,
     fn_plot_parallel(p_list,fxoption_list)
   }
   
+  out_list <- list()
+  if (!is.null(nfa_data)) {
+    out_list <- list("nfa" = nfa_data)
+  }
+  return(out_list)
 } # End of function

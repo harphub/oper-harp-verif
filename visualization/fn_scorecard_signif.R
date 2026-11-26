@@ -98,7 +98,7 @@ fn_scorecard_signif <- function(sc_input,
       
       cat("Signif score plotting: Assuming input data is in correct format\n")
       sc_data           <- sc_input
-      sc_data_fname_out <- NA
+      sc_data_fname_out <- NA_character_
       
     }
     
@@ -147,6 +147,7 @@ fn_scorecard_signif <- function(sc_input,
     
     sc_current <- sc_data[[dc]]
     sc_df      <- harpPoint::bind_point_verif(sc_current)
+    sc_df      <- sc_df %>% harpPoint::filter_list(parameter %in% sc_params)
     
     # Choosing the appropriate figure height and width for scorecards is a 
     # little awkward (depends on number of params+scores)
@@ -248,6 +249,39 @@ fn_scorecard_signif <- function(sc_input,
                  units    = fig_units,
                  dpi      = fig_dpi,
                  device   = 'png')
+          
+          # And do the same for %
+          p_diff <- fn_plot_signif_diff(p_current,
+                                        fcst_type,
+                                        score_c,
+                                        new_model,
+                                        ref_model,
+                                        significance = 0.95,
+                                        conf = "ribbon",
+                                        plot_percentage = TRUE,
+                                        domain = dc,
+                                        num_cycles = num_cycles)
+          
+          png_fname <- fn_png_name(fcst_type,
+                                   paste0("pdiff",score_c),
+                                   "lt",
+                                   param_c,
+                                   "All",
+                                   start_date,
+                                   end_date,
+                                   dc,
+                                   vlt = new_model,
+                                   vth = ref_model,
+                                   projectname = png_projname)
+          
+          ggplot2::ggsave(p_diff,
+                          filename = png_fname,
+                          path     = png_archive,
+                          width    = fw,
+                          height   = fh,
+                          units    = fig_units,
+                          dpi      = fig_dpi,
+                          device   = 'png')
           
         } # Score loop
       } # Param loop

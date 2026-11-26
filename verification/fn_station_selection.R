@@ -116,17 +116,35 @@ fn_station_selection <- function(domain_choice = "All_Domains",
     # - Poor-quality Irish and high-altitude UK stations
     # - Iceland Roads
     # - Some Danish stations
+    # - North Sea station 6252
+    # - Faroe Island 6011
+    # - Poland, France, Germany, Slovakia, Czechia:
+    #   12510, 7560, 10453, 11916, 11653
     stations_param_rmv <- c(3039,3065,3072,3148,3227,3410,
                             3971,3979,
                             seq(4800,4999,1),
-                            6009,6012)
+                            6009,6012,6252,6011,
+                            12510,7560,10453,11916,11653)
   } else if (param == "T2m") {
     # - Had Latvian stations filtered prior to 05/11/25 (bufr2vobs update)
     stations_param_rmv <- NULL
   } else if (param == "Pmsl") {
     stations_param_rmv <- c(1304,1411,10004,4160,4166)
   } else if (param == "Gmax") {
-    stations_param_rmv <- c(2488,6730,11819,13461)
+    # Faroe Island 6011
+    # Add some NorthSea, 
+    # Austria 11916, 11144, 11155, 11121
+    # Slovakia 11265
+    # Poland 12510
+    # Scotland 3065 3072
+    # France 7560
+    # Croatia 14323
+    # Norway 1228
+    # Czechia 11653
+    stations_param_rmv <- c(2488,6730,11819,13461,
+                            6011,6239,6252,
+                            11916,11144,11155,11121,11265,12510,
+                            3065,3072,7560,14323,1228,11653)
   } else if (param == "Td2m") {
     stations_param_rmv <- c(2325,6032,6068,6183,4976)
   } else if (param == "RH2m") {
@@ -152,7 +170,7 @@ fn_station_selection <- function(domain_choice = "All_Domains",
   # latlon_reserved_names are used to generate lists defined by lat/lon
   # bounding boxes, while poly_reserved_names looks for .poly files
   latlon_reserved_names <- c("DINI","IE_EN","IS","NL","NL_OP","DK","IRL","IoI",
-                             "SCD","FR","DE","Alps")
+                             "IRL_SEA","IE_EN_2","NL_NS","SCD","FR","DE","Alps")
   synop_reserved_names  <- paste0(c("France","Germany","Ireland","Norway",
                                     "Sweden","Finland","Iceland","Greenland",
                                     "Denmark","Netherlands","Spain",
@@ -223,16 +241,23 @@ fn_station_selection <- function(domain_choice = "All_Domains",
 
   # NorthSea (sea stations only)
   NorthSea <- stats::setNames(tibble::as_tibble(
-              c(1400,6022,6205,6239,6201,6211,6252,6204,6212,6203,6207,
-                10004,10007,10015,10124,6285,6208)),
+              c(6022,6205,6239,6201,6211,6252,6204,6212,6203,6207,
+                10004,10007,10015,10124,6285,6208,6206,6312,6313,6316,
+                6320,6321)),
               "SID")
   all_station_lists[["NorthSea"]] <- NorthSea
-  
+
   # New NNS definition (NorthSea plus others)
   NNS <- stats::setNames(tibble::as_tibble(
     c(NorthSea$SID,1400,3002,3005,3008)),
     "SID")
   all_station_lists[["NNS"]] <- NNS
+  
+  # SCD sea list
+  SCDSea <-  stats::setNames(tibble::as_tibble(
+    c(2752,2781,2795,2800,2862,2863,2979,2987,2989,12001)),
+    "SID")
+  all_station_lists[["SCDSea"]] <- SCDSea
 
   # Add individual Irish airports
   EICK <- stats::setNames(tibble::as_tibble(c(3955)),"SID")
@@ -247,15 +272,17 @@ fn_station_selection <- function(domain_choice = "All_Domains",
   all_station_lists[["EIKN"]] <- EIKN
   
   # Irish M buoys
+  # Include both possible SID conventions
   MBuoys <- stats::setNames(tibble::as_tibble(
-    c(6200091,6200092,6200093,6200094,6200095)),
+    c(6200091,6200092,6200093,6200094,6200095,
+      3962091,3962092,3962093,3962094,3962095)),
     "SID")
   all_station_lists[["MBuoys"]] <- MBuoys
-  M2Buoy <- stats::setNames(tibble::as_tibble(c(6200091)),"SID")
-  M3Buoy <- stats::setNames(tibble::as_tibble(c(6200092)),"SID")
-  M4Buoy <- stats::setNames(tibble::as_tibble(c(6200093)),"SID")
-  M5Buoy <- stats::setNames(tibble::as_tibble(c(6200094)),"SID")
-  M6Buoy <- stats::setNames(tibble::as_tibble(c(6200095)),"SID")
+  M2Buoy <- stats::setNames(tibble::as_tibble(c(6200091,3962091)),"SID")
+  M3Buoy <- stats::setNames(tibble::as_tibble(c(6200092,3962092)),"SID")
+  M4Buoy <- stats::setNames(tibble::as_tibble(c(6200093,3962093)),"SID")
+  M5Buoy <- stats::setNames(tibble::as_tibble(c(6200094,3962094)),"SID")
+  M6Buoy <- stats::setNames(tibble::as_tibble(c(6200095,3962095)),"SID")
   all_station_lists[["M2Buoy"]] <- M2Buoy
   all_station_lists[["M3Buoy"]] <- M3Buoy
   all_station_lists[["M4Buoy"]] <- M4Buoy
@@ -1242,6 +1269,11 @@ define_latlonbounds <- function(domain){
     wlon <- -11.0
     nlat <- 60.0
     elon <- 2.0
+  } else if (domain == "IE_EN_2"){
+    slat <- 49.0
+    wlon <- -11.0
+    nlat <- 59.0
+    elon <- 1.5
   } else if (domain == "IS") { #Iceland bounding box
     slat <- 62.0
     wlon <- -25.0
@@ -1257,6 +1289,11 @@ define_latlonbounds <- function(domain){
     wlon <- 0.0
     nlat <- 55.0
     elon <- 11.0
+  } else if (domain == "NL_NS"){
+    slat <- 51.25
+    wlon <- 3
+    nlat <- 55.5
+    elon <- 8.15
   } else if (domain == "DK") {
     slat <- 54.0
     wlon <- 8.0
@@ -1279,6 +1316,11 @@ define_latlonbounds <- function(domain){
     wlon <- -11
     nlat <- 55.5
     elon <- -6
+  } else if (domain == "IRL_SEA") {
+    slat <- 51
+    wlon <- -16
+    nlat <- 55.25
+    elon <- -5.25      
   } else if (domain == "IoI") {
     slat <- 51.25
     wlon <- -10.25
@@ -1383,7 +1425,13 @@ filter_stations <- function(df,
     } else {
       stop("Domain ",domain," not recognised")
     }
-    df_out <- df %>% dplyr::filter(between(SID,SID_min,SID_max))
+    
+    # For SID range filtering only work with stations with numbers only
+    if (!all(numbers_only(df$SID))) {
+      df <- df[numbers_only(df$SID),]
+    }
+    df_out <- df %>% dplyr::filter(between(as.numeric(SID),SID_min,SID_max))
+
   }
     
   return(df_out)
