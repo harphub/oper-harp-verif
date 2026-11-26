@@ -1,18 +1,24 @@
 # Point verification
 
-Once the configuration file is set and the sqlite tables are created, the point verification can be carried out. 
+Once the configuration file is set and the forecast and observation databases are created, the point verification can be carried out. 
 
 ## set_params.R
 
 This parameter list file is used to specify the parameters considered by the `point_verif.R` script and their associated options, in particular:
-- **scale_fcst**: Forecast scaling (e.g. Kelvin to degress). If you only want to apply the forecast scaling to certain models in `verif:fcst_model` for certain paramters, this can be controlled by the flag `models_to_scale` in your parameter list file (e.g. set_params.R, see below).
+- **scale_fcst**: Forecast scaling (e.g. Kelvin to degress). If you only want to apply the forecast scaling to certain models in `verif:fcst_model` for certain paramters, this can be controlled by the flag `models_to_scale` in your parameter list file (e.g. set_params.R, see below). If you need to apply several different forecast scalings, e.g. "Model_A" scaled by X, "Model_B" scaled by Y, and "Model_C" scaled by Z, then you need to use the combination of options `scale_fcst_specific` and `scale_fcst_rest`, see below.
 - **scale_obs**: Observation scaling.
 - **thresholds**: Thresholds used when computing threshold skill scores. You can set this to "default" to use the built-in thresholds (which exist for most parameters and units, see the function `get_param_classes` in `visualization/fn_plot_helpers.R`). 
 - **obsmin/max_val**: Max/min observation values allowed.
 - **fctmax_val**: Max forecast values allowed (experimental).
 - **error_sd**: Number of standard deviations used in `harpPoint::check_obs_against_fcst`.
-- **comparator**: The comparator to use when computing the threshold skill scores. Only relevant if you are using harp v0.3+ where this option was first introduced. For older version of harp, this comparator option will do nothing and the threshold skill scores will be computed using the "greater than" comparator (i.e. the default before harp v0.3). See `harpPoint::det_verify` for the possible options. Note that if you are using `comparator=between` (i.e. what you would do for generating scores as a function of classes) then the scripting assumes that `thresholds` is a sequence of bounds for the classes. If this options is `NULL` or missing from the parameters file, the default used is "greater than or equal to".
-- **models_to_scale**: What specific models to scale using `scale_fcst` for this parameter. If missing or NULL for a given parameter, the same scaling will be applied to all models specified by `verif:fcst_model` in the config file if `scale_fcst` is specified. If `models_to_scale` contains a model which is not found in the forecast data, the `point_verif.R` script will abort. For example, suppose you read in two models ("Model_A" and "Model_B") and you only want to scale "Model_A" for T2m and "Model_B" for S10m. Then you should add `models_to_scale = c("Model_A")` under the T2m list and `models_to_scale=c("Model_B")` under the S10m list. For all other parameters where `scale_fcst` is specified, the same scaling will be applied to both "Model_A" and "Model_B". 
+- **comparator**: The comparator to use when computing the threshold skill scores. Only relevant if you are using harp v0.3+ where this option was first introduced. For older version of harp, this comparator option will do nothing and the threshold skill scores will be computed using the "greater than" comparator (i.e. the default before harp v0.3). See `harpPoint::det_verify` for the possible options. Note that if you are using `comparator=between` (i.e. what you would do for generating scores as a function of classes) then the scripting assumes that `thresholds` is a sequence of bounds for the classes. If this options is `NULL` or missing from the parameters file, the defauly used is "greater than or equal to".
+- **models_to_scale**: What specific models to scale using `scale_fcst` for this parameter. If missing or NULL for a given parameter, the same scaling will be applied to all models specified by `verif:fcst_model` in the config file if `scale_fcst` is specified. If `models_to_scale` contains a model which is not found in the forecast data, the `point_verif.R` script will issue a warning. For example, suppose you read in two models ("Model_A" and "Model_B") and you only want to scale "Model_A" for T2m and "Model_B" for S10m. Then you should add `models_to_scale = c("Model_A")` under the T2m list and `models_to_scale=c("Model_B")` under the S10m list. For all other parameters where `scale_fcst` is specified, the same scaling will be applied to both "Model_A" and "Model_B". Note that `models_to_scale` is only useful if you have a single forecast scaling to apply across one or more models. In the case where you need to apply several different forecast scalings e.g. "Model_A" scaled by X, "Model_B" scaled by Y, and "Model_C" scaled by Z, then `models_to_scale` is not sufficient. You need to use `scale_fcst_specific` and `scale_fcst_rest`, see below.
+- **scale_fcst_specific** and **scale_fcst_rest**: If applied these options must be used in combination; if one is found and not the other then `point_verif.R` will abort. `scale_fcst_specific` should be an explicit list of forecast scalings to be applied to certain models, while `scale_fcst_rest` is the scaling which should be applied to all other models which are not listed in `scale_fcst_specific`. If you do not need to apply a scaling to the `rest` models, simply just scale by 1. See example below. As usual scaling is applied on a per-parameter bais.
+```r
+scale_fcst_specific = list("Model_A" = list(scaling = 10, new_units = "new_unit", mult = TRUE),
+                           "Model_B" = list(scaling = 100, new_units = "new_unit", mult = TRUE)),
+scale_fcst_rest = list(scaling = 1, new_units = "new_unit", mult = TRUE)
+```
 - **vc**: The vertical coordinate. This is required to recognise upper-air variables over multiple levels e.g. `vc=pressure` for parameter `T`. For surface variables (e.g. T2m) or for a single level (e.g. T925), there is no need to set `vc`.
 
 Typically this file does not need to be changed. By default `point_verif.R` reads parameter options from this file, but a custom parameter file can also be used by passing the `-params_file` option to `point_verif.R`. 
@@ -35,6 +41,7 @@ This script takes the following command line inputs (required arguments in **bol
 - *-rolling_verif*: A logcial flag to indicate "rolling" verification (default=FALSE). If TRUE, rolling verification will produce a reduced set of png files and will not produce rds files or scorecards. Generally rolling verification is restricted to a "short" (e.g. 7 days) near-real time period. This option is not compatible with `gen_sc_only=TRUE`. 
 - *-gen_sc_only*: A logical flag to run scorecard generation (and plotting) only (default=FALSE). This may be useful in cases where point verification results have already been generated. This option is not compatible with `rolling_verif=TRUE`. 
 - *-use_fixed_dates*: A logical flag to use the input `start_date` and `end_date` when naming the directories and png files associated with this verification (default=TRUE). If set to FALSE, the data generated will use start and end dates corresponding to the first and last `fcst_dttm`, respectively, used in the verification for a given parameter. Therefore if set to FALSE, data may be stored in different directories for different parameters if the first and last `fcst_dttm` differs (this can happen in particular for precipitation). This option does not change the start/end dates in the rds filenames. 
+- *-skip_aux_plots*: A logical flag to skip calling of `fn_plot_aux_scores` (default=FALSE). Useful for quick runs.
 - *-skip_sid_verif*: A logical flag to skip the SID verification used for generating map scores (default=FALSE). Useful for quick runs.
 - *-skip_thresh_verif*: A logical flag to skip the threshold verification (default=FALSE). This will override whatever is set for thresholds in your parameters file. Useful for quick runs.
 
@@ -63,7 +70,7 @@ By default the script assumes the following verificaiton for surface and upper-a
 
 ### Using the forecast analysis as observations (experimental)
 
-In certain cases you may want to compare model forecasts against model analyses (i.e. forecats at lead time = 0) instead of observations. This can be achieved by using the `verif$model_as_obs` config option along witht he associated name, path, and template options described on the config file section. For example, a typical use case here would be to read model analyses from forecast sqlite files (FCTABLE) at observation stations and then compare the model forecasts at the observation stations against these. All of the workflow proceeds as normal except that the observations are substitued for model analyses at observation stations. Should be considered as an experimental feature. 
+In certain cases you may want to compare model forecasts against model analyses (i.e. forecats at lead time = 0) instead of observations. This can be achieved by using the `verif$model_as_obs` config option along witht he associated name, path, and template options described on the config file section. For example, a typical use case here would be to read model analyses from forecast database at observation stations and then compare the model forecasts at the observation stations against these. All of the workflow proceeds as normal except that the observations are substitued for model analyses at observation stations. Should be considered as an experimental feature. 
 
 ### Output
 
@@ -176,7 +183,7 @@ model_names  <- c("model_A",
 
 then "model_A" will be always be in red and "model_B" will always be in blue i.e. the 1st and 4th colours of the trubetskoy pallete. If some or all of your forecast models are not listed in `model_names`, the colours assoicated with these models will default to the first ones available in the palette. For example, suppose you have forecast models "model_A", "model_B", and "model_C" and `model_names` is set as per the example above. In this case "model_A" will be in red, "model_B" be in blue", and "model_C" will be in green (i.e. the 2nd colour of the trubetskoy pallete, as the 1st colour is already taken by "model_A"). 
 
-### Visualizing the results direcly in atos
+### Visualizing the results direcly on Atos
 It is possible to run the shiny web server directly on atos and open a local browser
 to visualized the results `img_dir` using the `launch_visapp_atos.R` script.
 
