@@ -40,8 +40,21 @@ The current specific lists available are (see the function for SIDs used):
 - DKcoast
 - DKupdated
 - Greenland
+- IcelandRoads
 - NorthSea
 - NNS (North NorthSea)
+- SCDSea 
+- EICK
+- EIDW
+- EINN
+- EIME
+- EIKN
+- MBuoys
+- M2Buoy
+- M3Buoy
+- M4Buoy
+- M5Buoy
+- M6Buoy
 - EstoniaSynop
 - LatviaSynop
 - LithuaniaSynop
@@ -52,6 +65,7 @@ The current specific lists available are (see the function for SIDs used):
 - RussiaInland
 - NorthAmericaInland
 - AirportSynop
+- Coastal_DINI
 - Coastal_All
 
 To use any of these in your config file, simply use e.g.
@@ -69,8 +83,8 @@ domains:
 Domains based on lat/lon bounding boxes are defined in the variable `latlon_reserved_names`, i.e.:
 
 ``` r
-latlon_reserved_names <- c("DINI","IE_EN","IS","NL","NL_OP","DK","IRL","SCD",
-                             "FR","DE","Alps")
+latlon_reserved_names <- c("DINI","IE_EN","IS","NL","NL_OP","DK","IRL","IoI",
+                           "IRL_SEA","IE_EN_2","NL_NS","SCD","FR","DE","Alps")
 ```
 
 The bounding boxes themselves can be found in the function (see therein for north, south, east, and west), e.g.:

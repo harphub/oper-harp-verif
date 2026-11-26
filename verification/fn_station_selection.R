@@ -908,7 +908,6 @@ fn_station_selection <- function(domain_choice = "All_Domains",
       
       read_poly   <- FALSE
       skip_filter <- FALSE
-      poly_file   <- file.path(poly_dir,paste0(domain,".poly"))
       
       # Check for "_ELEVA", "_ELEVB", "_COASTAL", or "_INLAND" flags in domain name
       elevl     <- grepl("_ELEV",domain,fixed = T)
@@ -934,6 +933,8 @@ fn_station_selection <- function(domain_choice = "All_Domains",
         domain_o <- domain
         domain   <- strsplit(domain_o,"_INLAND")[[1]][1]
       }
+      
+      poly_file   <- file.path(poly_dir,paste0(domain,".poly"))
       
       if (domain %in% names(all_station_lists)){
         if (dynamic_gen) {

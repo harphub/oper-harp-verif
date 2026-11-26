@@ -1,11 +1,11 @@
 # Overview
 
 This repo allows users to construct a "standard" set of point verification results using [harp](https://harphub.github.io/harp/), a set of R packages developed within the ACCORD consortium for analysis, verification, and visualisation of NWP data. The typical RRJVSP workflow for deterministic or ensemble experiments is the following:
-- Convert HARMONIE-AROME vfld and vobs files to sqlite tables.  
-- Use the sqlite data to perform point verification using harp over a standard set of groupings (e.g. ``lead_time``, ``SID``) for surface and upper-air parameters.
-- The point verification produces harp ``.rds`` files which can be visualised using ``harpVis::shiny_plot_point_verif``.
+- Convert HARMONIE-AROME vfld and vobs files to sqlite or parquet databases.  
+- Use the databases to perform point verification using harp over a standard set of groupings (e.g. ``lead_time``, ``SID``) for surface and upper-air parameters.
+- The point verification produces harp `.rds` files which can be visualised using `harpVis::shiny_plot_point_verif`.
 - If desired, a set of local png files are also produced for a standard set of verification scores. These pngs can be visualised in the simple shiny app provided in the repo.
-- If desired. produce a scorecard comparing two models. While this functionality is available in the scripts, some care must be taken in the construction and interpretation of scorecards. [See here for more information](https://harphub.github.io/harp-training-2022/scrcard.html). The default configuration settings outlined in these scripts are only indicative.
+- If desired. produce scorecards comparing each model to a reference model. While this functionality is available in the scripts, some care must be taken in the construction and interpretation of scorecards. [See here for more information](https://harphub.github.io/harp-training-2022/scrcard.html). The default configuration settings outlined in these scripts are only indicative.
 
 Little to no prior knowledge of harp is assumed, although users are encouraged to familiarise themselves with harp using the [2022](https://harphub.github.io/harp-training-2022/index.html) and [2024](https://harphub.github.io/harp_training_2024/) training courses. Note that harp provides many more utilites than just NWP verification.
 
@@ -168,26 +168,36 @@ Create a configuration file for your project using the structure provided in the
 | verif | force_valid_thr | Set to TRUE if you really want threshold scores over valid times/hours. FALSE is generally sufficient. | force_valid_thr: FALSE |
 | verif | lt_split | Set to TRUE if you want to split the auxiliary scores (e.g. scatterplots) into "short" (<=24) and "long" (>24) leadtime ranges. Results using all leadtimes will always be generated | lt_split: FALSE |
 | verif | skip_qc | Skip all quality control checks on observations and forecasts. Useful for debugging. Default is FALSE i.e. run the quality control checks. | skip_qc: FALSE |
-| verif | fcst_path    | Path to the forecast sqlite tables generated from the vfld. | fcst_path: "/path/to/FCTABLE" |
+| verif | fcst_path    | Path to the forecast database generated from the vfld (or otherwise). | fcst_path: "/path/to/FCTABLE" |
 | verif | fcst_template | What is the file template to use for the forecast databases. Follows the same logic as members/lags above. Should generally stick to the default file name conventions if possible. Defaults to "fctable". | fcst_template: <br> - "fctable" |
 | verif | fcst_format  | The format of the forecast databases (fctable or fcparquet). Defaults to "fctable" i.e. SQLITE. | fcst_format: "fcparquet" |
 | verif | obs_path     | Path to the observation database. | obs_path: "/path/to/OBSTBALE" |
 | verif | obs_template | What is the file template to use for the observations database. Should generally stick to the default file name conventions if possible. Defaults to "obstable". | obs_template: "obstable" |
 | verif | obs_format   | The format of the observations database (obstable or obsparquet). Defaults to "obstable" i.e. SQLITE. | obs_format: "obsparquet" | 
 | verif | verif_path   | A root directory where the rds verification files are stored. For a given project, these rds files will be located in `verif:verif_path`/`verif:project_name`. | verif_path: "/path/to/rds" |
-| verif | model_as_obs | An extra set of options which indicates that you want to use a forecast model analysis as observations. This will read lead time=0 forecasts from the sqlite. An extra set of options are nested from `model_as_obs`, see example and options below | model_as_obs: <br>  model_as_obs_name: X <br>  model_as_obs_path: X <br>  model_as_obs_by: X <br>  model_as_obs_tmpl: X |
+| verif | model_as_obs | An extra set of options which indicates that you want to use a forecast model analysis as observations. This will read lead time=0 forecasts from the forecast database. An extra set of options are nested from `model_as_obs`, see example and options below | model_as_obs: <br>  model_as_obs_name: X <br>  model_as_obs_path: X <br>  model_as_obs_by: X <br>  model_as_obs_tmpl: X |
 | verif$model_as_obs | model_as_obs_name | The name of the forecast model to read as observations | model_as_obs_name: model_A |
 | verif$model_as_obs | model_as_obs_path | The path to the forecast database to read as observations | model_as_obs_path: "/path/to/FCTABLE" |
 | verif$model_as_obs | model_as_obs_by | The frequency interval to read the forecast database. Defaults to "1h". Not all analysis files are required to exist. | model_as_obs_by: "3h" |
 | verif$model_as_obs | model_as_obs_tmpl | The file template to use for the forcast database to read as observations | model_as_obs_tmpl: "fctable" |
 | verif$model_as_obs | model_as_obs_format | the file format to sue for the forecast database to read as observations. Default is "fctable". | model_as_obs_format: "fctable" |
+| verif | use_climatology | An extra set of options which indicates that you want to add in a model climatology. The climatology should be a pre-computed database covering valid times over an entire year. An extra set of options are nested from `use_climatology`, see example and options below | use_climatology: <br> climatology_name: X <br> climatology_path: X <br> etc |
+| verif$use_climatology | climatology_name | The name of the climatology in the database | climatology_name: model_A_climatology |
+| verif$use_climatology | climatology_path | The path to the climatology database | climatology_path: "/path/to/FCTABLE" | 
+| verif$use_climatology | climatology_year | The year which was used when saving the climatology database | climatology_year: 1990 |
+| verif$use_climatology | climatology_by | The frequency of valid dates available in the climatology database e.g "3h" would mean valid dates at 00, 03, ..., 21Z every day | climatology_by: "1h" |
+| verif$use_climatology | climatology_tmpl | The file template for the climatology database | climatology_tmpl: "fctable" |
+| verif$use_climatology | climatology_format | The file format for the climatology database (sqlite or parquet) | climatology_format: "fctable" | 
+| verif$use_climatology | clim_in_plots | Should the climatology be included in the plots? | clim_in_plots: FALSE |
+| verif$use_climatology | ava_model | What model to use as reference when computing the activity vs accuracy plot. Set to FALSE to not use this | ava_model: FALSE |
+| verif$use_climatology | ava_acc_metric | What metric to use for "accuracy" in the activity vs accuracy plot | ava_acc_metric: "msss" |
 | verif | parallel_read | EXPERIMENTAL! Use the future and furrr packages to allow for parallel reading of the forecast databases. Default is FALSE. | parallel_read: FALSE |
 | verif | parallel_read_c | EXPERIMENTAL! Number of workers to use for parallel_read. | parallel_read_c: 4 |
-| pre   | fcst_model   | Carry out the vfld to sqlite conversion for these forecast models. Note that this can differ from `verif:fcst_model` (e.g. the sqlite tables may already exist for some models, and you may want to skip regenerating these). | fcst_model: <br> - model_A  <br> - model_B | 
+| pre   | fcst_model   | Carry out the vfld to database conversion for these forecast models. Note that this can differ from `verif:fcst_model` (e.g. the forecast database may already exist for some models, and you may want to skip regenerating these). | fcst_model: <br> - model_A  <br> - model_B | 
 | pre   | lead_time    | Which lead times to use when converting the vfld. Can differ from `verif:lead_time`. | lead_time: seq(0,48,1) |
 | pre   | lead_time_batch_size | Divides lead_time in batches of a specific size for processing. This can help to avoid Out of memory problems. | lead_time_batch_size: 7 |
 | pre   | vfld_path    | Path to where the vfld files are stored (note that the full file names to be read are constructed from `pre:vfld_path` and `pre:vfld_template`). The vfld files for each `pre:fcst_model` should exist in this directory. | vfld_path: "/path/to/vfld" |
-| pre   | vfld_by      | Interval (in hours) between cycles to be used when generating the sqlite tables from vfld i.e. read vfld files from `start_date` to `end_date` in steps of `pre:vfld_by`. This can differ from `verif:by_step`. | vfld_by: "3h" |
+| pre   | vfld_by      | Interval (in hours) between cycles to be used when generating the database from vfld i.e. read vfld files from `start_date` to `end_date` in steps of `pre:vfld_by`. This can differ from `verif:by_step`. | vfld_by: "3h" |
 | pre   | vfld_template | The template used to construct the vfld file names. See `harpIO::show_file_templates`. For deterministic/ensemble experiments, the standard choices are “vfld” and "vfld_eps". If different templates are to be used for different forecast models, then include a `pre:vfld_template` entry corresponding to each forecast model. Custom templates can also be created. | Standard: <br> vfld_template: <br> - "det" <br> <br> Custom: <br> vfld_template: <br> -"{fcst_model}/{YYYY}/{MM}/vfld{fcst_model}{YYYY}{MM}{DD}{HH}{LDT2}" | 
 | pre   | fcst_format  | The output format of the forecast database (fctable or fcparquet). Default is fctable i.e. SQLITE. | fcst_format: "fcparquet" |
 | pre   | vobs_path    | Path to where the vobs files are stored. | vobs_path: "/path/to/vobs" |
@@ -197,7 +207,7 @@ Create a configuration file for your project using the structure provided in the
 | pre   | custom_asl_path | Path to a specific HARMONIE-AROME allsynop.list to use when converting the vfld data. If not specified, harp's default stationlist is used (`harpCore::station_list`). | custom_asl_path: "/path/to/allsynop.list" | 
 | pre   | members      | Which members to read for each ensemble. If only one option is set for members, it will be repeated for each `pre:fcst_model`. Set to NULL for a deterministic experiment. Note: this variable is different from `verif:members` as the two can differ in general. | For deterministic models: <br> members: <br> - NULL <br> <br> For ensembles: <br> - seq(0,6) |
 | pre   | lags         | How the ensemble members are lagged for each `pre:fcst_model`. For a given model, `pre:lags` should be the same length as `pre:members`. Include a list if the lags differ for each of the `pre:fcst_model`. Note: this variable is different from `verif:lags` as the notation used for each is different. | For deterministic models: <br> lags: <br> - NULL <br> <br> For ensemble models: <br> lags: <br> - c(0,0,0,0,3,3,3) | 
-| pre   | params       | Which parameters to consider when generating the sqlite tables from vfld. See `harpIO::show_harp_parameters` and `harpIO::harp_params` for recognised vfld parameters in harp. Set to NULL to convert everything found. | params: <br> - T2m <br> - Td2m <br> - T <br> <br> To convert everything found in the vfld: <br> params: <br> - NULL |
+| pre   | params       | Which parameters to consider when generating the database from vfld. See `harpIO::show_harp_parameters` and `harpIO::harp_params` for recognised vfld parameters in harp. Set to NULL to convert everything found. | params: <br> - T2m <br> - Td2m <br> - T <br> <br> To convert everything found in the vfld: <br> params: <br> - NULL |
 | pre   | correct_t2m | Use the `correct_t2m` option in `harpIO::interpolate_opts` | correct_t2m: TRUE |
 | pre   | keep_uncort2m | Use the `keep_model_t2m` option in `harpIO::interpolate_opts` | keep_uncort2m: FALSE |
 | post  | plot_output | A root directory indicating where to save the png files generated during the verification process. For a given project, the png files will be stored in `post:plot_output`/`verif:project_name`. Set to "default" to use `verif:verif_path`/archive. | plot_output: "/path/to/png" |
@@ -238,9 +248,11 @@ verif:
 Note that the config file pointed to by `inherits` should exist in directory `config_files`.
 # Pre-processing
 
-Typically the vfld and vobs files need to be converted to sqlite tables before starting the verification process. 
+Typically the vfld and vobs files need to be converted to databases before starting the verification process. 
 
 ## vfld2sql.R
+
+**Note that the name of this script is somewhat unfortunate - it can convert vfld to both sqlite and paruqet. The file name has not been changed to avoid a breaking change.**
 
 The pre-processing of vfld files in particular can take some time, especially for ensemble experiments. However, the tables only need to be generated once. As such, this step can be skipped once the tables are in place. The `vfld2sql.R` script takes the following command line inputs (required arguments in **bold**, optional arguments are in *italics*):
 
@@ -248,47 +260,62 @@ The pre-processing of vfld files in particular can take some time, especially fo
 - **-start_date**: The first forecast cycle to process (in YYYYMM, YYYYMMDD, or YYYYMMDDHH format (preferred), with no default). If YYYYMM is given then the first day and cycle of the month (i.e. 01/00Z) is assumed. If YYYYMMDD is given then the first cycle (i.e. 00Z) of YYYYMMDD is assumed. 
 - **-end_date**: The last forecast cycle to process (in YYYYMM, YYYYMMDD, or YYYYMMDDHH format (preferred), with no default). If YYYYMM is given then the last day and cycle of the month (i.e. lastday/23Z) is assumed. If YYYYMMDD is given then the last cycle (i.e. 23Z) of YYYYMMDD is assumed. 
 - *-use_custom_asl*: Logical flag to use a custom HARMONIE-AROME allsynop.list (as specified in the config file) when converting the vfld (default=FALSE). This is useful when your vfld files contain more stations than in harp's default list of stations (`harpCore::station_list`). The script will automatically convert the allsynop.list into something readable by harp. If set to `FALSE`, or not specified in the config file, harp's default station list is used. 
-- *-remove_m_elev*: Logical flag to remove writing model elevation to the sqlite files (default=FALSE). This may be useful for ensemble experiments when members have different model elevations. 
+- *-remove_m_elev*: Logical flag to remove writing model elevation to the forecast databases (default=FALSE). This may be useful for ensemble experiments when members have different model elevations. 
 - *-params_list*: A comma separated list of parameters to convert (default="MISSING"). This will override whatever is set for `pre:params` in your config file, which may be useful in certain circumstances. If this argument is not specified then `pre:params` will be used (i.e. the default behaviour).
-- *-use_obs_elev*: Logical flag to use the station elevation from the OBSTABLE (i.e. `verif:obs_path`) when performing the height correction for T2m or Ps (surface pressure). This option is included as the observation station elevation can differ significantly from that in a stations file (e.g. an "allsynop.list" file or harp's default `harpCore::station_list`). Set to FALSE by default i.e. just use the elevation from the stations file. 
+- *-use_obs_elev*: Logical flag to use the station elevation from the OBSTABLE (i.e. `verif:obs_path`) when performing the height correction for T2m or Ps (surface pressure). This option is included as the observation station elevation can differ significantly from that in a stations file (e.g. an "allsynop.list" file or harp's default `harpCore::station_list`). Set to FALSE by default i.e. just use the elevation from the stations file, however this flag should be activated to get the most accurate correcton of Ps in particular.
 
 Typical usage:
 ``` 
 ./vfld2sql.R -config_file config_files/config_det_example.yml -start_date YYYYMMDDHH -end_date YYYYMMDDHH -use_custom_asl TRUE -remove_m_elev TRUE
 ```
-This converts all cycles from `start_date` to `end_date` in steps of `pre:vfld_by` (in the config file). By default the output sqlite files are stored in:
+This converts all cycles from `start_date` to `end_date` in steps of `pre:vfld_by` (in the config file). If using sqlite as the forecast database format, by default the output files are stored in:
 ```
 {verif:fcst_path}/{pre:fcst_model}/{YYYY}/{MM}/FCTABLE_{parameter}_{YYYY}{MM}_{HH}.sqlite
+```
+while for parquet:
+```
+{verif:fcst_path}/{pre:fcst_model}/{parameter}
 ```
 for each {parameter} in `pre:params` (or for every parameter in the vfld if `pre:params = NULL`).
 
 ## vobs2sql.R
 
-Similarly, to create the observation sqlite tables run:
+**Note that the name of this script is somewhat unfortunate - it can convert vobs to both sqlite and paruqet. The file name has not been changed to avoid a breaking change.**
+
+Similarly, to create the observation database run:
 ``` 
 ./vobs2sql.R -config_file config_files/config_det_example.yml -start_date YYYYMMDDHH -end_date YYYYMMDDHH 
 ```
-Note that the start and end dates here correspond to valid times (and thus end_date should extend beyond the last forecast cycle converted). By default the output sqlite files are stored in:
+Note that the start and end dates here correspond to valid times (and thus end_date should extend beyond the last forecast cycle converted). If using sqlite as the observation database format, by default the output sqlite files are stored in:
 ```
 {verif:obs_path}/OBSTABLE_{YYYY}.sqlite
 ```
-This OBSTABLE will contain all observations available in the vobs files.
+while for parquet:
+```{verif:obs_path}/valid_year={YYYY}
+```
+This observation database will contain all observations available in the vobs files.
 
 # Point verification
 
-Once the configuration file is set and the sqlite tables are created, the point verification can be carried out. 
+Once the configuration file is set and the forecast and observation databases are created, the point verification can be carried out. 
 
 ## set_params.R
 
 This parameter list file is used to specify the parameters considered by the `point_verif.R` script and their associated options, in particular:
-- **scale_fcst**: Forecast scaling (e.g. Kelvin to degress). If you only want to apply the forecast scaling to certain models in `verif:fcst_model` for certain paramters, this can be controlled by the flag `models_to_scale` in your parameter list file (e.g. set_params.R, see below).
+- **scale_fcst**: Forecast scaling (e.g. Kelvin to degress). If you only want to apply the forecast scaling to certain models in `verif:fcst_model` for certain paramters, this can be controlled by the flag `models_to_scale` in your parameter list file (e.g. set_params.R, see below). If you need to apply several different forecast scalings, e.g. "Model_A" scaled by X, "Model_B" scaled by Y, and "Model_C" scaled by Z, then you need to use the combination of options `scale_fcst_specific` and `scale_fcst_rest`, see below.
 - **scale_obs**: Observation scaling.
 - **thresholds**: Thresholds used when computing threshold skill scores. You can set this to "default" to use the built-in thresholds (which exist for most parameters and units, see the function `get_param_classes` in `visualization/fn_plot_helpers.R`). 
 - **obsmin/max_val**: Max/min observation values allowed.
 - **fctmax_val**: Max forecast values allowed (experimental).
 - **error_sd**: Number of standard deviations used in `harpPoint::check_obs_against_fcst`.
-- **comparator**: The comparator to use when computing the threshold skill scores. Only relevant if you are using harp v0.3+ where this option was first introduced. For older version of harp, this comparator option will do nothing and the threshold skill scores will be computed using the "greater than" comparator (i.e. the default before harp v0.3). See `harpPoint::det_verify` for the possible options. Note that if you are using `comparator=between` (i.e. what you would do for generating scores as a function of classes) then the scripting assumes that `thresholds` is a sequence of bounds for the classes. If this options is `NULL` or missing from the parameters file, the default used is "greater than or equal to".
-- **models_to_scale**: What specific models to scale using `scale_fcst` for this parameter. If missing or NULL for a given parameter, the same scaling will be applied to all models specified by `verif:fcst_model` in the config file if `scale_fcst` is specified. If `models_to_scale` contains a model which is not found in the forecast data, the `point_verif.R` script will abort. For example, suppose you read in two models ("Model_A" and "Model_B") and you only want to scale "Model_A" for T2m and "Model_B" for S10m. Then you should add `models_to_scale = c("Model_A")` under the T2m list and `models_to_scale=c("Model_B")` under the S10m list. For all other parameters where `scale_fcst` is specified, the same scaling will be applied to both "Model_A" and "Model_B". 
+- **comparator**: The comparator to use when computing the threshold skill scores. Only relevant if you are using harp v0.3+ where this option was first introduced. For older version of harp, this comparator option will do nothing and the threshold skill scores will be computed using the "greater than" comparator (i.e. the default before harp v0.3). See `harpPoint::det_verify` for the possible options. Note that if you are using `comparator=between` (i.e. what you would do for generating scores as a function of classes) then the scripting assumes that `thresholds` is a sequence of bounds for the classes. If this options is `NULL` or missing from the parameters file, the defauly used is "greater than or equal to".
+- **models_to_scale**: What specific models to scale using `scale_fcst` for this parameter. If missing or NULL for a given parameter, the same scaling will be applied to all models specified by `verif:fcst_model` in the config file if `scale_fcst` is specified. If `models_to_scale` contains a model which is not found in the forecast data, the `point_verif.R` script will issue a warning. For example, suppose you read in two models ("Model_A" and "Model_B") and you only want to scale "Model_A" for T2m and "Model_B" for S10m. Then you should add `models_to_scale = c("Model_A")` under the T2m list and `models_to_scale=c("Model_B")` under the S10m list. For all other parameters where `scale_fcst` is specified, the same scaling will be applied to both "Model_A" and "Model_B". Note that `models_to_scale` is only useful if you have a single forecast scaling to apply across one or more models. In the case where you need to apply several different forecast scalings e.g. "Model_A" scaled by X, "Model_B" scaled by Y, and "Model_C" scaled by Z, then `models_to_scale` is not sufficient. You need to use `scale_fcst_specific` and `scale_fcst_rest`, see below.
+- **scale_fcst_specific** and **scale_fcst_rest**: If applied these options must be used in combination; if one is found and not the other then `point_verif.R` will abort. `scale_fcst_specific` should be an explicit list of forecast scalings to be applied to certain models, while `scale_fcst_rest` is the scaling which should be applied to all other models which are not listed in `scale_fcst_specific`. If you do not need to apply a scaling to the `rest` models, simply just scale by 1. See example below. As usual scaling is applied on a per-parameter bais.
+```r
+scale_fcst_specific = list("Model_A" = list(scaling = 10, new_units = "new_unit", mult = TRUE),
+                           "Model_B" = list(scaling = 100, new_units = "new_unit", mult = TRUE)),
+scale_fcst_rest = list(scaling = 1, new_units = "new_unit", mult = TRUE)
+```
 - **vc**: The vertical coordinate. This is required to recognise upper-air variables over multiple levels e.g. `vc=pressure` for parameter `T`. For surface variables (e.g. T2m) or for a single level (e.g. T925), there is no need to set `vc`.
 
 Typically this file does not need to be changed. By default `point_verif.R` reads parameter options from this file, but a custom parameter file can also be used by passing the `-params_file` option to `point_verif.R`. 
@@ -311,6 +338,7 @@ This script takes the following command line inputs (required arguments in **bol
 - *-rolling_verif*: A logcial flag to indicate "rolling" verification (default=FALSE). If TRUE, rolling verification will produce a reduced set of png files and will not produce rds files or scorecards. Generally rolling verification is restricted to a "short" (e.g. 7 days) near-real time period. This option is not compatible with `gen_sc_only=TRUE`. 
 - *-gen_sc_only*: A logical flag to run scorecard generation (and plotting) only (default=FALSE). This may be useful in cases where point verification results have already been generated. This option is not compatible with `rolling_verif=TRUE`. 
 - *-use_fixed_dates*: A logical flag to use the input `start_date` and `end_date` when naming the directories and png files associated with this verification (default=TRUE). If set to FALSE, the data generated will use start and end dates corresponding to the first and last `fcst_dttm`, respectively, used in the verification for a given parameter. Therefore if set to FALSE, data may be stored in different directories for different parameters if the first and last `fcst_dttm` differs (this can happen in particular for precipitation). This option does not change the start/end dates in the rds filenames. 
+- *-skip_aux_plots*: A logical flag to skip calling of `fn_plot_aux_scores` (default=FALSE). Useful for quick runs.
 - *-skip_sid_verif*: A logical flag to skip the SID verification used for generating map scores (default=FALSE). Useful for quick runs.
 - *-skip_thresh_verif*: A logical flag to skip the threshold verification (default=FALSE). This will override whatever is set for thresholds in your parameters file. Useful for quick runs.
 
@@ -339,7 +367,7 @@ By default the script assumes the following verificaiton for surface and upper-a
 
 ### Using the forecast analysis as observations (experimental)
 
-In certain cases you may want to compare model forecasts against model analyses (i.e. forecats at lead time = 0) instead of observations. This can be achieved by using the `verif$model_as_obs` config option along witht he associated name, path, and template options described on the config file section. For example, a typical use case here would be to read model analyses from forecast sqlite files (FCTABLE) at observation stations and then compare the model forecasts at the observation stations against these. All of the workflow proceeds as normal except that the observations are substitued for model analyses at observation stations. Should be considered as an experimental feature. 
+In certain cases you may want to compare model forecasts against model analyses (i.e. forecats at lead time = 0) instead of observations. This can be achieved by using the `verif$model_as_obs` config option along witht he associated name, path, and template options described on the config file section. For example, a typical use case here would be to read model analyses from forecast database at observation stations and then compare the model forecasts at the observation stations against these. All of the workflow proceeds as normal except that the observations are substitued for model analyses at observation stations. Should be considered as an experimental feature. 
 
 ### Output
 
@@ -452,7 +480,7 @@ model_names  <- c("model_A",
 
 then "model_A" will be always be in red and "model_B" will always be in blue i.e. the 1st and 4th colours of the trubetskoy pallete. If some or all of your forecast models are not listed in `model_names`, the colours assoicated with these models will default to the first ones available in the palette. For example, suppose you have forecast models "model_A", "model_B", and "model_C" and `model_names` is set as per the example above. In this case "model_A" will be in red, "model_B" be in blue", and "model_C" will be in green (i.e. the 2nd colour of the trubetskoy pallete, as the 1st colour is already taken by "model_A"). 
 
-### Visualizing the results direcly in atos
+### Visualizing the results direcly on Atos
 It is possible to run the shiny web server directly on atos and open a local browser
 to visualized the results `img_dir` using the `launch_visapp_atos.R` script.
 
@@ -523,8 +551,21 @@ The current specific lists available are (see the function for SIDs used):
 - DKcoast
 - DKupdated
 - Greenland
+- IcelandRoads
 - NorthSea
 - NNS (North NorthSea)
+- SCDSea 
+- EICK
+- EIDW
+- EINN
+- EIME
+- EIKN
+- MBuoys
+- M2Buoy
+- M3Buoy
+- M4Buoy
+- M5Buoy
+- M6Buoy
 - EstoniaSynop
 - LatviaSynop
 - LithuaniaSynop
@@ -535,6 +576,7 @@ The current specific lists available are (see the function for SIDs used):
 - RussiaInland
 - NorthAmericaInland
 - AirportSynop
+- Coastal_DINI
 - Coastal_All
 
 To use any of these in your config file, simply use e.g.
@@ -552,8 +594,8 @@ domains:
 Domains based on lat/lon bounding boxes are defined in the variable `latlon_reserved_names`, i.e.:
 
 ``` r
-latlon_reserved_names <- c("DINI","IE_EN","IS","NL","NL_OP","DK","IRL","SCD",
-                             "FR","DE","Alps")
+latlon_reserved_names <- c("DINI","IE_EN","IS","NL","NL_OP","DK","IRL","IoI",
+                           "IRL_SEA","IE_EN_2","NL_NS","SCD","FR","DE","Alps")
 ```
 
 The bounding boxes themselves can be found in the function (see therein for north, south, east, and west), e.g.:
